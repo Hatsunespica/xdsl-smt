@@ -186,12 +186,135 @@ def parse_file(ctx: MLContext, file: str | None) -> Operation:
     module = parser.parse_op()
     return module
 
-def get_init_program(func: FuncOp, len: int) -> FuncOp:
 
+def get_valid_bool_operands(ops: [Operation], x: int) -> ([Operation], int):
+    """
+    Get operations that before ops[x] so that can serve as operands
+    """
+    bool_ops = [op for op in ops[:x] if op.results[0].type == i1]
+    bool_count = len(bool_ops)
+    assert bool_count > 0
+    return bool_ops, bool_count
+
+
+def get_valid_int_operands(ops: [Operation], x: int) -> ([Operation], int):
+    """
+    Get operations that before ops[x] so that can serve as operands
+    """
+    int_ops = [op for op in ops[:x] if op.results[0].type == IntegerType(4)]
+    int_count = len(int_ops)
+    assert int_count > 0
+    return int_ops, int_count
+
+
+def replace_entire_operation(ops: [Operation]) -> (Operation, Operation, float):
+    """
+    Random pick a opertion and replace it with a new one
+    """
+    idx = random.randrange(len(ops) - 4) + 4
+    old_op = ops[idx]
+    new_op = None
+
+    forward_prob = 0
+    backward_prob = 0
+
+    (int_operands, num_int_operands) = get_valid_int_operands(ops, idx)
+    (bool_operands, num_bool_operands) = get_valid_bool_operands(ops, idx)
+
+    def calculate_operand_prob(op: Operation) -> int:
+        ret = 1
+        for operand in op.operands:
+            if operand.type == IntegerType(4):
+                ret = ret * num_int_operands
+            elif operand.type == i1:
+                ret = ret * num_bool_operands
+        return ret
+
+    if old_op.results[0].type == i1:  # bool
+        candidate = [AndI.name, OrI.name, XOrI.name]
+        if old_op.name in candidate:
+            candidate.remove(old_op.name)
+        opcode = random.choice(candidate)
+        op1 = random.choice(bool_operands)
+        op2 = random.choice(bool_operands)
+        if opcode == AndI.name:
+            new_op = AndI(op1, op2)
+        elif opcode == OrI.name:
+            new_op = OrI(op1, op2)
+        elif opcode == XOrI.name:
+            new_op = XOrI(op1, op2)
+
+        forward_prob = calculate_operand_prob(old_op)
+        backward_prob = calculate_operand_prob(new_op)
+
+    else:  # integer
+        candidate = [AndI.name, OrI.name, XOrI.name, Select.name]
+        if old_op.name in candidate:
+            candidate.remove(old_op.name)
+        opcode = random.choice(candidate)
+        op1 = random.choice(int_operands)
+        op2 = random.choice(int_operands)
+        if opcode == AndI.name:
+            new_op = AndI(op1, op2)
+        elif opcode == OrI.name:
+            new_op = OrI(op1, op2)
+        elif opcode == XOrI.name:
+            new_op = XOrI(op1, op2)
+        else:
+            cond = random.choice(bool_operands)
+            new_op = Select(cond, op1, op2)
+
+        forward_prob = calculate_operand_prob(old_op)
+        backward_prob = calculate_operand_prob(new_op)
+
+    return old_op, new_op, forward_prob / backward_prob
+
+
+def replace_operand():
+    pass
+
+
+def sample_next(func: FuncOp) -> (FuncOp, float):
+    """
+    Sample the next program.
+    Return the new program with the proposal ratio.
+    """
+    ops = list(func.body.block.ops)
+
+    if 1:
+        old_op, new_op, ratio = replace_entire_operation(ops)
+        # print(f"old: {old_op}\n new: {new_op} \n ratio: {ratio}")
+        func.body.block.insert_op_before(new_op, old_op)
+        old_op.results[0].replace_by(new_op.results[0])
+        func.body.block.detach_op(old_op)
+
+
+    else:
+        replace_operand()
+        ratio = 1
+
+    return func, ratio
+
+
+def get_init_program(func: FuncOp, len: int) -> FuncOp:
     block = func.body.block
 
     for op in block.ops:
         block.detach_op(op)
+
+    true: Constant = Constant(IntegerAttr.from_int_and_width(1, 1), i1)
+    false: Constant = Constant(IntegerAttr.from_int_and_width(0, 1), i1)
+    zero: Constant = Constant(IntegerAttr.from_int_and_width(0, 4), IntegerType(4))
+    one: Constant = Constant(IntegerAttr.from_int_and_width(1, 4), IntegerType(4))
+    block.add_op(true)
+    block.add_op(false)
+    block.add_op(zero)
+    block.add_op(one)
+    for i in range(len // 2):
+        nop_bool: Constant = AndI(true, true)
+        nop_int: Constant = AndI(zero, zero)
+        block.add_op(nop_bool)
+        block.add_op(nop_int)
 
     return func
 
@@ -216,19 +339,13 @@ def main() -> None:
     # Parse the files
     module = parse_file(ctx, args.transfer_functions)
     assert isinstance(module, ModuleOp)
+    assert isinstance(module.ops.first, FuncOp)
 
-    # assert isinstance(module.ops.first, FuncOp)
+    func = get_init_program(module.ops.first, 12)
+    for i in range(5):
+        func, _ = sample_next(func)
 
-    func = get_init_program(module.ops.first, 0)
-
-
-
-    # todo: construct an empty program
-
-    # for op in module.ops:
-    #     if isinstance(op, FuncOp):
-    #         example_replace_bitwise_operation(op)
-    print(func)
+    print(module)
 
 
 if __name__ == "__main__":
