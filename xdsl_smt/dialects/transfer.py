@@ -17,6 +17,7 @@ from xdsl.ir import (
     OpResult,
     Region,
     Attribute,
+    SSAValue,
 )
 from xdsl.utils.hints import isa
 
@@ -118,6 +119,15 @@ class UnaryOp(IRDLOperation, InferResultTypeInterface, ABC):
             case _:
                 raise VerifyException("Unary operation expects exactly one operand")
 
+    def __init__(
+        self,
+        op: SSAValue,
+    ):
+        super().__init__(
+            operands=[op],
+            result_types=[op.type],
+        )
+
 
 @irdl_op_definition
 class NegOp(UnaryOp):
@@ -146,6 +156,16 @@ class BinOp(IRDLOperation, InferResultTypeInterface, ABC):
             case _:
                 raise VerifyException("Bin operation expects exactly two operands")
 
+    def __init__(
+        self,
+        lhs: SSAValue,
+        rhs: SSAValue,
+    ):
+        super().__init__(
+            operands=[lhs, rhs],
+            result_types=[lhs.type],
+        )
+
 
 class PredicateOp(IRDLOperation, InferResultTypeInterface, ABC):
     T = Annotated[TransIntegerType | IntegerType, ConstraintVar("T")]
@@ -163,6 +183,16 @@ class PredicateOp(IRDLOperation, InferResultTypeInterface, ABC):
                 return [i1]
             case _:
                 raise VerifyException("Bin operation expects exactly two operands")
+
+    def __init__(
+        self,
+        lhs: SSAValue,
+        rhs: SSAValue,
+    ):
+        super().__init__(
+            operands=[lhs, rhs],
+            result_types=[i1],
+        )
 
 
 @irdl_op_definition
@@ -296,9 +326,20 @@ class ExtractOp(IRDLOperation):
     bitPosition: Operand = operand_def(T)
     result: OpResult = result_def(T)
 
+    def __init__(
+        self,
+        val: SSAValue,
+        numBits: SSAValue,
+        bitPosition: SSAValue,
+    ):
+        super().__init__(
+            operands=[val, numBits, bitPosition],
+            result_types=[val.type],
+        )
+
 
 @irdl_op_definition
-class GetLowBitsOp(IRDLOperation):
+class GetLowBitsOp(BinOp):
     name = "transfer.get_low_bits"
 
     T = Annotated[TransIntegerType | IntegerType, ConstraintVar("T")]
@@ -309,7 +350,7 @@ class GetLowBitsOp(IRDLOperation):
 
 
 @irdl_op_definition
-class SetHighBitsOp(IRDLOperation):
+class SetHighBitsOp(BinOp):
     name = "transfer.set_high_bits"
 
     T = Annotated[TransIntegerType | IntegerType, ConstraintVar("T")]
@@ -320,7 +361,7 @@ class SetHighBitsOp(IRDLOperation):
 
 
 @irdl_op_definition
-class SetLowBitsOp(IRDLOperation):
+class SetLowBitsOp(BinOp):
     name = "transfer.set_low_bits"
 
     T = Annotated[TransIntegerType | IntegerType, ConstraintVar("T")]
@@ -331,7 +372,7 @@ class SetLowBitsOp(IRDLOperation):
 
 
 @irdl_op_definition
-class SetSignBitOp(IRDLOperation):
+class SetSignBitOp(BinOp):
     name = "transfer.set_sign_bit"
 
     T = Annotated[TransIntegerType | IntegerType, ConstraintVar("T")]
@@ -350,6 +391,15 @@ class IsPowerOf2Op(IRDLOperation):
     val: Operand = operand_def(T)
     result: OpResult = result_def(i1)
 
+    def __init__(
+        self,
+        val: SSAValue,
+    ):
+        super().__init__(
+            operands=[val],
+            result_types=[i1],
+        )
+
 
 @irdl_op_definition
 class IsAllOnesOp(IRDLOperation):
@@ -359,6 +409,15 @@ class IsAllOnesOp(IRDLOperation):
 
     val: Operand = operand_def(T)
     result: OpResult = result_def(i1)
+
+    def __init__(
+        self,
+        val: SSAValue,
+    ):
+        super().__init__(
+            operands=[val],
+            result_types=[i1],
+        )
 
 
 @irdl_op_definition
@@ -471,6 +530,17 @@ class SelectOp(IRDLOperation):
     false_value: Operand = operand_def(T)
     result: OpResult = result_def(T)
 
+    def __init__(
+        self,
+        cond: SSAValue,
+        true_value: SSAValue,
+        false_value: SSAValue,
+    ):
+        super().__init__(
+            operands=[cond, true_value, false_value],
+            result_types=[true_value.type],
+        )
+
 
 @irdl_op_definition
 class NextLoopOp(IRDLOperation):
@@ -538,7 +608,7 @@ class ConstRangeForOp(IRDLOperation):
 
 
 @irdl_op_definition
-class GetAllOnesOp(IRDLOperation, InferResultTypeInterface):
+class GetAllOnesOp(UnaryOp):
     """
     A special case of constant, return a bit vector with all bits set
     """
