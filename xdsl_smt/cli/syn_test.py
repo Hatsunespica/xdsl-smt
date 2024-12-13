@@ -6,6 +6,7 @@ from xdsl.parser import Parser
 
 from io import StringIO
 
+from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
 from xdsl_smt.dialects import transfer
@@ -124,10 +125,12 @@ def get_valid_int_operands(ops: [Operation], x: int) -> ([Operation], int):
     return int_ops, int_count
 
 
-def replace_entire_operation(ops: [Operation], modifiable_indices: [int]) -> (Operation, Operation, float):
+def replace_entire_operation(ops: [Operation]) -> (Operation, Operation, float):
     """
     Random pick an operation and replace it with a new one
     """
+    modifiable_indices = range(6, len(ops) - 2)
+
     idx = random.choice(modifiable_indices)
     old_op = ops[idx]
     new_op = None
@@ -136,7 +139,6 @@ def replace_entire_operation(ops: [Operation], modifiable_indices: [int]) -> (Op
     (bool_operands, num_bool_operands) = get_valid_bool_operands(ops, idx)
 
     def calculate_operand_prob(op: Operation) -> int:
-        # todo: fix it
         ret = 1
         for operand in op.operands:
             if operand.type == IntegerType(4):
@@ -165,8 +167,7 @@ def replace_entire_operation(ops: [Operation], modifiable_indices: [int]) -> (Op
         forward_prob = calculate_operand_prob(old_op)
         backward_prob = calculate_operand_prob(new_op)
 
-    else:  # integer
-        assert isinstance(old_op.results[0].type, TransIntegerType)
+    elif isinstance(old_op.results[0].type, TransIntegerType):  # integer
         candidate = [AndOp.name, OrOp.name, XorOp.name, SelectOp.name]
         if old_op.name in candidate:
             candidate.remove(old_op.name)
@@ -186,10 +187,18 @@ def replace_entire_operation(ops: [Operation], modifiable_indices: [int]) -> (Op
         forward_prob = calculate_operand_prob(old_op)
         backward_prob = calculate_operand_prob(new_op)
 
-    return old_op, new_op, forward_prob / backward_prob
+    else:
+        raise VerifyException(
+            "Unexpected result type {}".format(old_op.results[0].type)
+        )
+
+    return old_op, new_op, backward_prob / forward_prob
 
 
-def replace_operand(ops: [Operation], modifiable_indices: [int]) -> float:
+def replace_operand(ops: [Operation]) -> float:
+    modifiable_indices = [i for i, op in enumerate(ops[6:-1], start=6) if
+                      op.operands and not isinstance(op, transfer.Constant)]
+    assert modifiable_indices
     idx = random.choice(modifiable_indices)
     op = ops[idx]
     (int_operands, num_int_operands) = get_valid_int_operands(ops, idx)
@@ -200,12 +209,16 @@ def replace_operand(ops: [Operation], modifiable_indices: [int]) -> float:
         new_operand = random.choice(bool_operands)
     elif isinstance(op.operands[ith].type, TransIntegerType):
         new_operand = random.choice(int_operands)
+    else:
+        raise VerifyException(
+            "Unexpected operand type {}".format(op.operands[ith].type)
+        )
+
     # print(f'modifying op: {idx}' )
     # print(f'old operand: {op.operands[ith]}')
     # print(f'new operand: {new_operand}')
     op.operands[ith] = new_operand
     return 1
-
 
 def sample_next(func: FuncOp) -> (FuncOp, float):
     """
@@ -215,36 +228,38 @@ def sample_next(func: FuncOp) -> (FuncOp, float):
     ops = list(func.body.block.ops)
 
     while 1:
-        sample_model = random.randrange(4)
-        if sample_model == 0:
-            modifiable_ops = range(6, len(ops) - 2)
-            old_op, new_op, ratio = replace_entire_operation(ops, modifiable_ops)
+        sample_mode = random.randrange(2)
+        if sample_mode == 0:
+            # replace an operation with a new operation
+            old_op, new_op, ratio = replace_entire_operation(ops)
             func.body.block.insert_op_before(new_op, old_op)
             if len(old_op.results) > 0 and len(new_op.results) > 0:
                 old_op.results[0].replace_by(new_op.results[0])
             func.body.block.detach_op(old_op)
 
 
+        elif sample_mode == 1:
+            # replace an operand in an operand
+            ratio = replace_operand(ops)
+
+        elif sample_mode == 2:
+            # todo: replace NOP with an operations
+            ratio = 1
         else:
-            modifiable_ops = [i for i, op in enumerate(ops[6:-1], start=6) if
-                              op.operands and not isinstance(op, transfer.Constant)]
-            if not modifiable_ops:
-                continue
-            else:
-                ratio = replace_operand(ops, modifiable_ops)
+            # todo: replace an operations with NOP
+            ratio = 1
         break
 
     return func, ratio
 
 
-def get_init_program(func: FuncOp, length: int) -> FuncOp:
+def construct_init_program(func: FuncOp, length: int) -> FuncOp:
     block = func.body.block
 
     for op in block.ops:
         block.detach_op(op)
 
     # Part I: Constants
-
     true: arith.Constant = arith.Constant(IntegerAttr.from_int_and_width(1, 1), i1)
     false: arith.Constant = arith.Constant(IntegerAttr.from_int_and_width(0, 1), i1)
     # zero: Constant = Constant(IntegerAttr.from_int_and_width(0, 4), IntegerType(4))
@@ -263,9 +278,12 @@ def get_init_program(func: FuncOp, length: int) -> FuncOp:
 
     # Part III: Main Body
     tmp_int_ssavalue = block.last_op.results[0]
+    tmp_bool_ssavalue = true.results[0]
     for i in range(length // 2):
-        nop_bool = arith.Constant(IntegerAttr.from_int_and_width(1, 1), i1)
-        nop_int = transfer.Constant(tmp_int_ssavalue, 0)
+        # nop_bool = arith.Constant(IntegerAttr.from_int_and_width(1, 1), i1)
+        # nop_int = transfer.Constant(tmp_int_ssavalue, 0)
+        nop_bool = arith.AndI(tmp_bool_ssavalue, tmp_bool_ssavalue)
+        nop_int = transfer.AndOp(tmp_int_ssavalue, tmp_bool_ssavalue)
         block.add_op(nop_bool)
         block.add_op(nop_int)
 
@@ -309,12 +327,10 @@ def main() -> None:
     assert isinstance(module, ModuleOp)
     assert isinstance(module.ops.first, FuncOp)
 
-    print(module)
-
     random.seed(44)
-    func = get_init_program(module.ops.first, 8)
-    for i in range(10):
-        print(f'Sample {i}:{func}')
+    func = construct_init_program(module.ops.first, 8)
+    for i in range(100):
+        print(f'Round {i}:{func}')
         func, _ = sample_next(func)
 
     print(module)
