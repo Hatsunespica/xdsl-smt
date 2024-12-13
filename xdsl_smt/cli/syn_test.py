@@ -21,7 +21,7 @@ from ..dialects.smt_bitvector_dialect import (
 from xdsl_smt.dialects.transfer import (
     AbstractValueType,
     TransIntegerType,
-    TupleType, GetOp, SelectOp, AndOp, OrOp, XorOp, CmpOp,
+    TupleType, GetOp, SelectOp, AndOp, OrOp, XorOp, CmpOp, MakeOp
 )
 from ..dialects.index_dialect import Index
 from ..dialects.smt_utils_dialect import SMTUtilsDialect
@@ -102,7 +102,10 @@ def get_valid_bool_operands(ops: [Operation], x: int) -> ([Operation], int):
     """
     Get operations that before ops[x] so that can serve as operands
     """
-    bool_ops = [op for op in ops[:x] if len(op.results) > 0 and op.results[0].type == i1]
+    bool_ops = [result
+                for op in ops[:x]
+                for result in op.results
+                if result.type == i1]
     bool_count = len(bool_ops)
     assert bool_count > 0
     return bool_ops, bool_count
@@ -112,7 +115,10 @@ def get_valid_int_operands(ops: [Operation], x: int) -> ([Operation], int):
     """
     Get operations that before ops[x] so that can serve as operands
     """
-    int_ops = [op for op in ops[:x] if len(op.results) > 0 and isinstance(op.results[0].type, TransIntegerType)]
+    int_ops = [result
+               for op in ops[:x]
+               for result in op.results
+               if isinstance(op.results[0].type, TransIntegerType)]
     int_count = len(int_ops)
     assert int_count > 0
     return int_ops, int_count
@@ -154,8 +160,7 @@ def replace_entire_operation(ops: [Operation], modifiable_indices: [int]) -> (Op
             predicate = random.randrange(len(CmpOpSemantics.new_ops))
             int_op1 = random.choice(int_operands)
             int_op2 = random.choice(int_operands)
-            new_op = CmpOp(operands=[int_op1, int_op2], attributes={"predicate": IntegerAttr(predicate, IndexType())},
-                           result_types=[i1])
+            new_op = CmpOp(int_op1, int_op2, predicate)
 
         forward_prob = calculate_operand_prob(old_op)
         backward_prob = calculate_operand_prob(new_op)
@@ -169,14 +174,14 @@ def replace_entire_operation(ops: [Operation], modifiable_indices: [int]) -> (Op
         op1 = random.choice(int_operands)
         op2 = random.choice(int_operands)
         if opcode == AndOp.name:
-            new_op = AndOp(operands=[op1, op2], result_types=[op1.results[0].type])
+            new_op = AndOp(op1, op2)
         elif opcode == OrOp.name:
-            new_op = OrOp(operands=[op1, op2], result_types=[op1.results[0].type])
+            new_op = OrOp(op1, op2)
         elif opcode == XorOp.name:
-            new_op = XorOp(operands=[op1, op2], result_types=[op1.results[0].type])
+            new_op = XorOp(op1, op2)
         else:
             cond = random.choice(bool_operands)
-            new_op = SelectOp(operands=[cond, op1, op2], result_types=[op1.results[0].type])
+            new_op = SelectOp(cond, op1, op2)
 
         forward_prob = calculate_operand_prob(old_op)
         backward_prob = calculate_operand_prob(new_op)
@@ -192,11 +197,14 @@ def replace_operand(ops: [Operation], modifiable_indices: [int]) -> float:
 
     ith = random.randrange(len(op.operands))
     if op.operands[ith].type == i1:
-        op.operands[ith] = random.choice(bool_operands)
-    elif isinstance(op.results[0].type, TransIntegerType):
-        # op.operands[ith] = random.choice(int_operands)
-        pass
-    pass
+        new_operand = random.choice(bool_operands)
+    elif isinstance(op.operands[ith].type, TransIntegerType):
+        new_operand = random.choice(int_operands)
+    # print(f'modifying op: {idx}' )
+    # print(f'old operand: {op.operands[ith]}')
+    # print(f'new operand: {new_operand}')
+    op.operands[ith] = new_operand
+    return 1
 
 
 def sample_next(func: FuncOp) -> (FuncOp, float):
@@ -209,9 +217,8 @@ def sample_next(func: FuncOp) -> (FuncOp, float):
     while 1:
         sample_model = random.randrange(4)
         if sample_model == 0:
-            modifiable_ops = range(6, len(ops))
+            modifiable_ops = range(6, len(ops) - 2)
             old_op, new_op, ratio = replace_entire_operation(ops, modifiable_ops)
-            # print(f"old: {old_op}\n new: {new_op} \n ratio: {ratio}")
             func.body.block.insert_op_before(new_op, old_op)
             if len(old_op.results) > 0 and len(new_op.results) > 0:
                 old_op.results[0].replace_by(new_op.results[0])
@@ -219,23 +226,24 @@ def sample_next(func: FuncOp) -> (FuncOp, float):
 
 
         else:
-            modifiable_ops = [i for i, op in enumerate(ops[6:], start=6) if bool(op.operands)]
+            modifiable_ops = [i for i, op in enumerate(ops[6:-1], start=6) if
+                              op.operands and not isinstance(op, transfer.Constant)]
             if not modifiable_ops:
                 continue
             else:
-                ratio = 1
-                # todo: fix the following function
-                # ratio = replace_operand(ops, modifiable_ops)
+                ratio = replace_operand(ops, modifiable_ops)
         break
 
     return func, ratio
 
 
-def get_init_program(func: FuncOp, len: int) -> FuncOp:
+def get_init_program(func: FuncOp, length: int) -> FuncOp:
     block = func.body.block
 
     for op in block.ops:
         block.detach_op(op)
+
+    # Part I: Constants
 
     true: arith.Constant = arith.Constant(IntegerAttr.from_int_and_width(1, 1), i1)
     false: arith.Constant = arith.Constant(IntegerAttr.from_int_and_width(0, 1), i1)
@@ -246,19 +254,36 @@ def get_init_program(func: FuncOp, len: int) -> FuncOp:
     # block.add_op(zero)
     # block.add_op(one)
 
-    for arg in func.body.block.args:
+    # Part II: GetOp
+    for arg in block.args:
         if isinstance(arg.type, AbstractValueType):
             for i, field_type in enumerate(arg.type.get_fields()):
                 op = GetOp(operands=[arg], attributes={"index": IntegerAttr(i, IndexType())}, result_types=[field_type])
                 block.add_op(op)
 
-    tmp_int_op = block.last_op.results[0]
-    for i in range(len // 2):
+    # Part III: Main Body
+    tmp_int_ssavalue = block.last_op.results[0]
+    for i in range(length // 2):
         nop_bool = arith.Constant(IntegerAttr.from_int_and_width(1, 1), i1)
-        nop_int = transfer.Constant(tmp_int_op, 0)
+        nop_int = transfer.Constant(tmp_int_ssavalue, 0)
         block.add_op(nop_bool)
         block.add_op(nop_int)
 
+    # Part IV: MakeOp
+    return_val = []
+    for output in func.function_type.outputs:
+        assert(isinstance(output, AbstractValueType))
+        operands = []
+        for i, field_type in enumerate(output.get_fields()):
+            assert(isinstance(field_type, TransIntegerType))
+            operands.append(tmp_int_ssavalue)
+
+        op = MakeOp(operands=[operands], result_types=MakeOp.infer_result_type([operand.type for operand in operands]))
+        block.add_op(op)
+        return_val.append(op)
+
+    # Part V: Return
+    block.add_op(Return(return_val[0]))
     return func
 
 
@@ -286,8 +311,10 @@ def main() -> None:
 
     print(module)
 
+    random.seed(44)
     func = get_init_program(module.ops.first, 8)
     for i in range(10):
+        print(f'Sample {i}:{func}')
         func, _ = sample_next(func)
 
     print(module)
