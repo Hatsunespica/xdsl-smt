@@ -194,6 +194,19 @@ class PredicateOp(IRDLOperation, InferResultTypeInterface, ABC):
             result_types=[i1],
         )
 
+    def __init__(
+        self,
+        lhs: SSAValue,
+        rhs: SSAValue,
+        predicate: int,
+    ):
+        super().__init__(
+            operands=[lhs, rhs],
+            result_types=[i1],
+            attributes={"predicate": IntegerAttr(predicate, IndexType())}
+        )
+
+
 
 @irdl_op_definition
 class AddOp(BinOp):
@@ -425,6 +438,17 @@ class CmpOp(PredicateOp):
     name = "transfer.cmp"
 
     predicate: IntegerAttr[IndexType] = attr_def(IntegerAttr[IndexType])
+
+    # def __init__(
+    #     self,
+    #     lhs, rhs: SSAValue,
+    #     predicate: int,
+    # ):
+    #     IRDLOperation().__init__(
+    #         operands=[lhs, rhs],
+    #         result_types=[i1],
+    #         attributes={"predicate": IntegerAttr(predicate, IndexType())},
+    #     )
 
 
 @irdl_attr_definition
