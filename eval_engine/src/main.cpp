@@ -1,6 +1,5 @@
 #include <algorithm>
 #include <cmath>
-#include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -8,18 +7,9 @@
 #include <llvm/Support/KnownBits.h>
 #include <vector>
 
-#include "../test.cpp"
+#include "synth.cpp"
 
-template <typename T>
-concept APIntContainer = requires(T t) {
-  typename T::value_type;
-  requires std::same_as<typename T::value_type, uint8_t>;
-  requires std::ranges::range<T>;
-};
-
-// TODO provied hashing and ordering func for llvm APInts
 // TODO switch between signed and unsigned ops when needed
-// TODO use u8's instead of apints when possible for speed and ease
 // enum TransferResult { GOOD, NOT_SOUND, NOT_PREC, NEITHER };
 
 void print_abst_range(const llvm::KnownBits &x) {
@@ -38,12 +28,12 @@ void print_abst_range(const llvm::KnownBits &x) {
 }
 
 // TODO consider printing full/top if it is
-void print_conc_range(const APIntContainer auto &x) {
+void print_conc_range(const std::vector<uint8_t> &x) {
   if (x.empty())
     printf("empty");
 
-  for (llvm::APInt i : x)
-    printf("%ld ", i.getZExtValue());
+  for (auto i : x)
+    printf("%hhu ", i);
 
   puts("");
 }
@@ -77,7 +67,7 @@ std::vector<uint8_t> const to_concrete(const llvm::KnownBits &x) {
   for (auto i = min;; ++i) {
 
     if (!x.Zero.intersects(i) && !x.One.intersects(~i))
-      ret.push_back((unsigned char)i.getZExtValue());
+      ret.push_back((uint8_t)i.getZExtValue());
 
     if (i == max)
       break;
@@ -86,11 +76,13 @@ std::vector<uint8_t> const to_concrete(const llvm::KnownBits &x) {
   return ret;
 }
 
-llvm::KnownBits const to_abstract(const APIntContainer auto &conc_vals) {
-  auto ret = llvm::KnownBits::makeConstant(conc_vals[0]);
+llvm::KnownBits const to_abstract(const std::vector<uint8_t> &conc_vals,
+                                  uint8_t bitwidth) {
+  auto ret = llvm::KnownBits::makeConstant(llvm::APInt(bitwidth, conc_vals[0]));
 
   for (auto x : conc_vals) {
-    ret = ret.intersectWith(llvm::KnownBits::makeConstant(x));
+    ret = ret.intersectWith(
+        llvm::KnownBits::makeConstant(llvm::APInt(bitwidth, x)));
   }
 
   return ret;
@@ -98,14 +90,22 @@ llvm::KnownBits const to_abstract(const APIntContainer auto &conc_vals) {
 
 // TODO be able to return generic std container
 // TODO have some automated check for UB?
-std::vector<uint8_t> const
-concrete_op(const APIntContainer auto &lhss, const APIntContainer auto &rhss,
-            uint8_t (*op)(const uint8_t, const uint8_t)) {
+// TODO auto vary bitmask based on width and spec consideration for signed ints
+std::vector<uint8_t> const concrete_op_enum(const std::vector<uint8_t> &lhss,
+                                            const std::vector<uint8_t> &rhss,
+                                            uint8_t (*op)(const uint8_t,
+                                                          const uint8_t)) {
   auto ret = std::vector<uint8_t>();
+
+  uint8_t mask = 0b00001111;
 
   for (auto lhs : lhss)
     for (auto rhs : rhss)
-      ret.push_back(op(lhs, rhs));
+      ret.push_back(op(lhs, rhs) & mask);
+
+  // remove duplicates
+  std::sort(ret.begin(), ret.end());
+  ret.erase(unique(ret.begin(), ret.end()), ret.end());
 
   return ret;
 }
@@ -145,22 +145,6 @@ unsigned int compare(std::vector<uint8_t> &approx,
   return 3;
 }
 
-std::tuple<llvm::APInt, llvm::APInt>
-ANDImpl(std::tuple<llvm::APInt, llvm::APInt> arg0,
-        std::tuple<llvm::APInt, llvm::APInt> arg1);
-
-llvm::KnownBits test_f(const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
-  const auto [zero, one] =
-      ANDImpl(std::tuple(lhs.Zero, lhs.One), std::tuple(rhs.Zero, rhs.One));
-
-  llvm::KnownBits res;
-
-  res.Zero = zero;
-  res.One = one;
-
-  return res;
-}
-
 int main() {
   const size_t bitwidth = 4;
 
@@ -169,11 +153,9 @@ int main() {
 
   for (auto lhs : enum_abst_vals(bitwidth)) {
     for (auto rhs : enum_abst_vals(bitwidth)) {
-      auto transfer_vals = to_concrete(test_f(lhs, rhs));
-      auto brute_vals = concrete_op(to_concrete(lhs), to_concrete(rhs),
-                                    [](const uint8_t a, const uint8_t b) {
-                                      return (unsigned char)(a + b);
-                                    });
+      auto transfer_vals = to_concrete(synth_function_wrapper(lhs, rhs));
+      auto brute_vals =
+          concrete_op_enum(to_concrete(lhs), to_concrete(rhs), concrete_op);
 
       const unsigned int caseNum = compare(transfer_vals, brute_vals);
       cases[caseNum]++;
@@ -181,11 +163,16 @@ int main() {
     }
   }
 
+  double percent_sound = (double)(cases[3] + cases[2]) / (double)total_cases;
+  double percent_precise = (double)(cases[3] + cases[1]) / (double)total_cases;
+
   printf("Not sound or precise: %i\n", cases[0]);
   printf("Not sound:            %i\n", cases[1]);
   printf("Not precise:          %i\n", cases[2]);
   printf("Good:                 %i\n", cases[3]);
   printf("total tests:          %lld\n", total_cases);
+  printf("sound percent:        %f\n", percent_sound);
+  printf("precise percent:      %f\n", percent_precise);
 
   return 0;
 }
