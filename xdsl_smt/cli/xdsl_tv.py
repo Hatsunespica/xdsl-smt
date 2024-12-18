@@ -14,9 +14,11 @@ from xdsl.utils.isattr import isattr
 from xdsl_smt.dialects.memory_dialect import BlockIDType
 from xdsl_smt.dialects import memory_dialect as mem
 from xdsl_smt.passes.dead_code_elimination import DeadCodeElimination
-from xdsl_smt.passes.lower_effects_with_memory import LowerEffectWithMemoryPass
+from xdsl_smt.passes.lower_effects_with_memory import (
+    LowerEffectsWithMemoryPass,
+)
+from xdsl_smt.passes.lower_memory_effects import LowerMemoryEffectsPass
 from xdsl_smt.passes.lower_memory_to_array import LowerMemoryToArrayPass
-from xdsl_smt.passes.lower_to_smt.lower_to_smt import SMTLowerer
 
 from xdsl_smt.dialects.smt_bitvector_dialect import (
     BitVectorType,
@@ -58,9 +60,7 @@ from xdsl.dialects.builtin import (
     Builtin,
     ModuleOp,
     IntegerType,
-    IndexType,
     FunctionType,
-    MemRefType,
 )
 from xdsl.dialects.func import Func, FuncOp
 from xdsl.dialects.arith import Arith
@@ -72,18 +72,11 @@ from xdsl.transforms.common_subexpression_elimination import (
     CommonSubexpressionElimination,
 )
 from xdsl_smt.passes.lower_pairs import LowerPairs
+from xdsl_smt.passes.lower_to_smt.smt_lowerer_loaders import load_vanilla_semantics
 from xdsl_smt.passes.lower_to_smt import (
     LowerToSMTPass,
-    func_to_smt_patterns,
 )
 from xdsl_smt.passes.transfer_inline import FunctionCallInline
-from xdsl_smt.semantics.arith_semantics import arith_semantics
-from xdsl_smt.semantics.comb_semantics import comb_semantics
-from xdsl_smt.semantics.builtin_semantics import (
-    IndexTypeSemantics,
-    IntegerTypeSemantics,
-)
-from xdsl_smt.semantics.memref_semantics import memref_semantics, MemrefSemantics
 from xdsl_smt.traits.smt_printer import print_to_smtlib
 
 
@@ -364,17 +357,7 @@ def main() -> None:
     assert isinstance(module, ModuleOp)
     assert isinstance(module_after, ModuleOp)
 
-    SMTLowerer.rewrite_patterns = {
-        # *transfer_to_smt_patterns,
-        **func_to_smt_patterns,
-        # *llvm_to_smt_patterns,
-    }
-    SMTLowerer.type_lowerers = {
-        IntegerType: IntegerTypeSemantics(),
-        IndexType: IndexTypeSemantics(),
-        MemRefType: MemrefSemantics(),
-    }
-    SMTLowerer.op_semantics = {**arith_semantics, **comb_semantics, **memref_semantics}
+    load_vanilla_semantics()
 
     assert isinstance(module.ops.first, FuncOp)
     func_type = module.ops.first.function_type
@@ -412,7 +395,18 @@ def main() -> None:
         DeadCodeElimination().apply(ctx, new_module)
         CanonicalizePass().apply(ctx, new_module)
 
-    LowerEffectWithMemoryPass().apply(ctx, new_module)
+    LowerMemoryEffectsPass().apply(ctx, new_module)
+
+    # Optionally simplify the module
+    if args.opt:
+        CanonicalizePass().apply(ctx, new_module)
+        CommonSubexpressionElimination().apply(ctx, new_module)
+        CanonicalizePass().apply(ctx, new_module)
+        # Remove this once we update to latest xdsl
+        DeadCodeElimination().apply(ctx, new_module)
+        CanonicalizePass().apply(ctx, new_module)
+
+    LowerEffectsWithMemoryPass().apply(ctx, new_module)
 
     # Optionally simplify the module
     if args.opt:
