@@ -13,8 +13,6 @@ add_compile_options(
     -Wpedantic
     -Werror
     -Wshadow
-    -Wconversion
-    -Wsign-conversion
 )
 
 find_package(LLVM REQUIRED CONFIG)
