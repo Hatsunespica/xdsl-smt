@@ -36,21 +36,21 @@ def eval_transfer_func(
     """
         % transfer_func_name
     )
-    base_dir="xdsl_smt/eval_engine/"
-    cur_dir=os.getcwd()+"/"
-    with open(cur_dir+base_dir+"src/synth.cpp", "w") as f:
+    base_dir = "xdsl_smt/eval_engine/"
+    cur_dir = os.getcwd() + "/"
+    with open(cur_dir + base_dir + "src/synth.cpp", "w") as f:
         f.write(
             f"{transfer_func_headers}\n{transfer_func_src}\n{transfer_func_wrapper}"
         )
 
-    '''
+    """
     try:
         os.mkdir(base_dir+"build")
     except FileExistsError:
         pass
-    '''
+    """
 
-    os.chdir(base_dir+"build")
+    os.chdir(base_dir + "build")
 
     run(["cmake", ".."], stdout=PIPE)
     run(["make"], stdout=PIPE)

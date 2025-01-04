@@ -35,7 +35,8 @@ from xdsl.irdl import (
     ParameterDef,
     IRDLOperation,
     traits_def,
-    AnyAttr, prop_def,
+    AnyAttr,
+    prop_def,
 )
 from xdsl.utils.exceptions import VerifyException
 
