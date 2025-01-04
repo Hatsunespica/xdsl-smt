@@ -1,3 +1,6 @@
+import math
+import random
+
 from xdsl_smt.dialects.smt_dialect import ConstantBoolOp, YieldOp, ForallOp, EvalOp
 from xdsl.dialects.func import FuncOp
 import argparse
@@ -411,6 +414,10 @@ TMP_MODULE: list[ModuleOp] = []
 ctx: MLContext
 
 
+def compute_cost(soundness: float, precision: float) -> float:
+    return 1 / (soundness + 1e-3)
+
+
 def main() -> None:
     global ctx
     ctx = MLContext()
@@ -452,21 +459,47 @@ def main() -> None:
         if isinstance(func, FuncOp) and is_transfer_function(func):
             func_name = func.sym_name.data
             mcmc_sampler = MCMCSampler(func, 8)
+
+            current_cost = 1e3
             for i in range(50):
                 start = time.time()
 
-                _: float = mcmc_sampler.sample_next()
-                mcmc_sampler.accept_proposed()
-                cpp_code = print_to_cpp(mcmc_sampler.get_current())
+                ratio: float = mcmc_sampler.sample_next()
+
+                cpp_code = print_to_cpp(mcmc_sampler.get_proposed())
                 crt_func = print_crt_func_to_cpp()
                 soundness_percent, precision_percent = eval_transfer_func(
                     func_name, cpp_code, crt_func
                 )
+                proposed_cost = compute_cost(soundness_percent, precision_percent)
+
                 end = time.time()
                 used_time = end - start
+
                 print(
-                    f"{i}\t{soundness_percent*100:.2f}%\t{precision_percent*100:.2f}%\t{used_time:.2f}"
+                    f"{i}\t{soundness_percent * 100:.2f}%\t{precision_percent * 100:.2f}%\t{used_time:.2f}"
                 )
+
+                # accept_rate = ratio * math.exp(-1 * proposed_cost/current_cost)
+                accept_rate = math.exp(-0.25 * (proposed_cost - current_cost))
+                print(
+                    f"proposed cost: {proposed_cost:.2f}, current cost: {current_cost:.2f}, accept rate: {accept_rate:.2f}"
+                )
+                if accept_rate > 1:
+                    mcmc_sampler.accept_proposed()
+                    current_cost = proposed_cost
+                    print("Accepted a Lower Cost")
+                else:
+                    decision = True if random.random() < accept_rate else False
+                    if decision:
+                        mcmc_sampler.accept_proposed()
+                        current_cost = proposed_cost
+                        print("Accepted a Higher Cost")
+                    else:
+                        print("Rejected a Higher Cost")
+
+                if soundness_percent == 1:
+                    break
                 """
                 tmp_clone_module: ModuleOp = module.clone()
 

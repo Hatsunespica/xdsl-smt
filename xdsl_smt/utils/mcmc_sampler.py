@@ -101,6 +101,7 @@ class MCMCSampler:
         assert int_count > 0
         return int_ops, int_count
 
+    @staticmethod
     def replace_entire_operation(
         ops: list[Operation],
     ) -> tuple[Operation, Operation, float, SSAValue]:
@@ -176,6 +177,7 @@ class MCMCSampler:
 
         return old_op, new_op, backward_prob / forward_prob, new_op.results[0]
 
+    @staticmethod
     def replace_operand(ops: list[Operation]) -> tuple[float, SSAValue]:
         modifiable_indices = [
             i
