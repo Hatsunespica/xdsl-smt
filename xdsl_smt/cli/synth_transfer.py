@@ -387,12 +387,18 @@ def print_crt_func_to_cpp() -> str:
     return "a + b"
 
 
-def print_to_cpp(module: ModuleOp) -> str:
-    sio = StringIO()
-    for func in module.ops:
-        if isinstance(func, FuncOp):
-            LowerToCpp(sio).apply(ctx, cast(ModuleOp, func))
+# def print_to_cpp(module: ModuleOp) -> str:
+#     sio = StringIO()
+#     for func in module.ops:
+#         if isinstance(func, FuncOp):
+#             LowerToCpp(sio).apply(ctx, cast(ModuleOp, func))
+#
+#     return sio.getvalue()
 
+
+def print_to_cpp(func: FuncOp) -> str:
+    sio = StringIO()
+    LowerToCpp(sio).apply(ctx, cast(ModuleOp, func))
     return sio.getvalue()
 
 
@@ -445,11 +451,13 @@ def main() -> None:
     for func in module.ops:
         if isinstance(func, FuncOp) and is_transfer_function(func):
             func_name = func.sym_name.data
-            mcmcSampler = MCMCSampler(func, 8)
+            mcmc_sampler = MCMCSampler(func, 8)
             for i in range(50):
                 start = time.time()
-                _: float = mcmcSampler.sample_next()
-                cpp_code = print_to_cpp(module)
+
+                _: float = mcmc_sampler.sample_next()
+                mcmc_sampler.accept_proposed()
+                cpp_code = print_to_cpp(mcmc_sampler.get_current())
                 crt_func = print_crt_func_to_cpp()
                 soundness_percent, precision_percent = eval_transfer_func(
                     func_name, cpp_code, crt_func
