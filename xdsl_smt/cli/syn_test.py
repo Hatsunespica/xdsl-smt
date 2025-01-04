@@ -67,13 +67,14 @@ def main() -> None:
     random.seed(47)
     func = module.ops.first
 
-    mcmcSampler = MCMCSampler(func, 8)
+    mcmc_sampler = MCMCSampler(func, 8)
 
-    for i in range(100):
-        print(f"Round {i}:{mcmcSampler.func}")
-        _: float = mcmcSampler.sample_next()
+    for i in range(10):
+        _: float = mcmc_sampler.sample_next()
+        print(f"Round {i}:{mcmc_sampler.get_proposed()}")
+        mcmc_sampler.accept_proposed()
 
-    print(mcmcSampler.func)
+    # print(mcmcSampler.func)
 
 
 if __name__ == "__main__":

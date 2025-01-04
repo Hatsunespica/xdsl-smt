@@ -51,16 +51,24 @@ def parse_file(ctx: MLContext, file: str | None) -> Operation:
 
 
 class MCMCSampler:
-    last_make_op:MakeOp
+    last_make_op: MakeOp
+    current: FuncOp
+    proposed: FuncOp | None
 
     def __init__(self, func: FuncOp, length: int):
         MCMCSampler.construct_init_program(func, length)
-        self.last_make_op = func.body.block.last_op.operands[0].owner
-        assert isinstance(self.last_make_op, MakeOp)
-        self.func = func
+        self.current = func
+        self.proposed = None
 
-    def get_func(self):
-        return self.func
+    def get_current(self):
+        return self.current
+
+    def get_proposed(self):
+        return self.proposed
+
+    def accept_proposed(self):
+        self.current = self.proposed
+        self.proposed = None
 
     @staticmethod
     def get_valid_bool_operands(
@@ -92,7 +100,6 @@ class MCMCSampler:
         int_count = len(int_ops)
         assert int_count > 0
         return int_ops, int_count
-
 
     def replace_entire_operation(
         ops: list[Operation],
@@ -230,8 +237,6 @@ class MCMCSampler:
         tmp_int_ssavalue = block.last_op.results[0]
         tmp_bool_ssavalue = true.results[0]
         for i in range(length // 2):
-            # nop_bool = arith.Constant(IntegerAttr.from_int_and_width(1, 1), i1)
-            # nop_int = transfer.Constant(tmp_int_ssavalue, 0)
             nop_bool = arith.AndI(tmp_bool_ssavalue, tmp_bool_ssavalue)
             nop_int = transfer.AndOp(tmp_int_ssavalue, tmp_int_ssavalue)
             block.add_op(nop_bool)
@@ -264,20 +269,25 @@ class MCMCSampler:
         Sample the next program.
         Return the new program with the proposal ratio.
         """
-        ops = list(self.func.body.block.ops)
+        self.proposed = self.current.clone()
+
+        last_make_op = self.proposed.body.block.last_op.operands[0].owner
+        assert isinstance(last_make_op, MakeOp)
+
+        ops = list(self.proposed.body.block.ops)
 
         sample_mode = random.randrange(2)
         new_ssa = None
         if sample_mode == 0:
             # replace an operation with a new operation
-            old_op, new_op, ratio,new_ssa = MCMCSampler.replace_entire_operation(ops)
-            self.func.body.block.insert_op_before(new_op, old_op)
+            old_op, new_op, ratio, new_ssa = MCMCSampler.replace_entire_operation(ops)
+            self.proposed.body.block.insert_op_before(new_op, old_op)
             if len(old_op.results) > 0 and len(new_op.results) > 0:
                 old_op.results[0].replace_by(new_op.results[0])
-            self.func.body.block.detach_op(old_op)
+            self.proposed.body.block.detach_op(old_op)
 
         elif sample_mode == 1:
-            # replace an operand in an operand
+            # replace an operand in an operation
             ratio, new_ssa = MCMCSampler.replace_operand(ops)
 
         elif sample_mode == 2:
@@ -289,6 +299,6 @@ class MCMCSampler:
 
         make_op_choice = random.randrange(2)
         if isinstance(new_ssa.type, TransIntegerType):
-            self.last_make_op.operands[make_op_choice] = new_ssa
+            last_make_op.operands[make_op_choice] = new_ssa
 
         return ratio
