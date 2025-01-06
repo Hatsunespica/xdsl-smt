@@ -15,7 +15,7 @@ from xdsl_smt.dialects.transfer import (
     OrOp,
     XorOp,
     CmpOp,
-    MakeOp,
+    MakeOp, GetAllOnesOp, Constant, NegOp
 )
 from xdsl.dialects.builtin import (
     IntegerAttr,
@@ -108,7 +108,7 @@ class MCMCSampler:
         """
         Random pick an operation and replace it with a new one
         """
-        modifiable_indices = range(6, len(ops) - 2)
+        modifiable_indices = range(8, len(ops) - 2)
 
         idx = random.choice(modifiable_indices)
         old_op = ops[idx]
@@ -181,7 +181,7 @@ class MCMCSampler:
     def replace_operand(ops: list[Operation]) -> tuple[float, SSAValue]:
         modifiable_indices = [
             i
-            for i, op in enumerate(ops[6:-1], start=6)
+            for i, op in enumerate(ops[8:-1], start=8)
             if op.operands and not isinstance(op, transfer.Constant)
         ]
         assert modifiable_indices
@@ -213,30 +213,30 @@ class MCMCSampler:
         for op in block.ops:
             block.detach_op(op)
 
-        # Part I: Constants
+        # Part I: GetOp
+        for arg in block.args:
+            if isinstance(arg.type, AbstractValueType):
+                for i, field_type in enumerate(arg.type.get_fields()):
+                    op = GetOp(
+                        arg, i
+                    )
+                    block.add_op(op)
+        assert isinstance(block.last_op, GetOp)
+        tmp_int_ssavalue = block.last_op.results[0]
+
+        # Part II: Constants
         true: arith.Constant = arith.Constant(IntegerAttr.from_int_and_width(1, 1), i1)
         false: arith.Constant = arith.Constant(IntegerAttr.from_int_and_width(0, 1), i1)
-        # zero: Constant = Constant(IntegerAttr.from_int_and_width(0, 4), IntegerType(4))
-        # one: Constant = Constant(IntegerAttr.from_int_and_width(1, 4), IntegerType(4))
+        # one = GetAllOnesOp(tmp_int_ssavalue)
+        # zero = NegOp(tmp_int_ssavalue)
         block.add_op(true)
         block.add_op(false)
         # block.add_op(zero)
         # block.add_op(one)
 
-        # Part II: GetOp
-        for arg in block.args:
-            if isinstance(arg.type, AbstractValueType):
-                for i, field_type in enumerate(arg.type.get_fields()):
-                    op = GetOp(
-                        operands=[arg],
-                        attributes={"index": IntegerAttr(i, IndexType())},
-                        result_types=[field_type],
-                    )
-                    block.add_op(op)
 
         # Part III: Main Body
-        assert isinstance(block.last_op, GetOp)
-        tmp_int_ssavalue = block.last_op.results[0]
+
         tmp_bool_ssavalue = true.results[0]
         for i in range(length // 2):
             nop_bool = arith.AndI(tmp_bool_ssavalue, tmp_bool_ssavalue)
@@ -253,12 +253,7 @@ class MCMCSampler:
                 assert isinstance(field_type, TransIntegerType)
                 operands.append(tmp_int_ssavalue)
 
-            op = MakeOp(
-                operands=[operands],
-                result_types=MakeOp.infer_result_type(
-                    [operand.type for operand in operands]
-                ),
-            )
+            op = MakeOp(operands)
             block.add_op(op)
             return_val.append(op)
 
