@@ -32,9 +32,9 @@ from xdsl_smt.dialects.transfer import (
     TupleType,
 )
 from ..dialects.index_dialect import Index
-from ..dialects.smt_utils_dialect import SMTUtilsDialect, FirstOp, AnyPairType, SecondOp
+from ..dialects.smt_utils_dialect import SMTUtilsDialect
 from ..eval_engine.eval import eval_transfer_func
-from xdsl.ir import Block, Region, SSAValue, BlockArgument, Attribute
+from xdsl.ir import BlockArgument
 from xdsl.dialects.builtin import (
     Builtin,
     ModuleOp,
@@ -42,8 +42,6 @@ from xdsl.dialects.builtin import (
     IntegerType,
     i1,
     FunctionType,
-    ArrayAttr,
-    StringAttr,
     AnyArrayAttr,
 )
 from xdsl.dialects.func import Func, FuncOp, Return
@@ -62,7 +60,6 @@ from ..passes.lower_to_smt import (
     func_to_smt_patterns,
 )
 from ..passes.transfer_lower import LowerToCpp
-from ..passes.transfer_unroll_loop import UnrollTransferLoop
 from xdsl_smt.semantics import transfer_semantics
 from ..traits.smt_printer import print_to_smtlib
 from xdsl_smt.passes.lower_pairs import LowerPairs
@@ -78,21 +75,14 @@ from xdsl_smt.semantics.comb_semantics import comb_semantics
 import sys as sys
 
 from ..utils.mcmc_sampler import MCMCSampler
-from ..utils.test_set_generator import generate_test_set, get_transfer_function
 from ..utils.transfer_function_check_util import (
     forward_soundness_check,
     backward_soundness_check,
 )
 from ..utils.transfer_function_util import (
-    getArgumentWidthsWithEffect,
-    getResultWidth,
     FunctionCollection,
     SMTTransferFunction,
-    getArgumentInstancesWithEffect,
-    callFunctionAndAssertResultWithEffect,
-    TransferFunction,
     fixDefiningOpReturnType,
-    callFunctionWithEffect,
 )
 
 
@@ -432,20 +422,20 @@ def main() -> None:
     module = parse_file(ctx, args.transfer_functions)
     assert isinstance(module, ModuleOp)
 
+    """
     (
         smt_transfer_function_obj,
         domain_constraint,
         instance_constraint,
         int_attr,
     ) = get_transfer_function(module, ctx)
-    """
     test_set = generate_test_set(
         smt_transfer_function_obj, domain_constraint, instance_constraint, int_attr, ctx
     )
     """
     print("Round\tsoundness%\tprecision%\tUsed time")
-    possible_solution = set()
-    random.seed(10)
+    possible_solution: set[str] = set()
+
     for func in module.ops:
         if isinstance(func, FuncOp) and is_transfer_function(func):
             func_name = func.sym_name.data
