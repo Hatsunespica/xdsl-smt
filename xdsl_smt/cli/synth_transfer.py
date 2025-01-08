@@ -387,16 +387,7 @@ def soundness_check(
 
 
 def print_crt_func_to_cpp() -> str:
-    return "a + b"
-
-
-# def print_to_cpp(module: ModuleOp) -> str:
-#     sio = StringIO()
-#     for func in module.ops:
-#         if isinstance(func, FuncOp):
-#             LowerToCpp(sio).apply(ctx, cast(ModuleOp, func))
-#
-#     return sio.getvalue()
+    return "a & b"
 
 
 def print_to_cpp(func: FuncOp) -> str:
@@ -415,8 +406,8 @@ ctx: MLContext
 
 
 def compute_cost(soundness: float, precision: float) -> float:
-    return 1 / (soundness + 1e-3)
-
+    return 4 * (1 - soundness) ** 2  + (1 - precision)
+    # return 1 / (soundness + 1e-3)
 
 def main() -> None:
     global ctx
@@ -454,19 +445,21 @@ def main() -> None:
     """
     print("Round\tsoundness%\tprecision%\tUsed time")
     possible_solution = set()
-
+    random.seed(10)
     for func in module.ops:
         if isinstance(func, FuncOp) and is_transfer_function(func):
             func_name = func.sym_name.data
-            mcmc_sampler = MCMCSampler(func, 8)
+            mcmc_sampler = MCMCSampler(func, 4)
 
-            current_cost = 1e3
-            for i in range(50):
+            current_cost = 20
+            for i in range(1000):
                 start = time.time()
 
+                assert mcmc_sampler.get_proposed() is None
                 ratio: float = mcmc_sampler.sample_next()
 
-                cpp_code = print_to_cpp(mcmc_sampler.get_proposed())
+                func_to_eval = mcmc_sampler.get_proposed().clone()
+                cpp_code = print_to_cpp(func_to_eval)
                 crt_func = print_crt_func_to_cpp()
                 soundness_percent, precision_percent = eval_transfer_func(
                     func_name, cpp_code, crt_func
@@ -476,30 +469,37 @@ def main() -> None:
                 end = time.time()
                 used_time = end - start
 
-                print(
-                    f"{i}\t{soundness_percent * 100:.2f}%\t{precision_percent * 100:.2f}%\t{used_time:.2f}"
-                )
+                # accept_rate = math.exp(-16 * (proposed_cost - current_cost))
+                accept_rate = 1 if proposed_cost <= current_cost else 0
+                # print(
+                #     f"proposed cost: {proposed_cost:.2f}, current cost: {current_cost:.2f}, accept rate: {accept_rate:.2f}"
+                # )
 
-                # accept_rate = ratio * math.exp(-1 * proposed_cost/current_cost)
-                accept_rate = math.exp(-0.25 * (proposed_cost - current_cost))
-                print(
-                    f"proposed cost: {proposed_cost:.2f}, current cost: {current_cost:.2f}, accept rate: {accept_rate:.2f}"
-                )
-                if accept_rate > 1:
+                decision = True if random.random() < accept_rate else False
+                if decision:
+                    print(
+                        f"{i}\t{soundness_percent * 100:.2f}%\t{precision_percent * 100:.2f}%"
+                    )
+                    # print(mcmc_sampler.get_current())
+                    # print(mcmc_sampler.get_proposed())
+                    # print(func_to_eval)
+
                     mcmc_sampler.accept_proposed()
                     current_cost = proposed_cost
-                    print("Accepted a Lower Cost")
-                else:
-                    decision = True if random.random() < accept_rate else False
-                    if decision:
-                        mcmc_sampler.accept_proposed()
-                        current_cost = proposed_cost
-                        print("Accepted a Higher Cost")
-                    else:
-                        print("Rejected a Higher Cost")
 
-                if soundness_percent == 1:
+                    assert mcmc_sampler.get_proposed() is None
+                    # filename = f"outputs/tf_{i}.mlir"
+                    # with open(filename, "w") as file:
+                    #     file.write(str(mcmc_sampler.get_current()))
+
+                else:
+                    mcmc_sampler.reject_proposed()
+                    pass
+
+                if soundness_percent == 1 and precision_percent == 1:
+                    print(mcmc_sampler.get_current())
                     break
+
                 """
                 tmp_clone_module: ModuleOp = module.clone()
 
