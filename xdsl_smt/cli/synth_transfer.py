@@ -436,6 +436,8 @@ def main() -> None:
     print("Round\tsoundness%\tprecision%\tUsed time")
     possible_solution: set[str] = set()
 
+    random.seed(17)
+
     for func in module.ops:
         if isinstance(func, FuncOp) and is_transfer_function(func):
             func_name = func.sym_name.data
@@ -459,6 +461,10 @@ def main() -> None:
                 end = time.time()
                 used_time = end - start
 
+                # print(
+                #     f"{i}\t{soundness_percent * 100:.2f}%\t{precision_percent * 100:.2f}%\t{used_time:.2f}s"
+                # )
+
                 # accept_rate = math.exp(-16 * (proposed_cost - current_cost))
                 accept_rate = 1 if proposed_cost <= current_cost else 0
                 # print(
@@ -471,8 +477,7 @@ def main() -> None:
                         f"{i}\t{soundness_percent * 100:.2f}%\t{precision_percent * 100:.2f}%"
                     )
                     # print(mcmc_sampler.get_current())
-                    # print(mcmc_sampler.get_proposed())
-                    # print(func_to_eval)
+                    print(mcmc_sampler.get_proposed())
 
                     mcmc_sampler.accept_proposed()
                     current_cost = proposed_cost
