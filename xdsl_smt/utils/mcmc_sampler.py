@@ -130,9 +130,10 @@ class MCMCSampler:
             return ret
 
         if old_op.results[0].type == i1:  # bool
-            candidate = [arith.AndI.name, arith.OrI.name, CmpOp.name]
-            if old_op.name in candidate:
-                candidate.remove(old_op.name)
+            # candidate = [arith.AndI.name, arith.OrI.name, CmpOp.name]
+            candidate = [CmpOp.name]
+            # if old_op.name in candidate:
+            #     candidate.remove(old_op.name)
             opcode = random.choice(candidate)
             op1 = random.choice(bool_operands)
             op2 = random.choice(bool_operands)
@@ -141,7 +142,7 @@ class MCMCSampler:
             elif opcode == arith.OrI.name:
                 new_op = arith.OrI(op1, op2)
             elif opcode == CmpOp.name:
-                predicate = random.randrange(len(CmpOpSemantics.new_ops))
+                predicate = random.choice([0,6,7])
                 int_op1 = random.choice(int_operands)
                 int_op2 = random.choice(int_operands)
                 new_op = CmpOp(int_op1, int_op2, predicate)
@@ -152,8 +153,8 @@ class MCMCSampler:
             backward_prob = calculate_operand_prob(new_op)
 
         elif isinstance(old_op.results[0].type, TransIntegerType):  # integer
-            # candidate = [AndOp.name, OrOp.name, XorOp.name, SelectOp.name]
-            candidate = [AndOp.name, OrOp.name]
+            candidate = [AndOp.name, OrOp.name, XorOp.name, SelectOp.name]
+            # candidate = [AndOp.name, OrOp.name, XorOp.name]
             if old_op.name in candidate:
                 candidate.remove(old_op.name)
             opcode = random.choice(candidate)
@@ -328,7 +329,7 @@ class MCMCSampler:
                 old_op.results[0].replace_by(new_op.results[0])
             self.proposed.body.block.detach_op(old_op)
 
-        elif sample_mode < 0.8 and live_op_indices:
+        elif sample_mode < 1 and live_op_indices:
             # replace an operand in an operation
             ratio, new_ssa = MCMCSampler.replace_operand(ops, live_op_indices)
 
