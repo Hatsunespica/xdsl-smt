@@ -74,6 +74,7 @@ from xdsl_smt.semantics.transfer_semantics import (
 from xdsl_smt.semantics.comb_semantics import comb_semantics
 import sys as sys
 
+from ..utils.cost_model import compute_cost, compute_accept_rate
 from ..utils.mcmc_sampler import MCMCSampler
 from ..utils.transfer_function_check_util import (
     forward_soundness_check,
@@ -377,7 +378,7 @@ def soundness_check(
 
 
 def print_crt_func_to_cpp() -> str:
-    return "a & b"
+    return "a > b ? a : b"
 
 
 def print_to_cpp(func: FuncOp) -> str:
@@ -395,9 +396,6 @@ TMP_MODULE: list[ModuleOp] = []
 ctx: MLContext
 
 
-def compute_cost(soundness: float, precision: float) -> float:
-    return 4 * (1 - soundness) ** 2  + (1 - precision)
-    # return 1 / (soundness + 1e-3)
 
 def main() -> None:
     global ctx
@@ -441,10 +439,10 @@ def main() -> None:
     for func in module.ops:
         if isinstance(func, FuncOp) and is_transfer_function(func):
             func_name = func.sym_name.data
-            mcmc_sampler = MCMCSampler(func, 4)
+            mcmc_sampler = MCMCSampler(func, 8)
 
             current_cost = 20
-            for i in range(1000):
+            for i in range(10000):
                 start = time.time()
 
                 assert mcmc_sampler.get_proposed() is None
@@ -465,11 +463,11 @@ def main() -> None:
                 #     f"{i}\t{soundness_percent * 100:.2f}%\t{precision_percent * 100:.2f}%\t{used_time:.2f}s"
                 # )
 
-                # accept_rate = math.exp(-16 * (proposed_cost - current_cost))
-                accept_rate = 1 if proposed_cost <= current_cost else 0
-                # print(
-                #     f"proposed cost: {proposed_cost:.2f}, current cost: {current_cost:.2f}, accept rate: {accept_rate:.2f}"
-                # )
+                accept_rate = compute_accept_rate(current_cost, proposed_cost)
+                # accept_rate = 1 if proposed_cost <= current_cost else 0
+                print(
+                    f"proposed cost: {proposed_cost:.2f}, current cost: {current_cost:.2f}, accept rate: {accept_rate:.2f}"
+                )
 
                 decision = True if random.random() < accept_rate else False
                 if decision:
