@@ -18,19 +18,14 @@ from xdsl_smt.dialects.transfer import (
     MakeOp,
     GetAllOnesOp,
     Constant,
-    NegOp,
 )
 from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
     i1,
-    IndexType,
 )
 from xdsl.dialects.func import FuncOp, Return
 from xdsl.ir import Operation, OpResult, SSAValue
-from xdsl_smt.semantics.transfer_semantics import (
-    CmpOpSemantics,
-)
 import sys as sys
 import random
 
@@ -70,6 +65,7 @@ class MCMCSampler:
         return self.proposed
 
     def accept_proposed(self):
+        assert self.proposed is not None
         self.current = self.proposed
         self.proposed = None
 
@@ -186,9 +182,7 @@ class MCMCSampler:
         return old_op, new_op, backward_prob / forward_prob, new_op.results[0]
 
     @staticmethod
-    def replace_operand(
-        ops: list[Operation], live_op_indices: list[int]
-    ) -> tuple[float, SSAValue]:
+    def replace_operand(ops: list[Operation], live_op_indices: list[int]) -> float:
         # modifiable_indices = [
         #     i
         #     for i, op in enumerate(ops[8:-1], start=8)
@@ -211,7 +205,7 @@ class MCMCSampler:
             )
 
         op.operands[ith] = new_operand
-        return 1, op.results[0]
+        return 1
 
     @staticmethod
     def replace_make_operand(ops: list[Operation], make_op_idx: int) -> float:
@@ -224,7 +218,7 @@ class MCMCSampler:
         assert isinstance(op.operands[ith].type, TransIntegerType)
         new_operand = random.choice(int_operands)
         op.operands[ith] = new_operand
-        return op.results[0]
+        return 1
 
     @staticmethod
     def construct_init_program(func: FuncOp, length: int):
@@ -290,6 +284,7 @@ class MCMCSampler:
         live_ops = list[tuple[Operation, int]]()
 
         for operand in last_make_op.operands:
+            assert isinstance(operand.owner, Operation)
             live_set.add(operand.owner)
         # live_set.add(last_make_op)
 
@@ -336,7 +331,7 @@ class MCMCSampler:
 
         elif sample_mode < 1 and live_op_indices:
             # replace an operand in an operation
-            ratio, new_ssa = MCMCSampler.replace_operand(ops, live_op_indices)
+            ratio = MCMCSampler.replace_operand(ops, live_op_indices)
 
         elif sample_mode < 1:
             # replace an operand in makeOp

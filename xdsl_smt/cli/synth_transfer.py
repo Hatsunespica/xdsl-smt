@@ -1,8 +1,4 @@
-import math
 import random
-
-from xdsl_smt.dialects.smt_dialect import ConstantBoolOp, YieldOp, ForallOp, EvalOp
-from xdsl.dialects.func import FuncOp
 import argparse
 import subprocess
 import time
@@ -460,7 +456,7 @@ def main() -> None:
                 start = time.time()
 
                 assert mcmc_sampler.get_proposed() is None
-                ratio: float = mcmc_sampler.sample_next()
+                _: float = mcmc_sampler.sample_next()
 
                 func_to_eval = mcmc_sampler.get_proposed().clone()
                 cpp_code = print_to_cpp(func_to_eval)
