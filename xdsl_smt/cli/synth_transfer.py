@@ -455,9 +455,9 @@ def main() -> None:
             for i in range(10000):
                 start = time.time()
 
-                assert mcmc_sampler.get_proposed() is None
                 _: float = mcmc_sampler.sample_next()
 
+                assert mcmc_sampler.get_proposed() is not None
                 func_to_eval = mcmc_sampler.get_proposed().clone()
                 cpp_code = print_to_cpp(func_to_eval)
                 crt_func = print_crt_func_to_cpp(concrete_func)
@@ -488,7 +488,7 @@ def main() -> None:
                     mcmc_sampler.reject_proposed()
                     pass
 
-                if soundness_percent == 1 and precision_percent == 1:
+                if soundness_percent[0] == 1 and precision_percent[0] == 1:
                     print(mcmc_sampler.get_current())
                     break
 

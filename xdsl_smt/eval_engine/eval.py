@@ -4,12 +4,12 @@ from subprocess import run, PIPE
 
 
 def get_build_cmd() -> list[str]:
-    # has_libclang = (
-    #     run(["ldconfig", "-p"], stdout=PIPE)
-    #     .stdout.decode("utf-8")
-    #     .find("libclang.so.19")
-    # )
-    has_libclang = 1
+    has_libclang = (
+        run(["ldconfig", "-p"], stdout=PIPE)
+        .stdout.decode("utf-8")
+        .find("libclang.so.19")
+    )
+    # has_libclang = 1
     llvm_include_dir = (
         run(
             ["llvm-config", "--includedir"],

@@ -106,7 +106,7 @@ class MCMCSampler:
     @staticmethod
     def replace_entire_operation(
         ops: list[Operation], live_op_indices: list[int]
-    ) -> tuple[Operation, Operation, float, SSAValue]:
+    ) -> tuple[Operation, Operation, float]:
         """
         Random pick an operation and replace it with a new one
         """
@@ -114,7 +114,6 @@ class MCMCSampler:
 
         idx = random.choice(live_op_indices)
         old_op = ops[idx]
-        new_op = None
 
         int_operands, num_int_operands = MCMCSampler.get_valid_int_operands(ops, idx)
         bool_operands, num_bool_operands = MCMCSampler.get_valid_bool_operands(ops, idx)
@@ -179,7 +178,7 @@ class MCMCSampler:
                 "Unexpected result type {}".format(old_op.results[0].type)
             )
 
-        return old_op, new_op, backward_prob / forward_prob, new_op.results[0]
+        return old_op, new_op, backward_prob / forward_prob
 
     @staticmethod
     def replace_operand(ops: list[Operation], live_op_indices: list[int]) -> float:
@@ -262,7 +261,9 @@ class MCMCSampler:
             operands: list[OpResult] = []
             for i, field_type in enumerate(output.get_fields()):
                 assert isinstance(field_type, TransIntegerType)
+                assert last_int_op is not None
                 operands.append(last_int_op.results[0])
+                assert last_int_op.prev_op is not None
                 last_int_op = last_int_op.prev_op.prev_op
 
             op = MakeOp(operands)
@@ -299,6 +300,7 @@ class MCMCSampler:
                 ):  # filter out operations not belong to main body
                     live_ops.append((operation, idx))
                     for operand in operation.operands:
+                        assert isinstance(operand.owner, Operation)
                         live_set.add(operand.owner)
         return live_ops
 
@@ -309,6 +311,8 @@ class MCMCSampler:
         """
         self.proposed = self.current.clone()
 
+        return_op = self.proposed.body.block.last_op
+        assert isinstance(return_op, Return)
         last_make_op = self.proposed.body.block.last_op.operands[0].owner
         assert isinstance(last_make_op, MakeOp)
 
@@ -318,10 +322,9 @@ class MCMCSampler:
         ops = list(self.proposed.body.block.ops)
 
         sample_mode = random.random()
-        new_ssa = None
         if sample_mode < 0.3 and live_op_indices:
             # replace an operation with a new operation
-            old_op, new_op, ratio, new_ssa = MCMCSampler.replace_entire_operation(
+            old_op, new_op, ratio = MCMCSampler.replace_entire_operation(
                 ops, live_op_indices
             )
             self.proposed.body.block.insert_op_before(new_op, old_op)
