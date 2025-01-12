@@ -15,7 +15,10 @@ from xdsl_smt.dialects.transfer import (
     OrOp,
     XorOp,
     CmpOp,
-    MakeOp, GetAllOnesOp, Constant, NegOp
+    MakeOp,
+    GetAllOnesOp,
+    Constant,
+    NegOp,
 )
 from xdsl.dialects.builtin import (
     IntegerAttr,
@@ -142,7 +145,7 @@ class MCMCSampler:
             elif opcode == arith.OrI.name:
                 new_op = arith.OrI(op1, op2)
             elif opcode == CmpOp.name:
-                predicate = random.choice([0,6,7])
+                predicate = random.choice([0, 6, 7])
                 int_op1 = random.choice(int_operands)
                 int_op2 = random.choice(int_operands)
                 new_op = CmpOp(int_op1, int_op2, predicate)
@@ -182,9 +185,10 @@ class MCMCSampler:
 
         return old_op, new_op, backward_prob / forward_prob, new_op.results[0]
 
-
     @staticmethod
-    def replace_operand(ops: list[Operation], live_op_indices: list[int]) -> tuple[float, SSAValue]:
+    def replace_operand(
+        ops: list[Operation], live_op_indices: list[int]
+    ) -> tuple[float, SSAValue]:
         # modifiable_indices = [
         #     i
         #     for i, op in enumerate(ops[8:-1], start=8)
@@ -233,9 +237,7 @@ class MCMCSampler:
         for arg in block.args:
             if isinstance(arg.type, AbstractValueType):
                 for i, field_type in enumerate(arg.type.get_fields()):
-                    op = GetOp(
-                        arg, i
-                    )
+                    op = GetOp(arg, i)
                     block.add_op(op)
         assert isinstance(block.last_op, GetOp)
         tmp_int_ssavalue = block.last_op.results[0]
@@ -294,15 +296,16 @@ class MCMCSampler:
         for idx in range(len(ops) - 2, -1, -1):
             operation = ops[idx]
             if operation in live_set:
-                if not (isinstance(operation, Constant) or
-                        isinstance(operation, arith.Constant) or
-                        isinstance(operation, GetAllOnesOp) or
-                        isinstance(operation, GetOp)): # filter out operations not belong to main body
+                if not (
+                    isinstance(operation, Constant)
+                    or isinstance(operation, arith.Constant)
+                    or isinstance(operation, GetAllOnesOp)
+                    or isinstance(operation, GetOp)
+                ):  # filter out operations not belong to main body
                     live_ops.append((operation, idx))
                     for operand in operation.operands:
                         live_set.add(operand.owner)
         return live_ops
-
 
     def sample_next(self) -> float:
         """
@@ -323,7 +326,9 @@ class MCMCSampler:
         new_ssa = None
         if sample_mode < 0.3 and live_op_indices:
             # replace an operation with a new operation
-            old_op, new_op, ratio, new_ssa = MCMCSampler.replace_entire_operation(ops, live_op_indices)
+            old_op, new_op, ratio, new_ssa = MCMCSampler.replace_entire_operation(
+                ops, live_op_indices
+            )
             self.proposed.body.block.insert_op_before(new_op, old_op)
             if len(old_op.results) > 0 and len(new_op.results) > 0:
                 old_op.results[0].replace_by(new_op.results[0])
@@ -339,6 +344,5 @@ class MCMCSampler:
         else:
             # todo: replace an operations with NOP
             ratio = 1
-
 
         return ratio

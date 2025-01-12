@@ -75,6 +75,5 @@ def main() -> None:
         mcmc_sampler.accept_proposed()
 
 
-
 if __name__ == "__main__":
     main()
