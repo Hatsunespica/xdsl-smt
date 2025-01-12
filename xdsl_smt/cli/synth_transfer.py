@@ -17,10 +17,6 @@ from xdsl.utils.hints import isa
 from ..dialects.smt_dialect import (
     SMTDialect,
     DefineFunOp,
-    EqOp,
-    AssertOp,
-    CheckSatOp,
-    DistinctOp,
 )
 from ..dialects.smt_bitvector_dialect import (
     SMTBitVectorDialect,
@@ -43,6 +39,8 @@ from xdsl.dialects.builtin import (
     i1,
     FunctionType,
     AnyArrayAttr,
+    ArrayAttr,
+    StringAttr,
 )
 from xdsl.dialects.func import Func, FuncOp, Return
 from ..dialects.transfer import Transfer
@@ -377,8 +375,18 @@ def soundness_check(
     return verify_res
 
 
-def print_crt_func_to_cpp() -> str:
-    return "a > b ? a : b"
+def print_crt_func_to_cpp(concrete_func: FuncOp) -> str:
+    """
+    sio = StringIO()
+    if isinstance(concrete_func, FuncOp):
+        LowerToCpp(sio).apply(ctx, cast(ModuleOp, concrete_func))
+    return sio.getvalue()
+    """
+    return """
+    APInt concrete_op(APInt arg0, APInt arg1){
+      return arg0 & arg1;
+    }
+    """
 
 
 def print_to_cpp(func: FuncOp) -> str:
@@ -437,6 +445,13 @@ def main() -> None:
 
     for func in module.ops:
         if isinstance(func, FuncOp) and is_transfer_function(func):
+            concrete_func_name = ""
+            if isinstance(func, FuncOp) and "applied_to" in func.attributes:
+                assert isa(
+                    applied_to := func.attributes["applied_to"], ArrayAttr[StringAttr]
+                )
+                concrete_func_name = applied_to.data[0].data
+            concrete_func = get_concrete_function(concrete_func_name, SYNTH_WIDTH, None)
             func_name = func.sym_name.data
             mcmc_sampler = MCMCSampler(func, 8)
 
@@ -449,40 +464,29 @@ def main() -> None:
 
                 func_to_eval = mcmc_sampler.get_proposed().clone()
                 cpp_code = print_to_cpp(func_to_eval)
-                crt_func = print_crt_func_to_cpp()
+                crt_func = print_crt_func_to_cpp(concrete_func)
                 soundness_percent, precision_percent = eval_transfer_func(
-                    func_name, cpp_code, crt_func
+                    [func_name], [cpp_code], crt_func
                 )
-                proposed_cost = compute_cost(soundness_percent, precision_percent)
+                proposed_cost = compute_cost(soundness_percent[0], precision_percent[0])
 
                 end = time.time()
                 used_time = end - start
 
-                # print(
-                #     f"{i}\t{soundness_percent * 100:.2f}%\t{precision_percent * 100:.2f}%\t{used_time:.2f}s"
-                # )
-
                 accept_rate = compute_accept_rate(current_cost, proposed_cost)
-                # accept_rate = 1 if proposed_cost <= current_cost else 0
-                print(
-                    f"proposed cost: {proposed_cost:.2f}, current cost: {current_cost:.2f}, accept rate: {accept_rate:.2f}"
-                )
 
                 decision = True if random.random() < accept_rate else False
                 if decision:
                     print(
-                        f"{i}\t{soundness_percent * 100:.2f}%\t{precision_percent * 100:.2f}%"
+                        f"{i}\t{soundness_percent[0] * 100:.2f}%\t{precision_percent[0] * 100:.2f}%\t{used_time:.2f}"
                     )
+
                     # print(mcmc_sampler.get_current())
-                    print(mcmc_sampler.get_proposed())
+                    # print(mcmc_sampler.get_proposed())
 
                     mcmc_sampler.accept_proposed()
                     current_cost = proposed_cost
-
                     assert mcmc_sampler.get_proposed() is None
-                    # filename = f"outputs/tf_{i}.mlir"
-                    # with open(filename, "w") as file:
-                    #     file.write(str(mcmc_sampler.get_current()))
 
                 else:
                     mcmc_sampler.reject_proposed()
