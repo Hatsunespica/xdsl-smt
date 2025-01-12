@@ -457,8 +457,10 @@ def main() -> None:
 
                 _: float = mcmc_sampler.sample_next()
 
-                assert mcmc_sampler.get_proposed() is not None
-                func_to_eval = mcmc_sampler.get_proposed().clone()
+                proposed_solution = mcmc_sampler.get_proposed()
+                assert proposed_solution is not None
+                func_to_eval = proposed_solution.clone()
+
                 cpp_code = print_to_cpp(func_to_eval)
                 crt_func = print_crt_func_to_cpp(concrete_func)
                 soundness_percent, precision_percent = eval_transfer_func(

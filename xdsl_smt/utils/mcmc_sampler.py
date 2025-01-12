@@ -25,7 +25,7 @@ from xdsl.dialects.builtin import (
     i1,
 )
 from xdsl.dialects.func import FuncOp, Return
-from xdsl.ir import Operation, OpResult, SSAValue
+from xdsl.ir import Operation, OpResult
 import sys as sys
 import random
 
@@ -313,7 +313,7 @@ class MCMCSampler:
 
         return_op = self.proposed.body.block.last_op
         assert isinstance(return_op, Return)
-        last_make_op = self.proposed.body.block.last_op.operands[0].owner
+        last_make_op = return_op.operands[0].owner
         assert isinstance(last_make_op, MakeOp)
 
         live_ops = MCMCSampler.get_live_operations(self.proposed)
