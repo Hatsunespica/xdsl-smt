@@ -9,7 +9,6 @@ def get_build_cmd() -> list[str]:
         .stdout.decode("utf-8")
         .find("libclang.so.19")
     )
-    # has_libclang = 1
     llvm_include_dir = (
         run(
             ["llvm-config", "--includedir"],
