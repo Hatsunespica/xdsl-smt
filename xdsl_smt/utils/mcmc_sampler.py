@@ -44,19 +44,22 @@ def parse_file(ctx: MLContext, file: str | None) -> Operation:
     return module
 
 
-context = SynthesizerContext()
-context.set_cmp_flags([0, 6, 7])
+
+
 
 
 class MCMCSampler:
     last_make_op: MakeOp
     current: FuncOp
     proposed: FuncOp | None
+    context: SynthesizerContext
 
     def __init__(self, func: FuncOp, length: int):
-        MCMCSampler.construct_init_program(func, length)
+        self.construct_init_program(func, length)
         self.current = func
         self.proposed = None
+        context = SynthesizerContext()
+        context.set_cmp_flags([0, 6, 7])
 
     def get_current(self):
         return self.current
@@ -72,9 +75,8 @@ class MCMCSampler:
     def reject_proposed(self):
         self.proposed = None
 
-    @staticmethod
     def get_valid_bool_operands(
-        ops: list[Operation], x: int
+        self, ops: list[Operation], x: int
     ) -> tuple[list[OpResult], int]:
         """
         Get operations that before ops[x] so that can serve as operands
@@ -86,9 +88,8 @@ class MCMCSampler:
         assert bool_count > 0
         return bool_ops, bool_count
 
-    @staticmethod
     def get_valid_int_operands(
-        ops: list[Operation], x: int
+        self, ops: list[Operation], x: int
     ) -> tuple[list[OpResult], int]:
         """
         Get operations that before ops[x] so that can serve as operands
@@ -103,9 +104,8 @@ class MCMCSampler:
         assert int_count > 0
         return int_ops, int_count
 
-    @staticmethod
     def replace_entire_operation(
-        ops: list[Operation], live_op_indices: list[int]
+        self, ops: list[Operation], live_op_indices: list[int]
     ) -> tuple[Operation, Operation, float]:
         """
         Random pick an operation and replace it with a new one
@@ -115,8 +115,8 @@ class MCMCSampler:
         idx = random.choice(live_op_indices)
         old_op = ops[idx]
 
-        int_operands, num_int_operands = MCMCSampler.get_valid_int_operands(ops, idx)
-        bool_operands, num_bool_operands = MCMCSampler.get_valid_bool_operands(ops, idx)
+        int_operands, num_int_operands = self.get_valid_int_operands(ops, idx)
+        bool_operands, num_bool_operands = self.get_valid_bool_operands(ops, idx)
 
         def calculate_operand_prob(op: Operation) -> int:
             ret = 1
@@ -137,7 +137,7 @@ class MCMCSampler:
             op2 = random.choice(bool_operands)
             int_op1 = random.choice(int_operands)
             int_op2 = random.choice(int_operands)
-            new_op = context.get_random_i1_op([op1, op2], [int_op1, int_op2])
+            new_op = self.context.get_random_i1_op([op1, op2], [int_op1, int_op2])
             print(new_op)
 
             forward_prob = calculate_operand_prob(old_op)
@@ -150,7 +150,7 @@ class MCMCSampler:
             op1 = random.choice(int_operands)
             op2 = random.choice(int_operands)
             cond = random.choice(bool_operands)
-            new_op = context.get_random_int_op_except([op1, op2], [cond], old_op)
+            new_op = self.context.get_random_int_op_except([op1, op2], [cond], old_op)
             print(new_op)
 
             forward_prob = calculate_operand_prob(old_op)
@@ -163,8 +163,7 @@ class MCMCSampler:
 
         return old_op, new_op, backward_prob / forward_prob
 
-    @staticmethod
-    def replace_operand(ops: list[Operation], live_op_indices: list[int]) -> float:
+    def replace_operand(self, ops: list[Operation], live_op_indices: list[int]) -> float:
         # modifiable_indices = [
         #     i
         #     for i, op in enumerate(ops[8:-1], start=8)
@@ -173,8 +172,8 @@ class MCMCSampler:
         # assert modifiable_indices
         idx = random.choice(live_op_indices)
         op = ops[idx]
-        int_operands, _ = MCMCSampler.get_valid_int_operands(ops, idx)
-        bool_operands, _ = MCMCSampler.get_valid_bool_operands(ops, idx)
+        int_operands, _ = self.get_valid_int_operands(ops, idx)
+        bool_operands, _ = self.get_valid_bool_operands(ops, idx)
 
         ith = random.randrange(len(op.operands))
         if op.operands[ith].type == i1:
@@ -189,21 +188,19 @@ class MCMCSampler:
         op.operands[ith] = new_operand
         return 1
 
-    @staticmethod
-    def replace_make_operand(ops: list[Operation], make_op_idx: int) -> float:
+    def replace_make_operand(self, ops: list[Operation], make_op_idx: int) -> float:
         idx = make_op_idx
         op = ops[idx]
         assert isinstance(op, MakeOp)
 
-        int_operands, _ = MCMCSampler.get_valid_int_operands(ops, idx)
+        int_operands, _ = self.get_valid_int_operands(ops, idx)
         ith = random.randrange(len(op.operands))
         assert isinstance(op.operands[ith].type, TransIntegerType)
         new_operand = random.choice(int_operands)
         op.operands[ith] = new_operand
         return 1
 
-    @staticmethod
-    def construct_init_program(func: FuncOp, length: int):
+    def construct_init_program(self, func: FuncOp, length: int):
         block = func.body.block
 
         for op in block.ops:
@@ -299,7 +296,7 @@ class MCMCSampler:
         last_make_op = return_op.operands[0].owner
         assert isinstance(last_make_op, MakeOp)
 
-        live_ops = MCMCSampler.get_live_operations(self.proposed)
+        live_ops = self.get_live_operations(self.proposed)
         live_op_indices = [_[1] for _ in live_ops]
 
         ops = list(self.proposed.body.block.ops)
@@ -307,7 +304,7 @@ class MCMCSampler:
         sample_mode = random.random()
         if sample_mode < 0.3 and live_op_indices:
             # replace an operation with a new operation
-            old_op, new_op, ratio = MCMCSampler.replace_entire_operation(
+            old_op, new_op, ratio = self.replace_entire_operation(
                 ops, live_op_indices
             )
             self.proposed.body.block.insert_op_before(new_op, old_op)
@@ -317,11 +314,11 @@ class MCMCSampler:
 
         elif sample_mode < 1 and live_op_indices:
             # replace an operand in an operation
-            ratio = MCMCSampler.replace_operand(ops, live_op_indices)
+            ratio = self.replace_operand(ops, live_op_indices)
 
         elif sample_mode < 1:
             # replace an operand in makeOp
-            ratio = MCMCSampler.replace_make_operand(ops, len(ops) - 2)
+            ratio = self.replace_make_operand(ops, len(ops) - 2)
         else:
             # todo: replace an operations with NOP
             ratio = 1
