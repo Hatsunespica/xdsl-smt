@@ -52,11 +52,14 @@ class MCMCSampler:
     last_make_op: MakeOp
     current: FuncOp
     proposed: FuncOp | None
+    current_cost: float
 
-    def __init__(self, func: FuncOp, length: int):
-        MCMCSampler.construct_init_program(func, length)
+    def __init__(self, func: FuncOp, length: int, init_cost: float, reset:bool = True):
+        if reset:
+            MCMCSampler.construct_init_program(func, length)
         self.current = func
         self.proposed = None
+        self.current_cost = init_cost
 
     def get_current(self):
         return self.current
@@ -64,9 +67,10 @@ class MCMCSampler:
     def get_proposed(self):
         return self.proposed
 
-    def accept_proposed(self):
+    def accept_proposed(self, proposed_cost: float):
         assert self.proposed is not None
         self.current = self.proposed
+        self.current_cost = proposed_cost
         self.proposed = None
 
     def reject_proposed(self):

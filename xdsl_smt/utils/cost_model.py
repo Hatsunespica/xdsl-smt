@@ -1,5 +1,8 @@
 def compute_cost(soundness: float, precision: float) -> float:
-    return 4 * (1 - soundness) ** 2 + (1 - precision)
+    if soundness == 1:
+        return 1 - precision
+    else:
+        return 2 - soundness
     # return 1 / (soundness + 1e-3)
 
 

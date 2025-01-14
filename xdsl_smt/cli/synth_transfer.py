@@ -79,6 +79,7 @@ from ..utils.transfer_function_util import (
     SMTTransferFunction,
     fixDefiningOpReturnType,
 )
+from ..utils.visualize import print_figure
 
 
 def register_all_arguments(arg_parser: argparse.ArgumentParser):
@@ -371,7 +372,7 @@ def soundness_check(
     return verify_res
 
 
-def print_crt_func_to_cpp(concrete_func: FuncOp) -> str:
+def print_crt_func_to_cpp() -> str:
     """
     sio = StringIO()
     if isinstance(concrete_func, FuncOp):
@@ -380,9 +381,10 @@ def print_crt_func_to_cpp(concrete_func: FuncOp) -> str:
     """
     return """
     APInt concrete_op(APInt arg0, APInt arg1){
-      return arg0 & arg1;
+      return arg0 + arg1;
     }
     """
+#
 
 
 def print_to_cpp(func: FuncOp) -> str:
@@ -398,6 +400,12 @@ INSTANCE_CONSTRAINT = "getInstanceConstraint"
 DOMAIN_CONSTRAINT = "getConstraint"
 TMP_MODULE: list[ModuleOp] = []
 ctx: MLContext
+
+
+def print_func_to_file(sampler: MCMCSampler, rd: int, i: int, path: str):
+    with open(f"{path}/tf{rd}_{i}.mlir", "w") as file:
+        file.write(f"Cost: {sampler.current_cost}\n")
+        file.write(str(sampler.get_current()))
 
 
 def main() -> None:
@@ -434,10 +442,19 @@ def main() -> None:
         smt_transfer_function_obj, domain_constraint, instance_constraint, int_attr, ctx
     )
     """
-    print("Round\tsoundness%\tprecision%\tUsed time")
+    print("Round\tsoundness%\tprecision%\tcost\tUsed time")
     possible_solution: set[str] = set()
 
     random.seed(17)
+
+    PROGRAM_LENGTH = 8
+    NUM_PROGRAMS = 30
+    INIT_COST = 20
+    TOTAL_ROUNDS = 500
+
+    sound_data: list[list[float]] = [[] for _ in range(NUM_PROGRAMS)]
+    precision_data: list[list[float]] = [[] for _ in range(NUM_PROGRAMS)]
+    cost_data: list[list[float]] = [[] for _ in range(NUM_PROGRAMS)]
 
     for func in module.ops:
         if isinstance(func, FuncOp) and is_transfer_function(func):
@@ -449,50 +466,73 @@ def main() -> None:
                 concrete_func_name = applied_to.data[0].data
             concrete_func = get_concrete_function(concrete_func_name, SYNTH_WIDTH, None)
             func_name = func.sym_name.data
-            mcmc_sampler = MCMCSampler(func, 8)
+            mcmc_samplers: list[MCMCSampler] = []
 
-            current_cost = 20
-            for i in range(10000):
+            for _ in range(NUM_PROGRAMS):
+                sampler = MCMCSampler(func, PROGRAM_LENGTH, init_cost=20)
+                mcmc_samplers.append(sampler)
+
+            for round in range(TOTAL_ROUNDS):
                 start = time.time()
 
-                _: float = mcmc_sampler.sample_next()
+                cpp_codes: list[str] = []
 
-                proposed_solution = mcmc_sampler.get_proposed()
-                assert proposed_solution is not None
-                func_to_eval = proposed_solution.clone()
+                for i in range(NUM_PROGRAMS):
+                    _: float = mcmc_samplers[i].sample_next()
 
-                cpp_code = print_to_cpp(func_to_eval)
-                crt_func = print_crt_func_to_cpp(concrete_func)
+                    proposed_solution = mcmc_samplers[i].get_proposed()
+                    assert proposed_solution is not None
+                    func_to_eval = proposed_solution.clone()
+
+                    cpp_code = print_to_cpp(func_to_eval)
+                    cpp_codes.append(cpp_code)
+
+                crt_func = print_crt_func_to_cpp()
                 soundness_percent, precision_percent = eval_transfer_func(
-                    [func_name], [cpp_code], crt_func
+                    [func_name] * NUM_PROGRAMS, cpp_codes, crt_func
                 )
-                proposed_cost = compute_cost(soundness_percent[0], precision_percent[0])
 
                 end = time.time()
                 used_time = end - start
 
-                accept_rate = compute_accept_rate(current_cost, proposed_cost)
+                for i in range(NUM_PROGRAMS):
+                    if mcmc_samplers[i].current_cost == 0:
+                        cost_data[i].append(0)
+                        continue
 
-                decision = True if random.random() < accept_rate else False
-                if decision:
-                    print(
-                        f"{i}\t{soundness_percent[0] * 100:.2f}%\t{precision_percent[0] * 100:.2f}%\t{used_time:.2f}"
+                    proposed_cost = compute_cost(
+                        soundness_percent[i], precision_percent[i]
+                    )
+                    accept_rate = compute_accept_rate(
+                        mcmc_samplers[i].current_cost, proposed_cost
                     )
 
-                    # print(mcmc_sampler.get_current())
-                    # print(mcmc_sampler.get_proposed())
 
-                    mcmc_sampler.accept_proposed()
-                    current_cost = proposed_cost
-                    assert mcmc_sampler.get_proposed() is None
+                    decision = True if random.random() < accept_rate else False
+                    if decision:
+                        print(
+                            f"{round}_{i}\t{soundness_percent[i] * 100:.2f}%\t{precision_percent[i] * 100:.2f}%\t{proposed_cost:.3f}\t{used_time:.2f}"
+                        )
 
-                else:
-                    mcmc_sampler.reject_proposed()
-                    pass
+                        # print(mcmc_sampler.get_current())
+                        # print(mcmc_sampler.get_proposed())
+                        cost_reduce = mcmc_samplers[i].current_cost - proposed_cost
 
-                if soundness_percent[0] == 1 and precision_percent[0] == 1:
-                    print(mcmc_sampler.get_current())
-                    break
+                        mcmc_samplers[i].accept_proposed(proposed_cost)
+                        assert mcmc_samplers[i].get_proposed() is None
+
+                        if cost_reduce > 0:
+                            print_func_to_file(mcmc_samplers[i], round, i, "./outputs")
+
+                    else:
+                        mcmc_samplers[i].reject_proposed()
+                        pass
+
+                    cost_data[i].append(mcmc_samplers[i].current_cost)
+
+                    # if soundness_percent[i] == 1 and precision_percent[i] == 1:
+                    #     print(mcmc_samplers[i].get_current())
+                    #     return
 
                 """
                 tmp_clone_module: ModuleOp = module.clone()
@@ -516,5 +556,7 @@ def main() -> None:
                         if soundness_check_res:
                             print(mcmcSampler.func)
                         """
+    print_figure(cost_data)
+
     for item in possible_solution:
         print(item)
