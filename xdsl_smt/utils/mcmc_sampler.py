@@ -5,16 +5,12 @@ from xdsl.parser import Parser
 
 from xdsl.utils.exceptions import VerifyException
 from xdsl_smt.dialects import transfer
+from xdsl_smt.utils.synthesizer_context import SynthesizerContext
 from xdsl.dialects import arith
 from xdsl_smt.dialects.transfer import (
     AbstractValueType,
     TransIntegerType,
     GetOp,
-    SelectOp,
-    AndOp,
-    OrOp,
-    XorOp,
-    CmpOp,
     MakeOp,
     GetAllOnesOp,
     Constant,
@@ -46,6 +42,10 @@ def parse_file(ctx: MLContext, file: str | None) -> Operation:
     parser = Parser(ctx, f.read(), file)
     module = parser.parse_op()
     return module
+
+
+context = SynthesizerContext()
+context.set_cmp_flags([0, 6, 7])
 
 
 class MCMCSampler:
@@ -129,46 +129,29 @@ class MCMCSampler:
 
         if old_op.results[0].type == i1:  # bool
             # candidate = [arith.AndI.name, arith.OrI.name, CmpOp.name]
-            candidate = [CmpOp.name]
+            # candidate = [CmpOp.name]
             # if old_op.name in candidate:
             #     candidate.remove(old_op.name)
-            opcode = random.choice(candidate)
+            # opcode = random.choice(candidate)
             op1 = random.choice(bool_operands)
             op2 = random.choice(bool_operands)
-            if opcode == arith.AndI.name:
-                new_op = arith.AndI(op1, op2)
-            elif opcode == arith.OrI.name:
-                new_op = arith.OrI(op1, op2)
-            elif opcode == CmpOp.name:
-                predicate = random.choice([0, 6, 7])
-                int_op1 = random.choice(int_operands)
-                int_op2 = random.choice(int_operands)
-                new_op = CmpOp(int_op1, int_op2, predicate)
-            else:
-                assert False
+            int_op1 = random.choice(int_operands)
+            int_op2 = random.choice(int_operands)
+            new_op = context.get_random_i1_op([op1, op2], [int_op1, int_op2])
+            print(new_op)
 
             forward_prob = calculate_operand_prob(old_op)
             backward_prob = calculate_operand_prob(new_op)
 
         elif isinstance(old_op.results[0].type, TransIntegerType):  # integer
-            candidate = [AndOp.name, OrOp.name, XorOp.name, SelectOp.name]
+            # candidate = [AndOp.name, OrOp.name, XorOp.name, SelectOp.name]
             # candidate = [AndOp.name, OrOp.name, XorOp.name]
-            if old_op.name in candidate:
-                candidate.remove(old_op.name)
-            opcode = random.choice(candidate)
+            # opcode = random.choice(candidate)
             op1 = random.choice(int_operands)
             op2 = random.choice(int_operands)
-            if opcode == AndOp.name:
-                new_op = AndOp(op1, op2)
-            elif opcode == OrOp.name:
-                new_op = OrOp(op1, op2)
-            elif opcode == XorOp.name:
-                new_op = XorOp(op1, op2)
-            elif opcode == SelectOp.name:
-                cond = random.choice(bool_operands)
-                new_op = SelectOp(cond, op1, op2)
-            else:
-                assert False
+            cond = random.choice(bool_operands)
+            new_op = context.get_random_int_op_except([op1, op2], [cond], old_op)
+            print(new_op)
 
             forward_prob = calculate_operand_prob(old_op)
             backward_prob = calculate_operand_prob(new_op)
