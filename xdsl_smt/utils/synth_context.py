@@ -70,8 +70,8 @@ class Collection(Generic[T]):
             return random.choice(self.lst)
         return None
 
-    def get_all_elements(self) -> tuple[T]:
-        return tuple(*self.lst)
+    def get_all_elements(self) -> tuple[T, ...]:
+        return tuple(self.lst)
 
     def get_random_element_if(self, predicate: Callable[[T], bool]) -> T | None:
         idx = random.randint(0, self.lst_len - 1)
