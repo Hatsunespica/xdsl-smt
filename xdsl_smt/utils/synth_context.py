@@ -47,7 +47,7 @@ class Collection(Generic[T]):
 
     def get_random_element_if(self, predicate: Callable[[T], bool]) -> T | None:
         idx = random.randint(0, self.lst_len - 1)
-        for i in range(self.lst_len):
+        for _ in range(self.lst_len):
             if predicate(self.lst[idx]):
                 return self.lst[idx]
             idx += 1
