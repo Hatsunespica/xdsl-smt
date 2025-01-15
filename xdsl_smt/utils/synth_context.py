@@ -1,32 +1,4 @@
-from ..dialects.transfer import (
-    NegOp,
-    CmpOp,
-    AndOp,
-    OrOp,
-    XorOp,
-    AddOp,
-    SubOp,
-    CountLOneOp,
-    CountLZeroOp,
-    CountROneOp,
-    CountRZeroOp,
-    # SetHighBitsOp,
-    # SetLowBitsOp,
-    # GetLowBitsOp,
-    # GetBitWidthOp,
-    # UMulOverflowOp,
-    # SMinOp,
-    # SMaxOp,
-    # UMinOp,
-    # UMaxOp,
-    ShlOp,
-    LShrOp,
-    SelectOp,
-)
-from xdsl.pattern_rewriter import *
 from typing import TypeVar, Generic
-from xdsl.ir import Operation
-import xdsl.dialects.arith as arith
 import random
 
 T = TypeVar("T", covariant=True)
