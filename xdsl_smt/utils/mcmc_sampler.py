@@ -44,22 +44,17 @@ def parse_file(ctx: MLContext, file: str | None) -> Operation:
     return module
 
 
-
-
-
-
 class MCMCSampler:
     last_make_op: MakeOp
     current: FuncOp
     proposed: FuncOp | None
     context: SynthesizerContext
 
-    def __init__(self, func: FuncOp, length: int):
+    def __init__(self, func: FuncOp, length: int, context: SynthesizerContext):
         self.construct_init_program(func, length)
         self.current = func
         self.proposed = None
-        context = SynthesizerContext()
-        context.set_cmp_flags([0, 6, 7])
+        self.context = context
 
     def get_current(self):
         return self.current
@@ -128,30 +123,15 @@ class MCMCSampler:
             return ret
 
         if old_op.results[0].type == i1:  # bool
-            # candidate = [arith.AndI.name, arith.OrI.name, CmpOp.name]
-            # candidate = [CmpOp.name]
-            # if old_op.name in candidate:
-            #     candidate.remove(old_op.name)
-            # opcode = random.choice(candidate)
-            op1 = random.choice(bool_operands)
-            op2 = random.choice(bool_operands)
-            int_op1 = random.choice(int_operands)
-            int_op2 = random.choice(int_operands)
-            new_op = self.context.get_random_i1_op([op1, op2], [int_op1, int_op2])
-            print(new_op)
+            new_op = self.context.get_random_i1_op(int_operands, bool_operands)
 
             forward_prob = calculate_operand_prob(old_op)
             backward_prob = calculate_operand_prob(new_op)
 
         elif isinstance(old_op.results[0].type, TransIntegerType):  # integer
-            # candidate = [AndOp.name, OrOp.name, XorOp.name, SelectOp.name]
-            # candidate = [AndOp.name, OrOp.name, XorOp.name]
-            # opcode = random.choice(candidate)
-            op1 = random.choice(int_operands)
-            op2 = random.choice(int_operands)
-            cond = random.choice(bool_operands)
-            new_op = self.context.get_random_int_op_except([op1, op2], [cond], old_op)
-            print(new_op)
+            new_op = self.context.get_random_int_op_except(
+                int_operands, bool_operands, old_op
+            )
 
             forward_prob = calculate_operand_prob(old_op)
             backward_prob = calculate_operand_prob(new_op)
@@ -163,7 +143,9 @@ class MCMCSampler:
 
         return old_op, new_op, backward_prob / forward_prob
 
-    def replace_operand(self, ops: list[Operation], live_op_indices: list[int]) -> float:
+    def replace_operand(
+        self, ops: list[Operation], live_op_indices: list[int]
+    ) -> float:
         # modifiable_indices = [
         #     i
         #     for i, op in enumerate(ops[8:-1], start=8)
@@ -304,9 +286,7 @@ class MCMCSampler:
         sample_mode = random.random()
         if sample_mode < 0.3 and live_op_indices:
             # replace an operation with a new operation
-            old_op, new_op, ratio = self.replace_entire_operation(
-                ops, live_op_indices
-            )
+            old_op, new_op, ratio = self.replace_entire_operation(ops, live_op_indices)
             self.proposed.body.block.insert_op_before(new_op, old_op)
             if len(old_op.results) > 0 and len(new_op.results) > 0:
                 old_op.results[0].replace_by(new_op.results[0])

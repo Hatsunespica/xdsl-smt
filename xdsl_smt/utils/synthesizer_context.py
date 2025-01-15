@@ -174,9 +174,13 @@ class SynthesizerContext:
             lambda op_ty: op_ty != type(except_op)
         )
         if result_type == CmpOp:
-            return CmpOp(int_vals[0], int_vals[1], random.choice(self.cmp_flags))
+            return CmpOp(
+                random.choice(int_vals),
+                random.choice(int_vals),
+                random.choice(self.cmp_flags),
+            )
         assert result_type is not None
-        return result_type(i1_vals[0], i1_vals[1])
+        return result_type(random.choice(i1_vals), random.choice(i1_vals))
 
     def get_random_int_op_except(
         self, int_vals: list[SSAValue], i1_vals: list[SSAValue], except_op: Operation
@@ -185,8 +189,10 @@ class SynthesizerContext:
             lambda op_ty: op_ty != type(except_op)
         )
         if result_type == SelectOp:
-            return SelectOp(i1_vals[0], int_vals[0], int_vals[1])
+            return SelectOp(
+                random.choice(i1_vals), random.choice(int_vals), random.choice(int_vals)
+            )
         elif result_type == NegOp:
-            return NegOp(int_vals[0])
+            return NegOp(random.choice(int_vals))
         assert result_type is not None
-        return result_type(int_vals[0], int_vals[1])
+        return result_type(random.choice(int_vals), random.choice(int_vals))
