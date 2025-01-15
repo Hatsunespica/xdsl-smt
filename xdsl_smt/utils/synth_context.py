@@ -1,7 +1,7 @@
-from typing import TypeVar, Generic
+from typing import TypeVar, Generic, Callable
 import random
 
-T = TypeVar("T", covariant=True)
+T = TypeVar("T")
 
 
 class Collection(Generic[T]):
