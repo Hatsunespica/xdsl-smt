@@ -81,37 +81,3 @@ class Collection(Generic[T]):
             idx += 1
             idx %= self.lst_len
         return None
-
-
-basic_int_ops: Collection[type[Operation]] = Collection(
-    [
-        NegOp,
-        AndOp,
-        OrOp,
-        XorOp,
-        AddOp,
-        SubOp,
-        SelectOp,
-    ]
-)
-
-full_int_ops: Collection[type[Operation]] = Collection(
-    [
-        NegOp,
-        AndOp,
-        OrOp,
-        XorOp,
-        AddOp,
-        SubOp,
-        SelectOp,
-        LShrOp,
-        ShlOp,
-        CountLOneOp,
-        CountLZeroOp,
-        CountROneOp,
-        CountRZeroOp,
-    ]
-)
-basic_i1_ops: Collection[type[Operation]] = Collection(
-    [arith.AndI, arith.OrI, arith.XOrI, CmpOp]
-)
