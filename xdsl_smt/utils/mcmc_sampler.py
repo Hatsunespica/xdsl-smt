@@ -17,7 +17,7 @@ from xdsl_smt.dialects.transfer import (
     CmpOp,
     MakeOp,
     GetAllOnesOp,
-    Constant,
+    Constant, AddOp, SubOp, LShrOp, ShlOp,
 )
 from xdsl.dialects.builtin import (
     IntegerAttr,
@@ -53,6 +53,8 @@ class MCMCSampler:
     current: FuncOp
     proposed: FuncOp | None
     current_cost: float
+    current_soundness: float
+    current_precision: float
 
     def __init__(self, func: FuncOp, length: int, init_cost: float, reset:bool = True):
         if reset:
@@ -67,10 +69,12 @@ class MCMCSampler:
     def get_proposed(self):
         return self.proposed
 
-    def accept_proposed(self, proposed_cost: float):
+    def accept_proposed(self, proposed_cost: float, proposed_soundness: float, proposed_precision: float):
         assert self.proposed is not None
         self.current = self.proposed
         self.current_cost = proposed_cost
+        self.current_soundness = proposed_soundness
+        self.current_precision = proposed_precision
         self.proposed = None
 
     def reject_proposed(self):
@@ -155,8 +159,8 @@ class MCMCSampler:
             backward_prob = calculate_operand_prob(new_op)
 
         elif isinstance(old_op.results[0].type, TransIntegerType):  # integer
-            candidate = [AndOp.name, OrOp.name, XorOp.name, SelectOp.name]
-            # candidate = [AndOp.name, OrOp.name, XorOp.name]
+            # candidate = [AndOp.name, OrOp.name, XorOp.name, SelectOp.name]
+            candidate = [AndOp.name, OrOp.name, XorOp.name, AddOp.name, SubOp.name]
             if old_op.name in candidate:
                 candidate.remove(old_op.name)
             opcode = random.choice(candidate)
@@ -168,6 +172,10 @@ class MCMCSampler:
                 new_op = OrOp(op1, op2)
             elif opcode == XorOp.name:
                 new_op = XorOp(op1, op2)
+            elif opcode == AddOp.name:
+                new_op = AddOp(op1, op2)
+            elif opcode == SubOp.name:
+                new_op = SubOp(op1, op2)
             elif opcode == SelectOp.name:
                 cond = random.choice(bool_operands)
                 new_op = SelectOp(cond, op1, op2)
@@ -242,12 +250,14 @@ class MCMCSampler:
         # Part II: Constants
         true: arith.Constant = arith.Constant(IntegerAttr.from_int_and_width(1, 1), i1)
         false: arith.Constant = arith.Constant(IntegerAttr.from_int_and_width(0, 1), i1)
-        one = GetAllOnesOp(tmp_int_ssavalue)
+        all_ones = GetAllOnesOp(tmp_int_ssavalue)
         zero = Constant(tmp_int_ssavalue, 0)
+        one = Constant(tmp_int_ssavalue, 1)
         block.add_op(true)
         block.add_op(false)
         block.add_op(zero)
         block.add_op(one)
+        block.add_op(all_ones)
 
         # Part III: Main Body
         tmp_bool_ssavalue = true.results[0]
