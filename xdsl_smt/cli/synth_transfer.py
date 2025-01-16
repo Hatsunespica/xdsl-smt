@@ -70,6 +70,7 @@ import sys as sys
 
 from ..utils.cost_model import compute_cost, decide
 from ..utils.mcmc_sampler import MCMCSampler
+from ..utils.synthesizer_context import SynthesizerContext
 from ..utils.transfer_function_check_util import (
     forward_soundness_check,
     backward_soundness_check,
@@ -372,7 +373,7 @@ def soundness_check(
     return verify_res
 
 
-def print_crt_func_to_cpp() -> str:
+def print_crt_func_to_cpp(concrete_func: FuncOp) -> str:
     """
     sio = StringIO()
     if isinstance(concrete_func, FuncOp):
@@ -381,10 +382,9 @@ def print_crt_func_to_cpp() -> str:
     """
     return """
     APInt concrete_op(APInt arg0, APInt arg1){
-      return arg0 + arg1;
+      return arg0 & arg1;
     }
     """
-#
 
 
 def print_to_cpp(func: FuncOp) -> str:
@@ -456,6 +456,9 @@ def main() -> None:
     precision_data: list[list[float]] = [[] for _ in range(NUM_PROGRAMS)]
     cost_data: list[list[float]] = [[] for _ in range(NUM_PROGRAMS)]
 
+    context = SynthesizerContext()
+    context.set_cmp_flags([0, 6, 7])
+
     for func in module.ops:
         if isinstance(func, FuncOp) and is_transfer_function(func):
             concrete_func_name = ""
@@ -469,7 +472,7 @@ def main() -> None:
             mcmc_samplers: list[MCMCSampler] = []
 
             for _ in range(NUM_PROGRAMS):
-                sampler = MCMCSampler(func, PROGRAM_LENGTH, init_cost=INIT_COST)
+                sampler = MCMCSampler(func, context, PROGRAM_LENGTH, init_cost=INIT_COST)
                 mcmc_samplers.append(sampler)
 
             for round in range(TOTAL_ROUNDS):
@@ -487,7 +490,7 @@ def main() -> None:
                     cpp_code = print_to_cpp(func_to_eval)
                     cpp_codes.append(cpp_code)
 
-                crt_func = print_crt_func_to_cpp()
+                crt_func = print_crt_func_to_cpp(concrete_func)
                 soundness_percent, precision_percent = eval_transfer_func(
                     [func_name] * NUM_PROGRAMS, cpp_codes, crt_func
                 )
