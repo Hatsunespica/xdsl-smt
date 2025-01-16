@@ -23,9 +23,8 @@ from ..dialects.transfer import (
     LShrOp,
     SelectOp,
 )
-from xdsl.pattern_rewriter import *
-from typing import TypeVar, Generic
-from xdsl.ir import Operation
+from typing import TypeVar, Generic, Callable
+from xdsl.ir import Operation, SSAValue
 import xdsl.dialects.arith as arith
 import random
 
@@ -43,13 +42,11 @@ class Collection(Generic[T]):
     ele_to_index: dict[T, int]
 
     def __init__(self, lst: list[T]):
-        self.lst = []
+        self.lst = lst
         self.ele_to_index = {}
-        self.lst_len = 0
+        self.lst_len = len(lst)
         for i, ele in enumerate(lst):
-            self.lst.append(ele)
             self.ele_to_index[ele] = i
-            self.lst_len += 1
 
     def add(self, ele: T):
         self.lst.append(ele)
@@ -72,12 +69,12 @@ class Collection(Generic[T]):
             return random.choice(self.lst)
         return None
 
-    def get_all_elements(self) -> tuple[T]:
-        return tuple(*self.lst)
+    def get_all_elements(self) -> tuple[T, ...]:
+        return tuple(self.lst)
 
     def get_random_element_if(self, predicate: Callable[[T], bool]) -> T | None:
         idx = random.randint(0, self.lst_len - 1)
-        for i in range(self.lst_len):
+        for _ in range(self.lst_len):
             if predicate(self.lst[idx]):
                 return self.lst[idx]
             idx += 1
@@ -135,10 +132,10 @@ class SynthesizerContext:
     def use_full_int_ops(self):
         self.int_ops = full_int_ops
 
-    def get_available_i1_ops(self) -> tuple[type[Operation]]:
+    def get_available_i1_ops(self) -> tuple[type[Operation], ...]:
         return self.i1_ops.get_all_elements()
 
-    def get_available_int_ops(self) -> tuple[type[Operation]]:
+    def get_available_int_ops(self) -> tuple[type[Operation], ...]:
         return self.int_ops.get_all_elements()
 
     def set_cmp_flags(self, cmp_flags: list[int]):
@@ -148,16 +145,24 @@ class SynthesizerContext:
         self.cmp_flags = cmp_flags
 
     def get_random_i1_op(
-        self, int_vals: list[SSAValue], i1_vals: list[SSAValue]
+        self,
+        int_vals: list[SSAValue],
+        i1_vals: list[SSAValue],
     ) -> Operation:
         result_type = self.i1_ops.get_random_element()
         if result_type == CmpOp:
             return CmpOp(int_vals[0], int_vals[1], random.choice(self.cmp_flags))
         assert result_type is not None
-        return result_type(i1_vals[0], i1_vals[1])
+        result = result_type(
+            i1_vals[0], i1_vals[1]  # pyright: ignore [reportGeneralTypeIssues]
+        )
+        assert isinstance(result, Operation)
+        return result
 
     def get_random_int_op(
-        self, int_vals: list[SSAValue], i1_vals: list[SSAValue]
+        self,
+        int_vals: list[SSAValue],
+        i1_vals: list[SSAValue],
     ) -> Operation:
         result_type = self.int_ops.get_random_element()
         if result_type == SelectOp:
@@ -165,10 +170,17 @@ class SynthesizerContext:
         elif result_type == NegOp:
             return NegOp(int_vals[0])
         assert result_type is not None
-        return result_type(int_vals[0], int_vals[1])
+        result = result_type(
+            int_vals[0], int_vals[1]  # pyright: ignore [reportGeneralTypeIssues]
+        )
+        assert isinstance(result, Operation)
+        return result
 
     def get_random_i1_op_except(
-        self, int_vals: list[SSAValue], i1_vals: list[SSAValue], except_op: Operation
+        self,
+        int_vals: list[SSAValue],
+        i1_vals: list[SSAValue],
+        except_op: Operation,
     ) -> Operation:
         result_type = self.i1_ops.get_random_element_if(
             lambda op_ty: op_ty != type(except_op)
@@ -180,10 +192,18 @@ class SynthesizerContext:
                 random.choice(self.cmp_flags),
             )
         assert result_type is not None
-        return result_type(random.choice(i1_vals), random.choice(i1_vals))
+        result = result_type(
+            random.choice(i1_vals),  # pyright: ignore [reportGeneralTypeIssues]
+            random.choice(i1_vals),
+        )
+        assert isinstance(result, Operation)
+        return result
 
     def get_random_int_op_except(
-        self, int_vals: list[SSAValue], i1_vals: list[SSAValue], except_op: Operation
+        self,
+        int_vals: list[SSAValue],
+        i1_vals: list[SSAValue],
+        except_op: Operation,
     ) -> Operation:
         result_type = self.int_ops.get_random_element_if(
             lambda op_ty: op_ty != type(except_op)
@@ -195,4 +215,9 @@ class SynthesizerContext:
         elif result_type == NegOp:
             return NegOp(random.choice(int_vals))
         assert result_type is not None
-        return result_type(random.choice(int_vals), random.choice(int_vals))
+        result = result_type(
+            random.choice(int_vals),  # pyright: ignore [reportGeneralTypeIssues]
+            random.choice(int_vals),
+        )
+        assert isinstance(result, Operation)
+        return result

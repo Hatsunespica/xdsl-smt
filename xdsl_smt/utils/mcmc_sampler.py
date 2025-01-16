@@ -21,7 +21,7 @@ from xdsl.dialects.builtin import (
     i1,
 )
 from xdsl.dialects.func import FuncOp, Return
-from xdsl.ir import Operation, OpResult
+from xdsl.ir import Operation, OpResult, SSAValue
 import sys as sys
 import random
 
@@ -72,11 +72,11 @@ class MCMCSampler:
 
     def get_valid_bool_operands(
         self, ops: list[Operation], x: int
-    ) -> tuple[list[OpResult], int]:
+    ) -> tuple[list[SSAValue], int]:
         """
         Get operations that before ops[x] so that can serve as operands
         """
-        bool_ops = [
+        bool_ops: list[SSAValue] = [
             result for op in ops[:x] for result in op.results if result.type == i1
         ]
         bool_count = len(bool_ops)
@@ -85,11 +85,11 @@ class MCMCSampler:
 
     def get_valid_int_operands(
         self, ops: list[Operation], x: int
-    ) -> tuple[list[OpResult], int]:
+    ) -> tuple[list[SSAValue], int]:
         """
         Get operations that before ops[x] so that can serve as operands
         """
-        int_ops = [
+        int_ops: list[SSAValue] = [
             result
             for op in ops[:x]
             for result in op.results
