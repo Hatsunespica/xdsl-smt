@@ -86,6 +86,11 @@ def register_all_arguments(arg_parser: argparse.ArgumentParser):
     arg_parser.add_argument(
         "transfer_functions", type=str, nargs="?", help="path to the transfer functions"
     )
+    arg_parser.add_argument(
+        "formal_verify",
+        action="store_false",
+        help="formally verify synthesized transfer functions",
+    )
 
 
 def verify_pattern(ctx: MLContext, op: ModuleOp) -> bool:
@@ -422,6 +427,7 @@ def main() -> None:
 
     # Parse the files
     module = parse_file(ctx, args.transfer_functions)
+    should_formal_verify = args.formal_verify
     assert isinstance(module, ModuleOp)
 
     """
