@@ -50,4 +50,5 @@ class Random:
                 lst += [int(x) for x in line.split()]
         self.file_rands = lst
         self.rands_len = len(lst)
+        self.from_file = True
         assert self.rands_len != 0
