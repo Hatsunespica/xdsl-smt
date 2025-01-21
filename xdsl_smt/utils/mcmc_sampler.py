@@ -205,17 +205,6 @@ class MCMCSampler:
         assert isinstance(block.last_op, GetOp)
         tmp_int_ssavalue = block.last_op.results[0]
 
-        # Part II: Constants
-        true: arith.Constant = arith.Constant(IntegerAttr.from_int_and_width(1, 1), i1)
-        false: arith.Constant = arith.Constant(IntegerAttr.from_int_and_width(0, 1), i1)
-        one = GetAllOnesOp(tmp_int_ssavalue)
-        zero = Constant(tmp_int_ssavalue, 0)
-        block.add_op(true)
-        block.add_op(false)
-        block.add_op(zero)
-        block.add_op(one)
-
-        # Part III: Main Body
 
         # Part II: Constants
         true: arith.Constant = arith.Constant(IntegerAttr.from_int_and_width(1, 1), i1)
