@@ -69,7 +69,7 @@ def main() -> None:
     func = module.ops.first
     context = SynthesizerContext(random)
 
-    mcmc_sampler = MCMCSampler(func, 4, context)
+    mcmc_sampler = MCMCSampler(func, context, 4, 20)
     print(mcmc_sampler.get_current())
     for i in range(0):
         _: float = mcmc_sampler.sample_next()
