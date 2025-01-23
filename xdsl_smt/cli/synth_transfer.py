@@ -461,8 +461,8 @@ def main() -> None:
     INIT_COST = 20
     TOTAL_ROUNDS = 500
 
-    sound_data: list[list[float]] = [[] for _ in range(NUM_PROGRAMS)]
-    precision_data: list[list[float]] = [[] for _ in range(NUM_PROGRAMS)]
+    # sound_data: list[list[float]] = [[] for _ in range(NUM_PROGRAMS)]
+    # precision_data: list[list[float]] = [[] for _ in range(NUM_PROGRAMS)]
     cost_data: list[list[float]] = [[] for _ in range(NUM_PROGRAMS)]
 
     context = SynthesizerContext(random)
@@ -481,7 +481,9 @@ def main() -> None:
             mcmc_samplers: list[MCMCSampler] = []
 
             for _ in range(NUM_PROGRAMS):
-                sampler = MCMCSampler(func, context, PROGRAM_LENGTH, init_cost=INIT_COST)
+                sampler = MCMCSampler(
+                    func, context, PROGRAM_LENGTH, init_cost=INIT_COST
+                )
                 mcmc_samplers.append(sampler)
 
             for round in range(TOTAL_ROUNDS):
@@ -504,24 +506,23 @@ def main() -> None:
                     [func_name] * NUM_PROGRAMS, cpp_codes, crt_func
                 )
 
-
-
                 for i in range(NUM_PROGRAMS):
-
                     proposed_cost = compute_cost(
                         soundness_percent[i], precision_percent[i]
                     )
 
                     p = random.random()
-                    decision = decide(p, 1000, mcmc_samplers[i].current_cost, proposed_cost)
+                    decision = decide(
+                        p, 1000, mcmc_samplers[i].current_cost, proposed_cost
+                    )
                     if decision:
-
-
                         # print(mcmc_sampler.get_current())
                         # print(mcmc_sampler.get_proposed())
                         cost_reduce = mcmc_samplers[i].current_cost - proposed_cost
 
-                        mcmc_samplers[i].accept_proposed(proposed_cost, soundness_percent[i], precision_percent[i])
+                        mcmc_samplers[i].accept_proposed(
+                            proposed_cost, soundness_percent[i], precision_percent[i]
+                        )
                         assert mcmc_samplers[i].get_proposed() is None
 
                         if cost_reduce > 0:

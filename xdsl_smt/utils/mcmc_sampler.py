@@ -54,7 +54,14 @@ class MCMCSampler:
     context: SynthesizerContext
     random: Random
 
-    def __init__(self, func: FuncOp, context: SynthesizerContext, length: int, init_cost: float, reset:bool = True):
+    def __init__(
+        self,
+        func: FuncOp,
+        context: SynthesizerContext,
+        length: int,
+        init_cost: float,
+        reset: bool = True,
+    ):
         if reset:
             self.construct_init_program(func, length)
         self.current = func
@@ -69,7 +76,9 @@ class MCMCSampler:
     def get_proposed(self):
         return self.proposed
 
-    def accept_proposed(self, proposed_cost: float, proposed_soundness: float, proposed_precision: float):
+    def accept_proposed(
+        self, proposed_cost: float, proposed_soundness: float, proposed_precision: float
+    ):
         assert self.proposed is not None
         self.current = self.proposed
         self.current_cost = proposed_cost
@@ -206,7 +215,6 @@ class MCMCSampler:
                     block.add_op(op)
         assert isinstance(block.last_op, GetOp)
         tmp_int_ssavalue = block.last_op.results[0]
-
 
         # Part II: Constants
         true: arith.Constant = arith.Constant(IntegerAttr.from_int_and_width(1, 1), i1)

@@ -1,5 +1,6 @@
 import math
 
+
 def compute_cost(soundness: float, precision: float) -> float:
     # if soundness == 1:
     #     return 1 - precision
