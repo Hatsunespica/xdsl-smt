@@ -1,4 +1,3 @@
-import random
 import argparse
 import subprocess
 import time
@@ -71,6 +70,7 @@ import sys as sys
 from ..utils.cost_model import compute_cost, decide
 from ..utils.mcmc_sampler import MCMCSampler
 from ..utils.synthesizer_context import SynthesizerContext
+from ..utils.random import Random
 from ..utils.transfer_function_check_util import (
     forward_soundness_check,
     backward_soundness_check,
@@ -80,12 +80,17 @@ from ..utils.transfer_function_util import (
     SMTTransferFunction,
     fixDefiningOpReturnType,
 )
-from ..utils.visualize import print_figure
 
 
 def register_all_arguments(arg_parser: argparse.ArgumentParser):
     arg_parser.add_argument(
         "transfer_functions", type=str, nargs="?", help="path to the transfer functions"
+    )
+    arg_parser.add_argument(
+        "-random_file", type=str, nargs="?", help="the file includes all random numbers"
+    )
+    arg_parser.add_argument(
+        "-random_seed", type=int, nargs="?", help="specify the random seed"
     )
 
 
@@ -429,6 +434,8 @@ def main() -> None:
 
     # Parse the files
     module = parse_file(ctx, args.transfer_functions)
+    random_number_file = args.random_file
+    random_seed = args.random_seed
     assert isinstance(module, ModuleOp)
 
     """
@@ -445,7 +452,9 @@ def main() -> None:
     print("Round\tsoundness%\tprecision%\tcost")
     possible_solution: set[str] = set()
 
-    random.seed(47)
+    random = Random(random_seed)
+    if random_number_file is not None:
+        random.read_from_file(random_number_file)
 
     PROGRAM_LENGTH = 16
     NUM_PROGRAMS = 50
@@ -456,7 +465,7 @@ def main() -> None:
     precision_data: list[list[float]] = [[] for _ in range(NUM_PROGRAMS)]
     cost_data: list[list[float]] = [[] for _ in range(NUM_PROGRAMS)]
 
-    context = SynthesizerContext()
+    context = SynthesizerContext(random)
     context.set_cmp_flags([0, 6, 7])
 
     for func in module.ops:
@@ -558,7 +567,5 @@ def main() -> None:
                         if soundness_check_res:
                             print(mcmcSampler.func)
                         """
-    print_figure(cost_data)
-
     for item in possible_solution:
         print(item)

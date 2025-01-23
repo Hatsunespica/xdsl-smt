@@ -6,6 +6,7 @@ from xdsl.parser import Parser
 from xdsl.utils.exceptions import VerifyException
 from xdsl_smt.dialects import transfer
 from xdsl_smt.utils.synthesizer_context import SynthesizerContext
+from xdsl_smt.utils.random import Random
 from xdsl.dialects import arith
 from xdsl_smt.dialects.transfer import (
     AbstractValueType,
@@ -23,7 +24,6 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.func import FuncOp, Return
 from xdsl.ir import Operation, OpResult, SSAValue
 import sys as sys
-import random
 
 
 def register_all_arguments(arg_parser: argparse.ArgumentParser):
@@ -52,6 +52,7 @@ class MCMCSampler:
     current_soundness: float
     current_precision: float
     context: SynthesizerContext
+    random: Random
 
     def __init__(self, func: FuncOp, context: SynthesizerContext, length: int, init_cost: float, reset:bool = True):
         if reset:
@@ -60,6 +61,7 @@ class MCMCSampler:
         self.proposed = None
         self.current_cost = init_cost
         self.context = context
+        self.random = context.get_random_class()
 
     def get_current(self):
         return self.current
@@ -115,7 +117,7 @@ class MCMCSampler:
         """
         # modifiable_indices = range(8, len(ops) - 2)
 
-        idx = random.choice(live_op_indices)
+        idx = self.random.choice(live_op_indices)
         old_op = ops[idx]
 
         int_operands, num_int_operands = self.get_valid_int_operands(ops, idx)
@@ -160,16 +162,16 @@ class MCMCSampler:
         #     if op.operands and not isinstance(op, transfer.Constant)
         # ]
         # assert modifiable_indices
-        idx = random.choice(live_op_indices)
+        idx = self.random.choice(live_op_indices)
         op = ops[idx]
         int_operands, _ = self.get_valid_int_operands(ops, idx)
         bool_operands, _ = self.get_valid_bool_operands(ops, idx)
 
-        ith = random.randrange(len(op.operands))
+        ith = self.random.randint(0, len(op.operands) - 1)
         if op.operands[ith].type == i1:
-            new_operand = random.choice(bool_operands)
+            new_operand = self.random.choice(bool_operands)
         elif isinstance(op.operands[ith].type, TransIntegerType):
-            new_operand = random.choice(int_operands)
+            new_operand = self.random.choice(int_operands)
         else:
             raise VerifyException(
                 "Unexpected operand type {}".format(op.operands[ith].type)
@@ -184,9 +186,9 @@ class MCMCSampler:
         assert isinstance(op, MakeOp)
 
         int_operands, _ = self.get_valid_int_operands(ops, idx)
-        ith = random.randrange(len(op.operands))
+        ith = self.random.randint(0, len(op.operands) - 1)
         assert isinstance(op.operands[ith].type, TransIntegerType)
-        new_operand = random.choice(int_operands)
+        new_operand = self.random.choice(int_operands)
         op.operands[ith] = new_operand
         return 1
 
@@ -294,7 +296,7 @@ class MCMCSampler:
 
         ops = list(self.proposed.body.block.ops)
 
-        sample_mode = random.random()
+        sample_mode = self.random.random()
         if sample_mode < 0.3 and live_op_indices:
             # replace an operation with a new operation
             old_op, new_op, ratio = self.replace_entire_operation(ops, live_op_indices)
