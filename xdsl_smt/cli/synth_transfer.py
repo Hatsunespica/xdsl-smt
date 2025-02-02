@@ -515,8 +515,8 @@ def main() -> None:
 
                 if SKIP_EVAL:
                     for i in range(NUM_PROGRAMS):
-                        print(mcmc_samplers[i].current)
                         _: float = mcmc_samplers[i].sample_next()
+                        print(mcmc_samplers[i].proposed)
 
                         proposed_solution = mcmc_samplers[i].get_proposed()
                         assert proposed_solution is not None

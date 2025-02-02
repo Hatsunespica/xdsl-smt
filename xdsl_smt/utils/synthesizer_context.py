@@ -78,8 +78,6 @@ class Collection(Generic[T]):
         return tuple(self.lst)
 
     def get_random_element_if(self, predicate: Callable[[T], bool]) -> T | None:
-        for i, x in enumerate(self.lst):
-            print(i, x)
         idx = self.random.randint(0, self.lst_len - 1)
         for _ in range(self.lst_len):
             if predicate(self.lst[idx]):
@@ -199,15 +197,11 @@ class SynthesizerContext:
             lambda op_ty: op_ty != type(except_op)
         )
         if result_type == CmpOp:
-            for i, x in enumerate(int_vals):
-                print(i, x)
             return CmpOp(
                 self.random.choice(int_vals),
                 self.random.choice(int_vals),
                 self.random.choice(self.cmp_flags),
             )
-        for i, x in enumerate(i1_vals):
-            print(i, x)
         assert result_type is not None
         result = result_type(
             self.random.choice(i1_vals),  # pyright: ignore [reportGeneralTypeIssues]
@@ -225,12 +219,7 @@ class SynthesizerContext:
         result_type = self.int_ops.get_random_element_if(
             lambda op_ty: op_ty != type(except_op)
         )
-        print(result_type)
-        for i, x in enumerate(int_vals):
-            print(i, x)
         if result_type == SelectOp:
-            for i, x in enumerate(i1_vals):
-                print(i, x)
             return SelectOp(
                 self.random.choice(i1_vals),
                 self.random.choice(int_vals),
