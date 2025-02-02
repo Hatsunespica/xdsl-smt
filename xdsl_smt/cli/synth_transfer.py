@@ -399,7 +399,7 @@ DOMAIN_CONSTRAINT = "getConstraint"
 TMP_MODULE: list[ModuleOp] = []
 ctx: MLContext
 
-OUTPUTS_FOLDER = "outputs"
+OUTPUTS_FOLDER = "./tests/outputs"
 
 
 def print_func_to_file(sampler: MCMCSampler, rd: int, i: int, path: str):
@@ -454,10 +454,11 @@ def main() -> None:
     if random_number_file is not None:
         random.read_from_file(random_number_file)
 
-    PROGRAM_LENGTH = 16
-    NUM_PROGRAMS = 50
+    PROGRAM_LENGTH = 32
+    NUM_PROGRAMS = 1
     INIT_COST = 20
-    TOTAL_ROUNDS = 500
+    TOTAL_ROUNDS = 20
+    SKIP_EVAL = True
 
     # sound_data: list[list[float]] = [[] for _ in range(NUM_PROGRAMS)]
     # precision_data: list[list[float]] = [[] for _ in range(NUM_PROGRAMS)]
@@ -465,6 +466,7 @@ def main() -> None:
 
     context = SynthesizerContext(random)
     context.set_cmp_flags([0, 6, 7])
+    context.use_full_int_ops()
 
     for func in module.ops:
         if isinstance(func, FuncOp) and is_transfer_function(func):
@@ -486,6 +488,16 @@ def main() -> None:
 
             for round in range(TOTAL_ROUNDS):
                 start = time.time()
+
+                if SKIP_EVAL:
+                    for i in range(NUM_PROGRAMS):
+                        print(mcmc_samplers[i].current)
+                        _: float = mcmc_samplers[i].sample_next()
+
+                        proposed_solution = mcmc_samplers[i].get_proposed()
+                        assert proposed_solution is not None
+                        mcmc_samplers[i].accept_proposed(0, 0, 0)
+                    continue
 
                 cpp_codes: list[str] = []
 

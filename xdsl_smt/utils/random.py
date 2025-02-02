@@ -21,6 +21,7 @@ class Random:
     def __get_rand__(self) -> int:
         result = self.file_rands[self.index]
         self.index += 1
+        assert self.index != self.rands_len
         self.index %= self.rands_len
         return result
 
