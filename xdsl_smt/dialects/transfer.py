@@ -340,44 +340,20 @@ class ExtractOp(IRDLOperation):
 class GetLowBitsOp(BinOp):
     name = "transfer.get_low_bits"
 
-    T = Annotated[TransIntegerType | IntegerType, ConstraintVar("T")]
-
-    val: Operand = operand_def(T)
-    low_bits: Operand = operand_def(T)
-    result: OpResult = result_def(T)
-
 
 @irdl_op_definition
 class SetHighBitsOp(BinOp):
     name = "transfer.set_high_bits"
-
-    T = Annotated[TransIntegerType | IntegerType, ConstraintVar("T")]
-
-    val: Operand = operand_def(T)
-    high_bits: Operand = operand_def(T)
-    result: OpResult = result_def(T)
 
 
 @irdl_op_definition
 class SetLowBitsOp(BinOp):
     name = "transfer.set_low_bits"
 
-    T = Annotated[TransIntegerType | IntegerType, ConstraintVar("T")]
-
-    val: Operand = operand_def(T)
-    low_bits: Operand = operand_def(T)
-    result: OpResult = result_def(T)
-
 
 @irdl_op_definition
 class SetSignBitOp(BinOp):
     name = "transfer.set_sign_bit"
-
-    T = Annotated[TransIntegerType | IntegerType, ConstraintVar("T")]
-
-    val: Operand = operand_def(T)
-    sign_bit: Operand = operand_def(T)
-    result: OpResult = result_def(T)
 
 
 @irdl_op_definition
