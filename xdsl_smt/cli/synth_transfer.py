@@ -408,7 +408,7 @@ OP_CONSTRAINT = "op_constraint"
 TMP_MODULE: list[ModuleOp] = []
 ctx: MLContext
 
-OUTPUTS_FOLDER = "outputs"
+OUTPUTS_FOLDER = "./tests/outputs"
 
 
 def print_func_to_file(sampler: MCMCSampler, rd: int, i: int, path: str):
@@ -464,9 +464,10 @@ def main() -> None:
         random.read_from_file(random_number_file)
 
     PROGRAM_LENGTH = 32
-    NUM_PROGRAMS = 100
+    NUM_PROGRAMS = 1
     INIT_COST = 20
-    TOTAL_ROUNDS = 1000
+    TOTAL_ROUNDS = 25
+    SKIP_EVAL = True
 
     # sound_data: list[list[float]] = [[] for _ in range(NUM_PROGRAMS)]
     # precision_data: list[list[float]] = [[] for _ in range(NUM_PROGRAMS)]
@@ -474,6 +475,7 @@ def main() -> None:
 
     context = SynthesizerContext(random)
     context.set_cmp_flags([0, 6, 7])
+    context.use_full_int_ops()
 
     domain_constraint_func = ""
     instance_constraint_func = ""
@@ -510,6 +512,16 @@ def main() -> None:
 
             for round in range(TOTAL_ROUNDS):
                 start = time.time()
+
+                if SKIP_EVAL:
+                    for i in range(NUM_PROGRAMS):
+                        print(mcmc_samplers[i].current)
+                        _: float = mcmc_samplers[i].sample_next()
+
+                        proposed_solution = mcmc_samplers[i].get_proposed()
+                        assert proposed_solution is not None
+                        mcmc_samplers[i].accept_proposed(0, 0, 0)
+                    continue
 
                 cpp_codes: list[str] = []
 

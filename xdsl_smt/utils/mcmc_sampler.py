@@ -125,9 +125,12 @@ class MCMCSampler:
         Random pick an operation and replace it with a new one
         """
         # modifiable_indices = range(8, len(ops) - 2)
-
+        print(ops[live_op_indices[0]])
+        print(ops[live_op_indices[1]])
+        print(live_op_indices)
         idx = self.random.choice(live_op_indices)
         old_op = ops[idx]
+        print(old_op)
 
         int_operands, num_int_operands = self.get_valid_int_operands(ops, idx)
         bool_operands, num_bool_operands = self.get_valid_bool_operands(ops, idx)
@@ -142,7 +145,9 @@ class MCMCSampler:
             return ret
 
         if old_op.results[0].type == i1:  # bool
-            new_op = self.context.get_random_i1_op(int_operands, bool_operands)
+            new_op = self.context.get_random_i1_op_except(
+                int_operands, bool_operands, old_op
+            )
 
             forward_prob = calculate_operand_prob(old_op)
             backward_prob = calculate_operand_prob(new_op)
@@ -151,7 +156,6 @@ class MCMCSampler:
             new_op = self.context.get_random_int_op_except(
                 int_operands, bool_operands, old_op
             )
-
             forward_prob = calculate_operand_prob(old_op)
             backward_prob = calculate_operand_prob(new_op)
 
@@ -171,6 +175,7 @@ class MCMCSampler:
         #     if op.operands and not isinstance(op, transfer.Constant)
         # ]
         # assert modifiable_indices
+        print(live_op_indices)
         idx = self.random.choice(live_op_indices)
         op = ops[idx]
         int_operands, _ = self.get_valid_int_operands(ops, idx)
@@ -178,8 +183,12 @@ class MCMCSampler:
 
         ith = self.random.randint(0, len(op.operands) - 1)
         if op.operands[ith].type == i1:
+            for i, x in enumerate(bool_operands):
+                print(i, x)
             new_operand = self.random.choice(bool_operands)
         elif isinstance(op.operands[ith].type, TransIntegerType):
+            for i, x in enumerate(int_operands):
+                print(i, x)
             new_operand = self.random.choice(int_operands)
         else:
             raise VerifyException(
@@ -293,6 +302,7 @@ class MCMCSampler:
         Return the new program with the proposal ratio.
         """
         self.proposed = self.current.clone()
+        print(self.proposed)
 
         return_op = self.proposed.body.block.last_op
         assert isinstance(return_op, Return)
