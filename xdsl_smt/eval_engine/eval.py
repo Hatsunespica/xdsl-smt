@@ -9,7 +9,7 @@ def get_build_cmd() -> list[str]:
         .stdout.decode("utf-8")
         .find("libclang.so.19")
     )
-
+    # has_libclang = 1
     llvm_include_dir = (
         run(
             ["llvm-config", "--includedir"],
@@ -141,8 +141,10 @@ def eval_transfer_func(
     os.chdir(cur_dir)
 
     eval_output_lines = eval_output.stdout.decode("utf-8").split("\n")
+    print(eval_output_lines)
     sounds = get_floats(eval_output_lines[1])
-    precs = get_floats(eval_output_lines[3])
+    # exacts = get_floats(eval_output_lines[3])
+    precs = get_floats(eval_output_lines[5])
 
     return sounds, precs
 
