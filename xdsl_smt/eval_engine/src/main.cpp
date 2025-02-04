@@ -88,19 +88,22 @@ llvm::KnownBits const to_abstract(const std::vector<uint8_t> &conc_vals,
   return ret;
 }
 
-llvm::KnownBits to_best_abstract(const llvm::KnownBits lhs, const llvm::KnownBits rhs,uint8_t (*op)(const uint8_t,
-                                                          const uint8_t), uint8_t bitwidth){
-  bool hasInit=false;
+llvm::KnownBits to_best_abstract(const llvm::KnownBits lhs,
+                                 const llvm::KnownBits rhs,
+                                 uint8_t (*op)(const uint8_t, const uint8_t),
+                                 uint8_t bitwidth) {
+  bool hasInit = false;
   llvm::KnownBits result(bitwidth);
   uint8_t mask = 0b00001111;
   for (auto lhs_val : to_concrete(lhs)) {
-    for (auto rhs_val : to_concrete(rhs)){
-      if(op_constraint(APInt(bitwidth, lhs_val), APInt(bitwidth, rhs_val))){
-        auto crt_res = llvm::KnownBits::makeConstant(llvm::APInt(bitwidth, op(lhs_val, rhs_val) & mask));
-        if(!hasInit){
-          result=crt_res;
-          hasInit=true;
-        }else{
+    for (auto rhs_val : to_concrete(rhs)) {
+      if (op_constraint(APInt(bitwidth, lhs_val), APInt(bitwidth, rhs_val))) {
+        auto crt_res = llvm::KnownBits::makeConstant(
+            llvm::APInt(bitwidth, op(lhs_val, rhs_val) & mask));
+        if (!hasInit) {
+          result = crt_res;
+          hasInit = true;
+        } else {
           result = result.intersectWith(crt_res);
         }
       }
@@ -131,19 +134,22 @@ std::vector<uint8_t> const concrete_op_enum(const std::vector<uint8_t> &lhss,
   return ret;
 }
 
-unsigned int compare_abstract(llvm::KnownBits abs_res, llvm::KnownBits best_abs_res, bool& isUnsound){
+unsigned int compare_abstract(llvm::KnownBits abs_res,
+                              llvm::KnownBits best_abs_res, bool &isUnsound) {
   const llvm::APInt min = llvm::APInt::getZero(abs_res.Zero.getBitWidth());
   const llvm::APInt max = llvm::APInt::getMaxValue(abs_res.Zero.getBitWidth());
 
-  unsigned result =0;
+  unsigned result = 0;
 
   for (auto i = min;; ++i) {
-    bool in_abs_res = !abs_res.Zero.intersects(i) && !abs_res.One.intersects(~i);
-    bool in_best_abs_res = !best_abs_res.Zero.intersects(i) && !best_abs_res.One.intersects(~i);
-    if(in_best_abs_res&&!in_abs_res){
-      //unsound
-      isUnsound=true;
-    }else if(in_abs_res&&!in_best_abs_res){
+    bool in_abs_res =
+        !abs_res.Zero.intersects(i) && !abs_res.One.intersects(~i);
+    bool in_best_abs_res =
+        !best_abs_res.Zero.intersects(i) && !best_abs_res.One.intersects(~i);
+    if (in_best_abs_res && !in_abs_res) {
+      // unsound
+      isUnsound = true;
+    } else if (in_abs_res && !in_best_abs_res) {
       ++result;
     }
     if (i == max)
@@ -197,9 +203,11 @@ int main() {
   for (auto lhs : enum_abst_vals(bitwidth)) {
     for (auto rhs : enum_abst_vals(bitwidth)) {
 
-      //auto brute_vals =
-      //    concrete_op_enum(to_concrete(lhs), to_concrete(rhs), concrete_op_wrapper);
-      auto best_abstract_res = to_best_abstract(lhs, rhs, concrete_op_wrapper, bitwidth);
+      // auto brute_vals =
+      //     concrete_op_enum(to_concrete(lhs), to_concrete(rhs),
+      //     concrete_op_wrapper);
+      auto best_abstract_res =
+          to_best_abstract(lhs, rhs, concrete_op_wrapper, bitwidth);
 
       std::vector<llvm::KnownBits> synth_kbs(synth_function_wrapper(lhs, rhs));
       /*
@@ -223,24 +231,25 @@ int main() {
       }
 
       for (int i = 0; i < synth_kbs.size(); ++i) {
-        //sound non_precision exact num_cases
-        bool isUnsound=false;
-        if(synth_kbs[i] == best_abstract_res){
-          all_cases[i][2]+=1;
-        }else{
-          auto num_non_precision = compare_abstract(synth_kbs[i], best_abstract_res, isUnsound);
-          if(isUnsound){
-            all_cases[i][0]+=1;
+        // sound non_precision exact num_cases
+        bool isUnsound = false;
+        if (synth_kbs[i] == best_abstract_res) {
+          all_cases[i][2] += 1;
+        } else {
+          auto num_non_precision =
+              compare_abstract(synth_kbs[i], best_abstract_res, isUnsound);
+          if (isUnsound) {
+            all_cases[i][0] += 1;
           }
-          all_cases[i][1]+=num_non_precision;
+          all_cases[i][1] += num_non_precision;
         }
       }
 
       total_abst_combos++;
     }
   }
-  for(auto& res:all_cases){
-    res[3]=total_abst_combos;
+  for (auto &res : all_cases) {
+    res[3] = total_abst_combos;
   }
 
   // printf("Not sound or precise: %i\n", cases[0]);
