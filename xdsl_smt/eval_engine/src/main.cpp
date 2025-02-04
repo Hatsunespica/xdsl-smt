@@ -229,7 +229,7 @@ int main() {
           all_cases[i][0]+=1;
           all_cases[i][2]+=1;
         }else{
-          auto num_non_precision = compare_abstract(synth_kbs[i], best_abstract_res, isSound);
+          auto num_non_precision = compare_abstract(synth_kbs[i], best_abstract_res, isUnsound);
           if(isUnsound){
             all_cases[i][0]+=1;
           }

@@ -143,8 +143,8 @@ def eval_transfer_func(
     eval_output_lines = eval_output.stdout.decode("utf-8").split("\n")
     sounds = get_floats(eval_output_lines[1])
     precs = get_floats(eval_output_lines[3])
-    exact = get_floats(eval_output_lines[3])
-    num_cases = get_floats(eval_output_lines[3])
+    exact = get_floats(eval_output_lines[5])
+    num_cases = get_floats(eval_output_lines[7])
 
     return sounds, precs, exact, num_cases
 
