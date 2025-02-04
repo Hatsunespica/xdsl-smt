@@ -3,15 +3,13 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <iostream>
 #include <llvm/ADT/APInt.h>
 #include <llvm/Support/KnownBits.h>
 #include <vector>
 #include <array>
 
 #include "synth.cpp"
-
-// TODO switch between signed and unsigned ops when needed
-// enum TransferResult { GOOD, NOT_SOUND, NOT_PREC, NEITHER };
 
 void print_abst_range(const llvm::KnownBits &x)
 {
@@ -125,9 +123,9 @@ std::vector<uint8_t> const concrete_op_enum(const std::vector<uint8_t> &lhss,
 
 typedef std::array<double, 3> CmpRes;
 
-// TODO make case enum
 CmpRes compare(std::vector<uint8_t> &approx,
-               std::vector<uint8_t> &exact)
+               std::vector<uint8_t> &exact,
+               bool verbose=false)
 {
 
   bool sound = true;
@@ -149,13 +147,15 @@ CmpRes compare(std::vector<uint8_t> &approx,
   if (!exact_m_approx.empty())
     sound = false;
 
-  // for (auto v : exact)
-  //   std::clog << (int)v << ",";
-  // std::clog << "\n";
+  if (verbose) {
+    for (auto v : exact)
+      std::clog << static_cast<int>(v) << ",";
+    std::clog << "\n";
 
-  // for (auto v : approx)
-  //   std::clog << (int)v << ",";
-  // std::clog << "\n";
+    for (auto v : approx)
+      std::clog << static_cast<int>(v) << ",";
+    std::clog << "\n";
+  }
 
   double diff = 0;
   if (sound)
@@ -163,28 +163,23 @@ CmpRes compare(std::vector<uint8_t> &approx,
     diff = prec ? 1 : static_cast<double>(exact.size()) / static_cast<double>(approx.size());
   }
 
-  // auto exact_kb = to_abstract(exact, 4);
-  // auto approx_kb = to_abstract(approx, 4);
-  // exact_kb.dump();
-  // approx_kb.dump();
-  // std::clog << "sound: " << sound << " prec: " << prec << " diff: " << diff << "\n";
-
-  // if (!sound && !prec)
-  //   return 0;
-
-  // if (!sound)
-  //   return 1;
-
-  // if (!prec)
-  //   return 2;
-
-  // return 3;
+  if (verbose) {
+    auto exact_kb = to_abstract(exact, 4);
+    auto approx_kb = to_abstract(approx, 4);
+    exact_kb.dump();
+    approx_kb.dump();
+    std::clog << "sound: " << sound << " prec: " << prec << " diff: " << diff << "\n";
+  }
 
   return {(sound ? 1.0 : 0.0), (sound && prec ? 1.0 : 0.0), diff};
 }
 
-int main()
+int main(int argv, char **argc)
 {
+  bool verbose = false;
+  if (argv == 2 && argc[1][0] == '-' && argc[1][1])
+    verbose = true;
+
   const size_t bitwidth = 4;
 
   std::vector<CmpRes> all_cases;
@@ -207,9 +202,9 @@ int main()
       std::vector<CmpRes> all_results(synth_kbs.size());
       std::transform(all_synth_xfer_vals.begin(), all_synth_xfer_vals.end(),
                      all_results.begin(),
-                     [&brute_vals](std::vector<uint8_t> &transfer_vals)
+                     [&brute_vals, verbose](std::vector<uint8_t> &transfer_vals)
                      {
-                       return compare(transfer_vals, brute_vals);
+                       return compare(transfer_vals, brute_vals, verbose);
                      });
 
       if (all_cases.size() == 0)
@@ -235,22 +230,10 @@ int main()
 
   for (unsigned long i = 0; i < all_cases.size(); ++i)
   {
-    // p_sound.push_back((double)(all_cases[i][3] + all_cases[i][2]) /
-    //                   (double)total_abst_combos);
-    // p_precise.push_back((double)(all_cases[i][3] + all_cases[i][1]) /
-    //                     (double)total_abst_combos);
-    // p_precise.push_back((double)(all_cases[i][3]) /
-    //                     (double)total_abst_combos);
     p_sound.push_back((all_cases[i][0]) / static_cast<double>(total_abst_combos));
     p_exact.push_back((all_cases[i][1]) / static_cast<double>(total_abst_combos));
     p_precise.push_back((all_cases[i][2]) / static_cast<double>(total_abst_combos));
   }
-
-  // printf("Not sound or precise: %i\n", cases[0]);
-  // printf("Not sound:            %i\n", cases[1]);
-  // printf("Not precise:          %i\n", cases[2]);
-  // printf("Good:                 %i\n", cases[3]);
-  // printf("total tests: %lld\n", total_abst_combos);
 
   puts("sound:");
   printf("[");
