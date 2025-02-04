@@ -523,7 +523,7 @@ def main() -> None:
                     cpp_code = print_to_cpp(func_to_eval)
                     cpp_codes.append(cpp_code)
 
-                num_unsound, num_imprecise, num_exact, num_cases = eval_transfer_func(
+                num_unsound, imprecision, num_exact, num_cases = eval_transfer_func(
                     [func_name] * NUM_PROGRAMS,
                     cpp_codes,
                     crt_func
@@ -535,6 +535,7 @@ def main() -> None:
                     + op_constraint_func,
                 )
 
+                imprecision = 0  # Skip imprecision measurement right now
                 soundness_percent = [
                     1 - (a / b) for a, b in zip(num_unsound, num_cases)
                 ]
