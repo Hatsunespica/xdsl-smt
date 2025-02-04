@@ -226,7 +226,6 @@ int main() {
         //sound non_precision exact num_cases
         bool isUnsound=false;
         if(synth_kbs[i] == best_abstract_res){
-          all_cases[i][0]+=1;
           all_cases[i][2]+=1;
         }else{
           auto num_non_precision = compare_abstract(synth_kbs[i], best_abstract_res, isUnsound);
