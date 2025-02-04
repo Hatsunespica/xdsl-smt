@@ -475,8 +475,8 @@ def main() -> None:
     context = SynthesizerContext(random)
     context.set_cmp_flags([0, 6, 7])
 
-    domain_constraint_func = None
-    instance_constraint_func = None
+    domain_constraint_func = ""
+    instance_constraint_func = ""
     op_constraint_func = get_default_op_constraint()
     # Handle helper funcitons
     for func in module.ops:
@@ -535,7 +535,9 @@ def main() -> None:
                     + op_constraint_func,
                 )
 
-                soundness_percent = [1 - (a / b) for a, b in zip(num_unsound, num_cases)]
+                soundness_percent = [
+                    1 - (a / b) for a, b in zip(num_unsound, num_cases)
+                ]
                 precision_percent = [a / b for a, b in zip(num_exact, num_cases)]
 
                 for i in range(NUM_PROGRAMS):
@@ -604,6 +606,3 @@ def main() -> None:
                         """
     for item in possible_solution:
         print(item)
-
-
-
