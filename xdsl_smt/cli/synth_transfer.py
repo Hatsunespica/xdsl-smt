@@ -467,7 +467,8 @@ def main() -> None:
     NUM_PROGRAMS = 1
     INIT_COST = 20
     TOTAL_ROUNDS = 25
-    SKIP_EVAL = True
+    SKIP_EVAL = False
+    FORCE_ACCEPT = True
 
     # sound_data: list[list[float]] = [[] for _ in range(NUM_PROGRAMS)]
     # precision_data: list[list[float]] = [[] for _ in range(NUM_PROGRAMS)]
@@ -557,6 +558,13 @@ def main() -> None:
                     proposed_cost = compute_cost(
                         soundness_percent[i], precision_percent[i]
                     )
+                    if FORCE_ACCEPT:
+                        cost_reduce = mcmc_samplers[i].current_cost - proposed_cost
+
+                        mcmc_samplers[i].accept_proposed(
+                            proposed_cost, soundness_percent[i], precision_percent[i]
+                        )
+                        continue
 
                     p = random.random()
                     decision = decide(
