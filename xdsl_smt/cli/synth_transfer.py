@@ -391,11 +391,20 @@ def print_to_cpp(func: FuncOp) -> str:
     return sio.getvalue()
 
 
+def get_default_op_constraint():
+    return """
+    int op_constraint(APInt arg0,APInt arg1){
+	return true;
+    }
+    """
+
+
 SYNTH_WIDTH = 8
 TEST_SET_SIZE = 1000
 CONCRETE_VAL_PER_TEST_CASE = 10
 INSTANCE_CONSTRAINT = "getInstanceConstraint"
 DOMAIN_CONSTRAINT = "getConstraint"
+OP_CONSTRAINT = "op_constraint"
 TMP_MODULE: list[ModuleOp] = []
 ctx: MLContext
 
@@ -455,9 +464,9 @@ def main() -> None:
         random.read_from_file(random_number_file)
 
     PROGRAM_LENGTH = 16
-    NUM_PROGRAMS = 50
+    NUM_PROGRAMS = 2
     INIT_COST = 20
-    TOTAL_ROUNDS = 500
+    TOTAL_ROUNDS = 1
 
     # sound_data: list[list[float]] = [[] for _ in range(NUM_PROGRAMS)]
     # precision_data: list[list[float]] = [[] for _ in range(NUM_PROGRAMS)]
@@ -465,6 +474,20 @@ def main() -> None:
 
     context = SynthesizerContext(random)
     context.set_cmp_flags([0, 6, 7])
+
+    domain_constraint_func = None
+    instance_constraint_func = None
+    op_constraint_func = get_default_op_constraint()
+    # Handle helper funcitons
+    for func in module.ops:
+        if isinstance(func, FuncOp):
+            func_name = func.sym_name.data
+            if func_name == DOMAIN_CONSTRAINT:
+                domain_constraint_func = print_to_cpp(func)
+            elif func_name == INSTANCE_CONSTRAINT:
+                instance_constraint_func = print_to_cpp(func)
+            elif func_name == OP_CONSTRAINT:
+                op_constraint_func = print_to_cpp(func)
 
     for func in module.ops:
         if isinstance(func, FuncOp) and is_transfer_function(func):
@@ -475,6 +498,7 @@ def main() -> None:
                 )
                 concrete_func_name = applied_to.data[0].data
             concrete_func = get_concrete_function(concrete_func_name, SYNTH_WIDTH, None)
+            crt_func = print_concrete_function_to_cpp(concrete_func)
             func_name = func.sym_name.data
             mcmc_samplers: list[MCMCSampler] = []
 
@@ -499,9 +523,16 @@ def main() -> None:
                     cpp_code = print_to_cpp(func_to_eval)
                     cpp_codes.append(cpp_code)
 
-                crt_func = print_concrete_function_to_cpp(concrete_func)
-                soundness_percent, precision_percent = eval_transfer_func(
-                    [func_name] * NUM_PROGRAMS, cpp_codes, crt_func
+                num_unsound, num_imprecise, num_exact, num_cases = eval_transfer_func(
+                    [func_name] * NUM_PROGRAMS,
+                    cpp_codes,
+                    crt_func
+                    + "\n"
+                    + instance_constraint_func
+                    + "\n"
+                    + domain_constraint_func
+                    + "\n"
+                    + op_constraint_func,
                 )
 
                 for i in range(NUM_PROGRAMS):
