@@ -463,10 +463,10 @@ def main() -> None:
     if random_number_file is not None:
         random.read_from_file(random_number_file)
 
-    PROGRAM_LENGTH = 16
-    NUM_PROGRAMS = 2
+    PROGRAM_LENGTH = 32
+    NUM_PROGRAMS = 100
     INIT_COST = 20
-    TOTAL_ROUNDS = 1
+    TOTAL_ROUNDS = 1000
 
     # sound_data: list[list[float]] = [[] for _ in range(NUM_PROGRAMS)]
     # precision_data: list[list[float]] = [[] for _ in range(NUM_PROGRAMS)]
@@ -535,6 +535,9 @@ def main() -> None:
                     + op_constraint_func,
                 )
 
+                soundness_percent = [1 - (a / b) for a, b in zip(num_unsound, num_cases)]
+                precision_percent = [a / b for a, b in zip(num_exact, num_cases)]
+
                 for i in range(NUM_PROGRAMS):
                     proposed_cost = compute_cost(
                         soundness_percent[i], precision_percent[i]
@@ -601,3 +604,6 @@ def main() -> None:
                         """
     for item in possible_solution:
         print(item)
+
+
+
