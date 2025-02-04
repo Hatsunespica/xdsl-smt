@@ -5,10 +5,8 @@
 #include <cstdio>
 #include <llvm/ADT/APInt.h>
 #include <llvm/Support/KnownBits.h>
-#include "llvm/Support/raw_ostream.h"
 #include <vector>
 #include <array>
-#include <iostream>
 
 #include "synth.cpp"
 
@@ -25,7 +23,7 @@ void print_abst_range(const llvm::KnownBits &x)
   }
 
   if (x.isConstant())
-    printf(" const %llu", x.getConstant().getZExtValue());
+    printf(" const %lu", x.getConstant().getZExtValue());
 
   if (x.isUnknown())
     printf(" (top)");
@@ -79,7 +77,7 @@ std::vector<uint8_t> const to_concrete(const llvm::KnownBits &x)
   {
 
     if (!x.Zero.intersects(i) && !x.One.intersects(~i))
-      ret.push_back((uint8_t)i.getZExtValue());
+      ret.push_back(static_cast<uint8_t>(i.getZExtValue()));
 
     if (i == max)
       break;
@@ -162,7 +160,7 @@ CmpRes compare(std::vector<uint8_t> &approx,
   double diff = 0;
   if (sound)
   {
-    diff = prec ? 1 : (double)exact.size() / (double)approx.size();
+    diff = prec ? 1 : static_cast<double>(exact.size()) / static_cast<double>(approx.size());
   }
 
   // auto exact_kb = to_abstract(exact, 4);
@@ -221,8 +219,8 @@ int main()
                   CmpRes{0.0, 0.0, 0.0});
       }
 
-      for (int i = 0; i < all_results.size(); ++i)
-        for (int idx = 0; idx < 3; ++idx)
+      for (unsigned long i = 0; i < all_results.size(); ++i)
+        for (unsigned long idx = 0; idx < 3; ++idx)
         {
           all_cases[i][idx] += all_results[i][idx];
         }
@@ -235,7 +233,7 @@ int main()
   std::vector<double> p_exact;
   std::vector<double> p_precise;
 
-  for (int i = 0; i < all_cases.size(); ++i)
+  for (unsigned long i = 0; i < all_cases.size(); ++i)
   {
     // p_sound.push_back((double)(all_cases[i][3] + all_cases[i][2]) /
     //                   (double)total_abst_combos);
@@ -243,9 +241,9 @@ int main()
     //                     (double)total_abst_combos);
     // p_precise.push_back((double)(all_cases[i][3]) /
     //                     (double)total_abst_combos);
-    p_sound.push_back((all_cases[i][0]) / (double)total_abst_combos);
-    p_exact.push_back((all_cases[i][1]) / (double)total_abst_combos);
-    p_precise.push_back((all_cases[i][2]) / (double)total_abst_combos);
+    p_sound.push_back((all_cases[i][0]) / static_cast<double>(total_abst_combos));
+    p_exact.push_back((all_cases[i][1]) / static_cast<double>(total_abst_combos));
+    p_precise.push_back((all_cases[i][2]) / static_cast<double>(total_abst_combos));
   }
 
   // printf("Not sound or precise: %i\n", cases[0]);
@@ -256,7 +254,7 @@ int main()
 
   puts("sound:");
   printf("[");
-  for (int i = 0; i < p_sound.size(); ++i)
+  for (unsigned long i = 0; i < p_sound.size(); ++i)
   {
     if (i == p_sound.size() - 1)
       printf("%f", p_sound[i]);
@@ -267,7 +265,7 @@ int main()
 
   puts("exact:");
   printf("[");
-  for (int i = 0; i < p_exact.size(); ++i)
+  for (unsigned long i = 0; i < p_exact.size(); ++i)
   {
     if (i == p_exact.size() - 1)
       printf("%f", p_exact[i]);
@@ -278,7 +276,7 @@ int main()
 
   puts("precise:");
   printf("[");
-  for (int i = 0; i < p_precise.size(); ++i)
+  for (unsigned long i = 0; i < p_precise.size(); ++i)
   {
     if (i == p_precise.size() - 1)
       printf("%f", p_precise[i]);
