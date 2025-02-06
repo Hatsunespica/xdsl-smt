@@ -197,7 +197,9 @@ class MCMCSampler:
         op.operands[ith] = new_operand
         return 1
 
-    def construct_init_program(self, func: FuncOp, length: int):
+    def construct_init_program(
+        self, func: FuncOp, length: int, fix_start_point: bool = False
+    ):
         block = func.body.block
 
         for op in block.ops:
@@ -233,10 +235,11 @@ class MCMCSampler:
             block.add_op(nop_int)
 
         # Part III-2: Random reset main body
-        for i in range(length):
-            ops = list(block.ops)
-            tmp_ops_len = len(block.ops)
-            self.replace_entire_operation(block, ops, tmp_ops_len - 1 - i)
+        if not fix_start_point:
+            for i in range(length):
+                ops = list(block.ops)
+                tmp_ops_len = len(block.ops)
+                self.replace_entire_operation(block, ops, tmp_ops_len - 1 - i)
 
         last_int_op = block.last_op
 
