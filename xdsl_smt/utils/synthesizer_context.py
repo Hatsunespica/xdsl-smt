@@ -156,9 +156,7 @@ class SynthesizerContext:
         if result_type == CmpOp:
             return CmpOp(int_vals[0], int_vals[1], self.random.choice(self.cmp_flags))
         assert result_type is not None
-        result = result_type(
-            i1_vals[0], i1_vals[1]  
-        )
+        result = result_type(i1_vals[0], i1_vals[1])
         assert isinstance(result, Operation)
         return result
 
