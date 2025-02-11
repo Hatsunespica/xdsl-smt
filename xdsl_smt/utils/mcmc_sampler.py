@@ -235,7 +235,7 @@ class MCMCSampler:
         # Part III: Main Body
         tmp_bool_ssavalue = true.results[0]
         for i in range(length // 2):
-            nop_bool = arith.AndI(tmp_bool_ssavalue, tmp_bool_ssavalue)
+            nop_bool = arith.AndIOp(tmp_bool_ssavalue, tmp_bool_ssavalue)
             nop_int = transfer.AndOp(tmp_int_ssavalue, tmp_int_ssavalue)
             block.add_op(nop_bool)
             block.add_op(nop_int)

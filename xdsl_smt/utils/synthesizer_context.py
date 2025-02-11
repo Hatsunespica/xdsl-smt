@@ -111,7 +111,7 @@ full_int_ops: list[type[Operation]] = [
     CountRZeroOp,
 ]
 
-basic_i1_ops: list[type[Operation]] = [arith.AndI, arith.OrI, arith.XOrI, CmpOp]
+basic_i1_ops: list[type[Operation]] = [arith.AndIOp, arith.OrIOp, arith.XOrIOp, CmpOp]
 
 
 class SynthesizerContext:
