@@ -157,8 +157,8 @@ class SynthesizerContext:
             return CmpOp(int_vals[0], int_vals[1], self.random.choice(self.cmp_flags))
         assert result_type is not None
         result = result_type(
-            i1_vals[0], i1_vals[1]
-        )  # pyright: ignore [reportCallIssue]
+            i1_vals[0], i1_vals[1]  # pyright: ignore [reportCallIssue]
+        )
         assert isinstance(result, Operation)
         return result
 
@@ -174,8 +174,8 @@ class SynthesizerContext:
             return NegOp(int_vals[0])
         assert result_type is not None
         result = result_type(
-            int_vals[0], int_vals[1]
-        )  # pyright: ignore [reportCallIssue]
+            int_vals[0], int_vals[1]  # pyright: ignore [reportCallIssue]
+        )
         assert isinstance(result, Operation)
         return result
 
