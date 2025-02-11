@@ -40,7 +40,7 @@ from ..dialects.transfer import (
     AddPoisonOp,
     RemovePoisonOp,
 )
-from xdsl.dialects.func import FuncOp, Return, Call
+from xdsl.dialects.func import FuncOp, ReturnOp, CallOp
 from xdsl.pattern_rewriter import *
 from functools import singledispatch
 from typing import TypeVar, cast
@@ -338,7 +338,7 @@ def _(op: CmpOp):
 
 
 @lowerOperation.register
-def _(op: arith.Cmpi):
+def _(op: arith.CmpiOp):
     returnedType = lowerType(op.results[0].type)
     returnedValue = op.results[0].name_hint
     equals = "="
@@ -352,7 +352,7 @@ def _(op: arith.Cmpi):
 
 
 @lowerOperation.register
-def _(op: arith.Select):
+def _(op: arith.SelectOp):
     returnedType = lowerType(op.operands[1].type, op)
     returnedValue = op.results[0].name_hint
     equals = "="
@@ -449,7 +449,7 @@ def _(op: NegOp):
 
 
 @lowerOperation.register
-def _(op: Return):
+def _(op: ReturnOp):
     opName = operNameToCpp[op.name] + " "
     operand = op.arguments[0].name_hint
     return indent + opName + operand + ends
@@ -479,7 +479,7 @@ def _(op: FromArithOp):
 
 
 @lowerOperation.register
-def _(op: arith.Constant):
+def _(op: arith.ConstantOp):
     value = op.value.value.data
     assert isinstance(op.results[0].type, IntegerType)
     size = op.results[0].type.width.data
@@ -530,7 +530,7 @@ def _(op: GetAllOnesOp):
 
 
 @lowerOperation.register
-def _(op: Call):
+def _(op: CallOp):
     returnedType = lowerType(op.results[0].type)
     returnedValue = op.results[0].name_hint
     callee = op.callee.string_value() + "("
