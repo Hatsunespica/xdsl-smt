@@ -10,10 +10,10 @@ from ..dialects.transfer import (
     CountLZeroOp,
     CountROneOp,
     CountRZeroOp,
-    # SetHighBitsOp,
-    # SetLowBitsOp,
-    # GetLowBitsOp,
-    # GetBitWidthOp,
+    SetHighBitsOp,
+    SetLowBitsOp,
+    GetLowBitsOp,
+    GetBitWidthOp,
     # UMulOverflowOp,
     # SMinOp,
     # SMaxOp,
@@ -105,13 +105,25 @@ full_int_ops: list[type[Operation]] = [
     SelectOp,
     LShrOp,
     ShlOp,
+    SetLowBitsOp,
+    SetHighBitsOp,
+    # GetLowBitsOp
+]
+
+basic_i1_ops: list[type[Operation]] = [
+    # arith.AndI,
+    # arith.OrI,
+    # arith.XOrI,
+    CmpOp
+]
+
+basic_bint_ops: list[type[Operation]] = [
     CountLOneOp,
     CountLZeroOp,
     CountROneOp,
     CountRZeroOp,
+    # GetBitWidthOp
 ]
-
-basic_i1_ops: list[type[Operation]] = [arith.AndI, arith.OrI, arith.XOrI, CmpOp]
 
 
 class SynthesizerContext:
@@ -119,12 +131,14 @@ class SynthesizerContext:
     cmp_flags: list[int]
     i1_ops: Collection[type[Operation]]
     int_ops: Collection[type[Operation]]
+    bint_ops: Collection[type[Operation]]
 
     def __init__(self, random: Random):
         self.random = random
         self.cmp_flags = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
         self.i1_ops = Collection(basic_i1_ops, self.random)
         self.int_ops = Collection(basic_int_ops, self.random)
+        self.bint_ops = Collection(basic_bint_ops, self.random)
 
     def use_basic_int_ops(self):
         self.int_ops = Collection(basic_int_ops, self.random)
@@ -137,6 +151,10 @@ class SynthesizerContext:
 
     def get_available_int_ops(self) -> tuple[type[Operation], ...]:
         return self.int_ops.get_all_elements()
+
+    def get_available_bint_ops(self) -> tuple[type[Operation], ...]:
+        return self.bint_ops.get_all_elements()
+
 
     def set_cmp_flags(self, cmp_flags: list[int]):
         assert len(cmp_flags) != 0
@@ -153,11 +171,15 @@ class SynthesizerContext:
         i1_vals: list[SSAValue],
     ) -> Operation:
         result_type = self.i1_ops.get_random_element()
+        i1_val1 = self.random.choice(i1_vals)
+        i1_val2 = self.random.choice(i1_vals)
+        int_val1 = self.random.choice(int_vals)
+        int_val2 = self.random.choice(int_vals)
         if result_type == CmpOp:
-            return CmpOp(int_vals[0], int_vals[1], self.random.choice(self.cmp_flags))
+            return CmpOp(int_val1, int_val2, self.random.choice(self.cmp_flags))
         assert result_type is not None
         result = result_type(
-            i1_vals[0], i1_vals[1]  # pyright: ignore [reportGeneralTypeIssues]
+            i1_val1, i1_val2  # pyright: ignore [reportCallIssue]
         )
         assert isinstance(result, Operation)
         return result
@@ -174,59 +196,90 @@ class SynthesizerContext:
             return NegOp(int_vals[0])
         assert result_type is not None
         result = result_type(
-            # pyright: ignore [reportGeneralTypeIssues]
-            int_vals[0],
+            int_vals[0],  # pyright: ignore [reportCallIssue]
             int_vals[1],
         )
         assert isinstance(result, Operation)
         return result
 
-    def get_random_i1_op_except(
-        self,
-        int_vals: list[SSAValue],
-        i1_vals: list[SSAValue],
-        except_op: Operation,
-    ) -> Operation:
-        result_type = self.i1_ops.get_random_element_if(
-            lambda op_ty: op_ty != type(except_op)
-        )
-        if result_type == CmpOp:
-            return CmpOp(
-                self.random.choice(int_vals),
-                self.random.choice(int_vals),
-                self.random.choice(self.cmp_flags),
-            )
-        assert result_type is not None
-        result = result_type(
-            # pyright: ignore [reportGeneralTypeIssues]
-            self.random.choice(i1_vals),
-            self.random.choice(i1_vals),
-        )
-        assert isinstance(result, Operation)
-        return result
+    # def get_random_i1_op_except(
+    #     self,
+    #     int_vals: list[SSAValue],
+    #     i1_vals: list[SSAValue],
+    #     bint_vals: list[SSAValue],
+    #     except_op: Operation,
+    # ) -> Operation:
+    #     result_type = self.i1_ops.get_random_element_if(
+    #         lambda op_ty: op_ty != type(except_op)
+    #     )
+    #     if result_type == CmpOp:
+    #         return CmpOp(
+    #             self.random.choice(int_vals),
+    #             self.random.choice(int_vals),
+    #             self.random.choice(self.cmp_flags),
+    #         )
+    #     assert result_type is not None
+    #     result = result_type(
+    #         self.random.choice(i1_vals),  # # pyright: ignore [reportCallIssue]
+    #         self.random.choice(i1_vals),
+    #     )
+    #     assert isinstance(result, Operation)
+    #     return result
 
     def get_random_int_op_except(
         self,
         int_vals: list[SSAValue],
         i1_vals: list[SSAValue],
+        bint_vals: list[SSAValue],
         except_op: Operation,
     ) -> Operation:
         result_type = self.int_ops.get_random_element_if(
             lambda op_ty: op_ty != type(except_op)
         )
+        i1_val = self.random.choice(i1_vals)
+        bint_val = self.random.choice(bint_vals)
+        int_val1 = self.random.choice(int_vals)
+        int_val2 = self.random.choice(int_vals)
         if result_type == SelectOp:
             return SelectOp(
-                self.random.choice(i1_vals),
-                self.random.choice(int_vals),
-                self.random.choice(int_vals),
+                i1_val, int_val1, int_val2,
             )
         elif result_type == NegOp:
-            return NegOp(self.random.choice(int_vals))
+            return NegOp(int_val1)
+        elif result_type == ShlOp:
+            return ShlOp(int_val1, bint_val)
+        elif result_type == LShrOp:
+            return LShrOp(int_val1, bint_val)
+        elif result_type == SetLowBitsOp:
+            return SetLowBitsOp(int_val1, bint_val)
+        elif result_type == SetHighBitsOp:
+            return SetHighBitsOp(int_val1, bint_val)
+        # elif result_type == GetLowBitsOp:
+        #     return GetLowBitsOp(int_val1, bint_val)
+
         assert result_type is not None
         result = result_type(
-            # pyright: ignore [reportGeneralTypeIssues]
-            self.random.choice(int_vals),
-            self.random.choice(int_vals),
+            # pyright: ignore [reportCallIssue]
+            int_val1, int_val2
+        )
+        assert isinstance(result, Operation)
+        return result
+
+    def get_random_bint_op_except(
+            self,
+            int_vals: list[SSAValue],
+            i1_vals: list[SSAValue],
+            bint_vals: list[SSAValue],
+            except_op: Operation,
+    ) -> Operation:
+        result_type = self.bint_ops.get_random_element_if(
+            lambda op_ty: op_ty != type(except_op)
+        )
+        int_val1 = self.random.choice(int_vals)
+        assert result_type is not None
+        result = result_type(
+            # pyright: ignore [reportCallIssue]
+            int_val1
         )
         assert isinstance(result, Operation)
         return result

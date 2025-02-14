@@ -511,6 +511,7 @@ def main() -> None:
 
     context = SynthesizerContext(random)
     context.set_cmp_flags([0, 6, 7])
+    context.use_full_int_ops()
 
     domain_constraint_func = ""
     instance_constraint_func = ""

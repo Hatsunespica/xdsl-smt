@@ -342,9 +342,9 @@ class GetLowBitsOp(BinOp):
 
     T = Annotated[TransIntegerType | IntegerType, ConstraintVar("T")]
 
-    val: Operand = operand_def(T)
-    low_bits: Operand = operand_def(T)
-    result: OpResult = result_def(T)
+    # val: Operand = operand_def(T)
+    # low_bits: Operand = operand_def(T)
+    # result: OpResult = result_def(T)
 
 
 @irdl_op_definition
@@ -353,9 +353,9 @@ class SetHighBitsOp(BinOp):
 
     T = Annotated[TransIntegerType | IntegerType, ConstraintVar("T")]
 
-    val: Operand = operand_def(T)
-    high_bits: Operand = operand_def(T)
-    result: OpResult = result_def(T)
+    # val: Operand = operand_def(T)
+    # high_bits: Operand = operand_def(T)
+    # result: OpResult = result_def(T)
 
 
 @irdl_op_definition
@@ -364,9 +364,9 @@ class SetLowBitsOp(BinOp):
 
     T = Annotated[TransIntegerType | IntegerType, ConstraintVar("T")]
 
-    val: Operand = operand_def(T)
-    low_bits: Operand = operand_def(T)
-    result: OpResult = result_def(T)
+    # val: Operand = operand_def(T)
+    # low_bits: Operand = operand_def(T)
+    # result: OpResult = result_def(T)
 
 
 @irdl_op_definition

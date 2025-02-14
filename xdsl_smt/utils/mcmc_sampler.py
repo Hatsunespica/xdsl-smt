@@ -16,6 +16,9 @@ from xdsl_smt.dialects.transfer import (
     MakeOp,
     GetAllOnesOp,
     Constant,
+    GetBitWidthOp,
+    AndOp,
+    CountLOneOp,
 )
 from xdsl.dialects.builtin import (
     IntegerAttr,
@@ -85,6 +88,22 @@ class MCMCSampler:
     def reject_proposed(self):
         self.proposed = None
 
+    # Todo[Xuanyu]: Find a general way to search ops with valid result types
+    def is_i1_operation(self, op) -> bool:
+        return (isinstance(op, arith.Constant)
+                or op.results[0].type == i1)
+
+    # Todo[Xuanyu]: Find a general way to search ops with valid result types
+    def is_int_operation(self, op) -> bool:
+        return (isinstance(op, Constant)
+                or isinstance(op, GetOp)
+                or (any(isinstance(op, op_type) for op_type in self.context.get_available_int_ops())))
+
+    # Todo[Xuanyu]: Find a general way to search ops with valid result types
+    def is_bint_operation(self, op) -> bool:
+        return (isinstance(op, GetBitWidthOp)
+                or any(isinstance(op, op_type) for op_type in self.context.get_available_bint_ops()))
+
     def get_valid_bool_operands(
         self, ops: list[Operation], x: int
     ) -> tuple[list[SSAValue], int]:
@@ -92,7 +111,9 @@ class MCMCSampler:
         Get operations that before ops[x] so that can serve as operands
         """
         bool_ops: list[SSAValue] = [
-            result for op in ops[:x] for result in op.results if result.type == i1
+            op.results[0] for op in ops[:x]
+            if self.is_i1_operation(op)
+            # for result in op.results if result.type == i1
         ]
         bool_count = len(bool_ops)
         return bool_ops, bool_count
@@ -104,13 +125,30 @@ class MCMCSampler:
         Get operations that before ops[x] so that can serve as operands
         """
         int_ops: list[SSAValue] = [
-            result
+            op.results[0]
             for op in ops[:x]
-            for result in op.results
-            if isinstance(result.type, TransIntegerType)
+            if self.is_int_operation(op)
+            # for result in op.results
+            # if isinstance(result.type, TransIntegerType)
         ]
         int_count = len(int_ops)
         return int_ops, int_count
+
+    def get_valid_bint_operands(
+            self, ops: list[Operation], x: int
+    ) -> tuple[list[SSAValue], int]:
+        """
+        Get operations that before ops[x] so that can serve as operands
+        """
+        bint_ops: list[SSAValue] = [
+            op.results[0]
+            for op in ops[:x]
+            if self.is_bint_operation(op)
+            # for result in op.results
+            # if isinstance(result.type, TransIntegerType)
+        ]
+        bint_count = len(bint_ops)
+        return bint_ops, bint_count
 
     def replace_entire_operation(
         self, block: Block, ops: list[Operation], idx: int
@@ -123,33 +161,33 @@ class MCMCSampler:
 
         int_operands, num_int_operands = self.get_valid_int_operands(ops, idx)
         bool_operands, num_bool_operands = self.get_valid_bool_operands(ops, idx)
+        bint_operands, num_bint_operands = self.get_valid_bint_operands(ops, idx)
 
-        def calculate_operand_prob(op: Operation) -> int:
-            ret = 1
-            for operand in op.operands:
-                if operand.type == IntegerType(4):
-                    ret = ret * num_int_operands
-                elif operand.type == i1:
-                    ret = ret * num_bool_operands
-            return ret
+        # def calculate_operand_prob(op: Operation) -> int:
+        #     ret = 1
+        #     for operand in op.operands:
+        #         if operand.type == IntegerType(4):
+        #             ret = ret * num_int_operands
+        #         elif operand.type == i1:
+        #             ret = ret * num_bool_operands
+        #     return ret
 
-        if old_op.results[0].type == i1:  # bool
+        if self.is_i1_operation(old_op): # bool
             new_op = self.context.get_random_i1_op(int_operands, bool_operands)
 
-            forward_prob = calculate_operand_prob(old_op)
-            backward_prob = calculate_operand_prob(new_op)
-
-        elif isinstance(old_op.results[0].type, TransIntegerType):  # integer
+        elif self.is_int_operation(old_op):  # integer
             new_op = self.context.get_random_int_op_except(
-                int_operands, bool_operands, old_op
+                int_operands, bool_operands, bint_operands, old_op
             )
 
-            forward_prob = calculate_operand_prob(old_op)
-            backward_prob = calculate_operand_prob(new_op)
+        elif self.is_bint_operation(old_op):  # bounded_integer
+            new_op = self.context.get_random_bint_op_except(
+                int_operands, bool_operands, bint_operands, old_op
+            )
 
         else:
             raise VerifyException(
-                "Unexpected result type {}".format(old_op.results[0].type)
+                "Unexpected result type {}".format(old_op)
             )
 
         block.insert_op_before(new_op, old_op)
@@ -157,18 +195,23 @@ class MCMCSampler:
             old_op.results[0].replace_by(new_op.results[0])
         block.detach_op(old_op)
 
-        return backward_prob / forward_prob
+        return 1
 
     def replace_operand(self, ops: list[Operation], idx: int) -> float:
         op = ops[idx]
         int_operands, _ = self.get_valid_int_operands(ops, idx)
         bool_operands, _ = self.get_valid_bool_operands(ops, idx)
+        bint_operands, _ = self.get_valid_bint_operands(ops, idx)
 
         ith = self.random.randint(0, len(op.operands) - 1)
-        if op.operands[ith].type == i1:
+        # Todo[Xuanyu]: Find a general way to determine the type of the operand
+        ith_owner = op.operands[ith].owner
+        if self.is_i1_operation(ith_owner):
             new_operand = self.random.choice(bool_operands)
-        elif isinstance(op.operands[ith].type, TransIntegerType):
+        elif self.is_int_operation(ith_owner):
             new_operand = self.random.choice(int_operands)
+        elif self.is_bint_operation(ith_owner):
+            new_operand = self.random.choice(bint_operands)
         else:
             raise VerifyException(
                 "Unexpected operand type {}".format(op.operands[ith].type)
@@ -205,24 +248,36 @@ class MCMCSampler:
         tmp_int_ssavalue = block.last_op.results[0]
 
         # Part II: Constants
-        true: arith.Constant = arith.Constant(IntegerAttr.from_int_and_width(1, 1), i1)
-        false: arith.Constant = arith.Constant(IntegerAttr.from_int_and_width(0, 1), i1)
+        true: arith.Constant = arith.Constant(
+            IntegerAttr.from_int_and_width(1, 1), i1
+        )
+        false: arith.Constant = arith.Constant(
+            IntegerAttr.from_int_and_width(0, 1), i1
+        )
         all_ones = GetAllOnesOp(tmp_int_ssavalue)
-        zero = Constant(tmp_int_ssavalue, 0)
+        # zero = Constant(tmp_int_ssavalue, 0)
         one = Constant(tmp_int_ssavalue, 1)
-        block.add_op(true)
+        bitw = GetBitWidthOp(tmp_int_ssavalue)
+        # block.add_op(true)
         block.add_op(false)
-        block.add_op(zero)
+        # block.add_op(zero)
         block.add_op(one)
         block.add_op(all_ones)
+        block.add_op(bitw)
 
         # Part III: Main Body
-        tmp_bool_ssavalue = true.results[0]
-        for i in range(length // 2):
+        tmp_bool_ssavalue = false.results[0]
+        assert length % 4 == 0, f"length must be divisible by 4"
+        for i in range(length // 4):
+            nop_int1 = AndOp(tmp_int_ssavalue, tmp_int_ssavalue)
+            nop_int2 = AndOp(tmp_int_ssavalue, tmp_int_ssavalue)
             nop_bool = arith.AndI(tmp_bool_ssavalue, tmp_bool_ssavalue)
-            nop_int = transfer.AndOp(tmp_int_ssavalue, tmp_int_ssavalue)
+            nop_bounded_int = CountLOneOp(tmp_int_ssavalue)
             block.add_op(nop_bool)
-            block.add_op(nop_int)
+            block.add_op(nop_int1)
+            block.add_op(nop_bounded_int)
+            block.add_op(nop_int2)
+
 
         # Part III-2: Random reset main body
         for i in range(length):
@@ -275,6 +330,7 @@ class MCMCSampler:
                 isinstance(operation, Constant)
                 or isinstance(operation, arith.Constant)
                 or isinstance(operation, GetAllOnesOp)
+                or isinstance(operation, GetBitWidthOp)
                 or isinstance(operation, GetOp)
                 or isinstance(operation, MakeOp)
                 or isinstance(operation, Return)
