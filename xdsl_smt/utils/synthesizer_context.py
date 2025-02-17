@@ -213,6 +213,7 @@ class SynthesizerContext:
         result_type = self.int_ops.get_random_element_if(
             lambda op_ty: op_ty != type(except_op)
         )
+        assert result_type is not None
         if result_type == SelectOp:
             return SelectOp(
                 self.random.choice(i1_vals),
@@ -221,7 +222,6 @@ class SynthesizerContext:
             )
         elif issubclass(result_type, UnaryOp):
             return result_type(self.random.choice(int_vals))
-        assert result_type is not None
         result = result_type(
             self.random.choice(int_vals),  # pyright: ignore [reportCallIssue]
             self.random.choice(int_vals),
