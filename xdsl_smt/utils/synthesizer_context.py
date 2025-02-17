@@ -22,6 +22,7 @@ from ..dialects.transfer import (
     ShlOp,
     LShrOp,
     SelectOp,
+    UnaryOp,
 )
 from typing import TypeVar, Generic, Callable
 from xdsl.ir import Operation, SSAValue
@@ -218,8 +219,8 @@ class SynthesizerContext:
                 self.random.choice(int_vals),
                 self.random.choice(int_vals),
             )
-        elif result_type == NegOp:
-            return NegOp(self.random.choice(int_vals))
+        elif issubclass(result_type, UnaryOp):
+            return result_type(self.random.choice(int_vals))
         assert result_type is not None
         result = result_type(
             self.random.choice(int_vals),  # pyright: ignore [reportCallIssue]
