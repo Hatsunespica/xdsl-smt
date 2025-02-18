@@ -29,7 +29,9 @@ from ..dialects.transfer import (
     # UMaxOp,
     ShlOp,
     LShrOp,
-    SelectOp, Constant, GetAllOnesOp,
+    SelectOp,
+    Constant,
+    GetAllOnesOp,
 )
 from xdsl.ir import Operation, SSAValue
 import xdsl.dialects.arith as arith
@@ -42,8 +44,14 @@ class SynthType(Enum):
     BOUNDED_INT = 3
 
 
-def filter_ops(ops: List[SSAValue], types_to_filter: Tuple[type[Operation], ...], others: List[SSAValue] = []) -> List[SSAValue]:
-    return [op for op in ops if not (isinstance(op.owner, types_to_filter) or op in others)]
+def filter_ops(
+    ops: List[SSAValue],
+    types_to_filter: Tuple[type[Operation], ...],
+    others: List[SSAValue] = [],
+) -> List[SSAValue]:
+    return [
+        op for op in ops if not (isinstance(op.owner, types_to_filter) or op in others)
+    ]
 
 
 class SynthOperator(IRDLOperation, ABC):
@@ -58,11 +66,22 @@ class SynthOperator(IRDLOperation, ABC):
 
     @staticmethod
     @abstractmethod
-    def get_new_random_op(rd: Random, int_ops: list[SSAValue], bool_ops: list[SSAValue], bint_ops: list[SSAValue]) -> Operation | None:
+    def get_new_random_op(
+        rd: Random,
+        int_ops: list[SSAValue],
+        bool_ops: list[SSAValue],
+        bint_ops: list[SSAValue],
+    ) -> Operation | None:
         pass
 
     @abstractmethod
-    def replace_an_operand(self, rd: Random, int_ops: list[SSAValue], bool_ops: list[SSAValue], bint_ops: list[SSAValue]) -> bool:
+    def replace_an_operand(
+        self,
+        rd: Random,
+        int_ops: list[SSAValue],
+        bool_ops: list[SSAValue],
+        bint_ops: list[SSAValue],
+    ) -> bool:
         pass
 
 
@@ -100,7 +119,12 @@ class SyNeg(NegOp, SynthOperator):
     res_type = SynthType.INT
 
     @staticmethod
-    def get_new_random_op(rd: Random, int_ops: list[SSAValue], bool_ops: list[SSAValue], bint_ops: list[SSAValue]):
+    def get_new_random_op(
+        rd: Random,
+        int_ops: list[SSAValue],
+        bool_ops: list[SSAValue],
+        bint_ops: list[SSAValue],
+    ):
         if SynthOperator.skip_trivial:
             int_ops = filter_ops(int_ops, (SyZero, SyAllOnes))
             if len(int_ops) < 1:
@@ -108,7 +132,13 @@ class SyNeg(NegOp, SynthOperator):
         int_val1 = rd.choice(int_ops)
         return SyNeg(int_val1)
 
-    def replace_an_operand(self, rd: Random, int_ops: list[SSAValue], bool_ops: list[SSAValue], bint_ops: list[SSAValue]):
+    def replace_an_operand(
+        self,
+        rd: Random,
+        int_ops: list[SSAValue],
+        bool_ops: list[SSAValue],
+        bint_ops: list[SSAValue],
+    ):
         if SynthOperator.skip_trivial:
             int_ops = filter_ops(int_ops, (SyZero, SyAllOnes))
             if len(int_ops) < 1:
@@ -122,7 +152,12 @@ class SyAdd(AddOp, SynthOperator):
     res_type = SynthType.INT
 
     @staticmethod
-    def get_new_random_op(rd: Random, int_ops: list[SSAValue], bool_ops: list[SSAValue], bint_ops: list[SSAValue]):
+    def get_new_random_op(
+        rd: Random,
+        int_ops: list[SSAValue],
+        bool_ops: list[SSAValue],
+        bint_ops: list[SSAValue],
+    ):
         if SynthOperator.skip_trivial:
             int_ops = filter_ops(int_ops, (SyZero,))
             if len(int_ops) < 1:
@@ -131,7 +166,13 @@ class SyAdd(AddOp, SynthOperator):
         int_val2 = rd.choice(int_ops)
         return SyAdd(int_val1, int_val2)
 
-    def replace_an_operand(self, rd: Random, int_ops: list[SSAValue], bool_ops: list[SSAValue], bint_ops: list[SSAValue]):
+    def replace_an_operand(
+        self,
+        rd: Random,
+        int_ops: list[SSAValue],
+        bool_ops: list[SSAValue],
+        bint_ops: list[SSAValue],
+    ):
         if SynthOperator.skip_trivial:
             int_ops = filter_ops(int_ops, (SyZero,))
             if len(int_ops) < 1:
@@ -145,7 +186,12 @@ class SySub(SubOp, SynthOperator):
     res_type = SynthType.INT
 
     @staticmethod
-    def get_new_random_op(rd: Random, int_ops: list[SSAValue], bool_ops: list[SSAValue], bint_ops: list[SSAValue]):
+    def get_new_random_op(
+        rd: Random,
+        int_ops: list[SSAValue],
+        bool_ops: list[SSAValue],
+        bint_ops: list[SSAValue],
+    ):
         if SynthOperator.skip_trivial:
             int_ops = filter_ops(int_ops, (SyZero,))
             if len(int_ops) < 1:
@@ -154,7 +200,13 @@ class SySub(SubOp, SynthOperator):
         int_val2 = rd.choice(int_ops)
         return SySub(int_val1, int_val2)
 
-    def replace_an_operand(self, rd: Random, int_ops: list[SSAValue], bool_ops: list[SSAValue], bint_ops: list[SSAValue]):
+    def replace_an_operand(
+        self,
+        rd: Random,
+        int_ops: list[SSAValue],
+        bool_ops: list[SSAValue],
+        bint_ops: list[SSAValue],
+    ):
         ith = rd.randint(0, len(self.operands) - 1)
         if SynthOperator.skip_trivial:
             other = self.operands[1 - ith]
@@ -169,7 +221,12 @@ class SyMul(MulOp, SynthOperator):
     res_type = SynthType.INT
 
     @staticmethod
-    def get_new_random_op(rd: Random, int_ops: list[SSAValue], bool_ops: list[SSAValue], bint_ops: list[SSAValue]):
+    def get_new_random_op(
+        rd: Random,
+        int_ops: list[SSAValue],
+        bool_ops: list[SSAValue],
+        bint_ops: list[SSAValue],
+    ):
         if SynthOperator.skip_trivial:
             int_ops = filter_ops(int_ops, (SyZero, SyOne))
             if len(int_ops) < 1:
@@ -178,7 +235,13 @@ class SyMul(MulOp, SynthOperator):
         int_val2 = rd.choice(int_ops)
         return SyMul(int_val1, int_val2)
 
-    def replace_an_operand(self, rd: Random, int_ops: list[SSAValue], bool_ops: list[SSAValue], bint_ops: list[SSAValue]):
+    def replace_an_operand(
+        self,
+        rd: Random,
+        int_ops: list[SSAValue],
+        bool_ops: list[SSAValue],
+        bint_ops: list[SSAValue],
+    ):
         if SynthOperator.skip_trivial:
             int_ops = filter_ops(int_ops, (SyZero, SyOne))
             if len(int_ops) < 1:
@@ -192,7 +255,12 @@ class SyAnd(AndOp, SynthOperator):
     res_type = SynthType.INT
 
     @staticmethod
-    def get_new_random_op(rd: Random, int_ops: list[SSAValue], bool_ops: list[SSAValue], bint_ops: list[SSAValue]):
+    def get_new_random_op(
+        rd: Random,
+        int_ops: list[SSAValue],
+        bool_ops: list[SSAValue],
+        bint_ops: list[SSAValue],
+    ):
         if SynthOperator.skip_trivial:
             int_ops = filter_ops(int_ops, (SyZero, SyAllOnes))
             if len(int_ops) < 2:
@@ -200,7 +268,13 @@ class SyAnd(AndOp, SynthOperator):
         int_val1, int_val2 = rd.choice2(int_ops)
         return SyAnd(int_val1, int_val2)
 
-    def replace_an_operand(self, rd: Random, int_ops: list[SSAValue], bool_ops: list[SSAValue], bint_ops: list[SSAValue]):
+    def replace_an_operand(
+        self,
+        rd: Random,
+        int_ops: list[SSAValue],
+        bool_ops: list[SSAValue],
+        bint_ops: list[SSAValue],
+    ):
         ith = rd.randint(0, len(self.operands) - 1)
         if SynthOperator.skip_trivial:
             other = self.operands[1 - ith]
@@ -215,7 +289,12 @@ class SyOr(OrOp, SynthOperator):
     res_type = SynthType.INT
 
     @staticmethod
-    def get_new_random_op(rd: Random, int_ops: list[SSAValue], bool_ops: list[SSAValue], bint_ops: list[SSAValue]):
+    def get_new_random_op(
+        rd: Random,
+        int_ops: list[SSAValue],
+        bool_ops: list[SSAValue],
+        bint_ops: list[SSAValue],
+    ):
         if SynthOperator.skip_trivial:
             int_ops = filter_ops(int_ops, (SyZero, SyAllOnes))
             if len(int_ops) < 2:
@@ -223,7 +302,13 @@ class SyOr(OrOp, SynthOperator):
         int_val1, int_val2 = rd.choice2(int_ops)
         return SyOr(int_val1, int_val2)
 
-    def replace_an_operand(self, rd: Random, int_ops: list[SSAValue], bool_ops: list[SSAValue], bint_ops: list[SSAValue]):
+    def replace_an_operand(
+        self,
+        rd: Random,
+        int_ops: list[SSAValue],
+        bool_ops: list[SSAValue],
+        bint_ops: list[SSAValue],
+    ):
         ith = rd.randint(0, len(self.operands) - 1)
         if SynthOperator.skip_trivial:
             other = self.operands[1 - ith]
@@ -238,7 +323,12 @@ class SyXor(XorOp, SynthOperator):
     res_type = SynthType.INT
 
     @staticmethod
-    def get_new_random_op(rd: Random, int_ops: list[SSAValue], bool_ops: list[SSAValue], bint_ops: list[SSAValue]):
+    def get_new_random_op(
+        rd: Random,
+        int_ops: list[SSAValue],
+        bool_ops: list[SSAValue],
+        bint_ops: list[SSAValue],
+    ):
         if SynthOperator.skip_trivial:
             int_ops = filter_ops(int_ops, (SyZero, SyAllOnes))
             if len(int_ops) < 2:
@@ -246,7 +336,13 @@ class SyXor(XorOp, SynthOperator):
         int_val1, int_val2 = rd.choice2(int_ops)
         return SyXor(int_val1, int_val2)
 
-    def replace_an_operand(self, rd: Random, int_ops: list[SSAValue], bool_ops: list[SSAValue], bint_ops: list[SSAValue]):
+    def replace_an_operand(
+        self,
+        rd: Random,
+        int_ops: list[SSAValue],
+        bool_ops: list[SSAValue],
+        bint_ops: list[SSAValue],
+    ):
         ith = rd.randint(0, len(self.operands) - 1)
         if SynthOperator.skip_trivial:
             other = self.operands[1 - ith]
@@ -261,7 +357,12 @@ class SyAndI(arith.AndI, SynthOperator):
     res_type = SynthType.BOOL
 
     @staticmethod
-    def get_new_random_op(rd: Random, int_ops: list[SSAValue], bool_ops: list[SSAValue], bint_ops: list[SSAValue]):
+    def get_new_random_op(
+        rd: Random,
+        int_ops: list[SSAValue],
+        bool_ops: list[SSAValue],
+        bint_ops: list[SSAValue],
+    ):
         if SynthOperator.skip_trivial:
             bool_ops = filter_ops(bool_ops, (SyTrue, SyFalse))
             if len(bool_ops) < 2:
@@ -270,7 +371,13 @@ class SyAndI(arith.AndI, SynthOperator):
         bool_val1, bool_val2 = rd.choice2(bool_ops)
         return SyAndI(bool_val1, bool_val2)
 
-    def replace_an_operand(self, rd: Random, int_ops: list[SSAValue], bool_ops: list[SSAValue], bint_ops: list[SSAValue]):
+    def replace_an_operand(
+        self,
+        rd: Random,
+        int_ops: list[SSAValue],
+        bool_ops: list[SSAValue],
+        bint_ops: list[SSAValue],
+    ):
         ith = rd.randint(0, len(self.operands) - 1)
         if SynthOperator.skip_trivial:
             other = self.operands[1 - ith]
@@ -288,14 +395,25 @@ class SyEq(CmpOp, SynthOperator):
         super().__init__(lhs, rhs, "eq")
 
     @staticmethod
-    def get_new_random_op(rd: Random, int_ops: list[SSAValue], bool_ops: list[SSAValue], bint_ops: list[SSAValue]):
+    def get_new_random_op(
+        rd: Random,
+        int_ops: list[SSAValue],
+        bool_ops: list[SSAValue],
+        bint_ops: list[SSAValue],
+    ):
         if SynthOperator.skip_trivial and len(int_ops) < 2:
             return None
         int_val1 = rd.choice(int_ops)
         int_val2 = rd.choice(int_ops)
         return SyEq(int_val1, int_val2)
 
-    def replace_an_operand(self, rd: Random, int_ops: list[SSAValue], bool_ops: list[SSAValue], bint_ops: list[SSAValue]):
+    def replace_an_operand(
+        self,
+        rd: Random,
+        int_ops: list[SSAValue],
+        bool_ops: list[SSAValue],
+        bint_ops: list[SSAValue],
+    ):
         ith = rd.randint(0, len(self.operands) - 1)
         if SynthOperator.skip_trivial:
             other = self.operands[1 - ith]
@@ -313,14 +431,25 @@ class SyUlt(CmpOp, SynthOperator):
         super().__init__(lhs, rhs, "ult")
 
     @staticmethod
-    def get_new_random_op(rd: Random, int_ops: list[SSAValue], bool_ops: list[SSAValue], bint_ops: list[SSAValue]):
+    def get_new_random_op(
+        rd: Random,
+        int_ops: list[SSAValue],
+        bool_ops: list[SSAValue],
+        bint_ops: list[SSAValue],
+    ):
         if SynthOperator.skip_trivial and len(int_ops) < 2:
             return None
         int_val1 = rd.choice(int_ops)
         int_val2 = rd.choice(int_ops)
         return SyUlt(int_val1, int_val2)
 
-    def replace_an_operand(self, rd: Random, int_ops: list[SSAValue], bool_ops: list[SSAValue], bint_ops: list[SSAValue]):
+    def replace_an_operand(
+        self,
+        rd: Random,
+        int_ops: list[SSAValue],
+        bool_ops: list[SSAValue],
+        bint_ops: list[SSAValue],
+    ):
         ith = rd.randint(0, len(self.operands) - 1)
         if SynthOperator.skip_trivial:
             other = self.operands[1 - ith]
@@ -338,7 +467,12 @@ class SyUle(CmpOp, SynthOperator):
         super().__init__(lhs, rhs, "ule")
 
     @staticmethod
-    def get_new_random_op(rd: Random, int_ops: list[SSAValue], bool_ops: list[SSAValue], bint_ops: list[SSAValue]):
+    def get_new_random_op(
+        rd: Random,
+        int_ops: list[SSAValue],
+        bool_ops: list[SSAValue],
+        bint_ops: list[SSAValue],
+    ):
         if SynthOperator.skip_trivial:
             int_ops = filter_ops(int_ops, (SyZero, SyAllOnes))
             if len(int_ops) < 2:
@@ -347,7 +481,13 @@ class SyUle(CmpOp, SynthOperator):
         int_val2 = rd.choice(int_ops)
         return SyUle(int_val1, int_val2)
 
-    def replace_an_operand(self, rd: Random, int_ops: list[SSAValue], bool_ops: list[SSAValue], bint_ops: list[SSAValue]):
+    def replace_an_operand(
+        self,
+        rd: Random,
+        int_ops: list[SSAValue],
+        bool_ops: list[SSAValue],
+        bint_ops: list[SSAValue],
+    ):
         ith = rd.randint(0, len(self.operands) - 1)
         if SynthOperator.skip_trivial:
             other = self.operands[1 - ith]
@@ -362,7 +502,12 @@ class SyCountLZero(CountLZeroOp, SynthOperator):
     res_type = SynthType.BOUNDED_INT
 
     @staticmethod
-    def get_new_random_op(rd: Random, int_ops: list[SSAValue], bool_ops: list[SSAValue], bint_ops: list[SSAValue]):
+    def get_new_random_op(
+        rd: Random,
+        int_ops: list[SSAValue],
+        bool_ops: list[SSAValue],
+        bint_ops: list[SSAValue],
+    ):
         if SynthOperator.skip_trivial:
             int_ops = filter_ops(int_ops, (SyZero, SyAllOnes, SyOne))
             if len(int_ops) < 1:
@@ -370,7 +515,13 @@ class SyCountLZero(CountLZeroOp, SynthOperator):
         int_val1 = rd.choice(int_ops)
         return SyCountLZero(int_val1)
 
-    def replace_an_operand(self, rd: Random, int_ops: list[SSAValue], bool_ops: list[SSAValue], bint_ops: list[SSAValue]):
+    def replace_an_operand(
+        self,
+        rd: Random,
+        int_ops: list[SSAValue],
+        bool_ops: list[SSAValue],
+        bint_ops: list[SSAValue],
+    ):
         ith = rd.randint(0, len(self.operands) - 1)
         if SynthOperator.skip_trivial:
             int_ops = filter_ops(int_ops, (SyZero, SyAllOnes, SyOne))
@@ -384,7 +535,12 @@ class SyCountRZero(CountRZeroOp, SynthOperator):
     res_type = SynthType.BOUNDED_INT
 
     @staticmethod
-    def get_new_random_op(rd: Random, int_ops: list[SSAValue], bool_ops: list[SSAValue], bint_ops: list[SSAValue]):
+    def get_new_random_op(
+        rd: Random,
+        int_ops: list[SSAValue],
+        bool_ops: list[SSAValue],
+        bint_ops: list[SSAValue],
+    ):
         if SynthOperator.skip_trivial:
             int_ops = filter_ops(int_ops, (SyZero, SyAllOnes, SyOne))
             if len(int_ops) < 1:
@@ -392,7 +548,13 @@ class SyCountRZero(CountRZeroOp, SynthOperator):
         int_val1 = rd.choice(int_ops)
         return SyCountRZero(int_val1)
 
-    def replace_an_operand(self, rd: Random, int_ops: list[SSAValue], bool_ops: list[SSAValue], bint_ops: list[SSAValue]):
+    def replace_an_operand(
+        self,
+        rd: Random,
+        int_ops: list[SSAValue],
+        bool_ops: list[SSAValue],
+        bint_ops: list[SSAValue],
+    ):
         ith = rd.randint(0, len(self.operands) - 1)
         if SynthOperator.skip_trivial:
             int_ops = filter_ops(int_ops, (SyZero, SyAllOnes, SyOne))
@@ -406,7 +568,12 @@ class SyCountLOne(CountLOneOp, SynthOperator):
     res_type = SynthType.BOUNDED_INT
 
     @staticmethod
-    def get_new_random_op(rd: Random, int_ops: list[SSAValue], bool_ops: list[SSAValue], bint_ops: list[SSAValue]):
+    def get_new_random_op(
+        rd: Random,
+        int_ops: list[SSAValue],
+        bool_ops: list[SSAValue],
+        bint_ops: list[SSAValue],
+    ):
         if SynthOperator.skip_trivial:
             int_ops = filter_ops(int_ops, (SyZero, SyAllOnes, SyOne))
             if len(int_ops) < 1:
@@ -414,7 +581,13 @@ class SyCountLOne(CountLOneOp, SynthOperator):
         int_val1 = rd.choice(int_ops)
         return SyCountLOne(int_val1)
 
-    def replace_an_operand(self, rd: Random, int_ops: list[SSAValue], bool_ops: list[SSAValue], bint_ops: list[SSAValue]):
+    def replace_an_operand(
+        self,
+        rd: Random,
+        int_ops: list[SSAValue],
+        bool_ops: list[SSAValue],
+        bint_ops: list[SSAValue],
+    ):
         ith = rd.randint(0, len(self.operands) - 1)
         if SynthOperator.skip_trivial:
             int_ops = filter_ops(int_ops, (SyZero, SyAllOnes, SyOne))
@@ -428,7 +601,12 @@ class SyCountROne(CountROneOp, SynthOperator):
     res_type = SynthType.BOUNDED_INT
 
     @staticmethod
-    def get_new_random_op(rd: Random, int_ops: list[SSAValue], bool_ops: list[SSAValue], bint_ops: list[SSAValue]):
+    def get_new_random_op(
+        rd: Random,
+        int_ops: list[SSAValue],
+        bool_ops: list[SSAValue],
+        bint_ops: list[SSAValue],
+    ):
         if SynthOperator.skip_trivial:
             int_ops = filter_ops(int_ops, (SyZero, SyAllOnes, SyOne))
             if len(int_ops) < 1:
@@ -436,7 +614,13 @@ class SyCountROne(CountROneOp, SynthOperator):
         int_val1 = rd.choice(int_ops)
         return SyCountROne(int_val1)
 
-    def replace_an_operand(self, rd: Random, int_ops: list[SSAValue], bool_ops: list[SSAValue], bint_ops: list[SSAValue]):
+    def replace_an_operand(
+        self,
+        rd: Random,
+        int_ops: list[SSAValue],
+        bool_ops: list[SSAValue],
+        bint_ops: list[SSAValue],
+    ):
         ith = rd.randint(0, len(self.operands) - 1)
         if SynthOperator.skip_trivial:
             int_ops = filter_ops(int_ops, (SyZero, SyAllOnes, SyOne))
@@ -450,7 +634,12 @@ class SySelect(SelectOp, SynthOperator):
     res_type = SynthType.INT
 
     @staticmethod
-    def get_new_random_op(rd: Random, int_ops: list[SSAValue], bool_ops: list[SSAValue], bint_ops: list[SSAValue]):
+    def get_new_random_op(
+        rd: Random,
+        int_ops: list[SSAValue],
+        bool_ops: list[SSAValue],
+        bint_ops: list[SSAValue],
+    ):
         if SynthOperator.skip_trivial:
             bool_ops = filter_ops(bool_ops, (SyTrue, SyFalse))
             if len(bool_ops) < 1 or len(int_ops) < 2:
@@ -459,7 +648,13 @@ class SySelect(SelectOp, SynthOperator):
         bool_val = rd.choice(bool_ops)
         return SySelect(bool_val, int_val1, int_val2)
 
-    def replace_an_operand(self, rd: Random, int_ops: list[SSAValue], bool_ops: list[SSAValue], bint_ops: list[SSAValue]):
+    def replace_an_operand(
+        self,
+        rd: Random,
+        int_ops: list[SSAValue],
+        bool_ops: list[SSAValue],
+        bint_ops: list[SSAValue],
+    ):
         ith = rd.randint(0, len(self.operands) - 1)
         if ith == 0:
             if SynthOperator.skip_trivial:
@@ -481,7 +676,12 @@ class SyShl(ShlOp, SynthOperator):
     res_type = SynthType.INT
 
     @staticmethod
-    def get_new_random_op(rd: Random, int_ops: list[SSAValue], bool_ops: list[SSAValue], bint_ops: list[SSAValue]):
+    def get_new_random_op(
+        rd: Random,
+        int_ops: list[SSAValue],
+        bool_ops: list[SSAValue],
+        bint_ops: list[SSAValue],
+    ):
         if SynthOperator.skip_trivial:
             int_ops = filter_ops(int_ops, (SyZero, SyAllOnes))
             bint_ops = filter_ops(bint_ops, (SyBitWidth,))
@@ -491,7 +691,13 @@ class SyShl(ShlOp, SynthOperator):
         bint_val = rd.choice(bint_ops)
         return SyShl(int_val1, bint_val)
 
-    def replace_an_operand(self, rd: Random, int_ops: list[SSAValue], bool_ops: list[SSAValue], bint_ops: list[SSAValue]):
+    def replace_an_operand(
+        self,
+        rd: Random,
+        int_ops: list[SSAValue],
+        bool_ops: list[SSAValue],
+        bint_ops: list[SSAValue],
+    ):
         ith = rd.randint(0, len(self.operands) - 1)
         if SynthOperator.skip_trivial:
             int_ops = filter_ops(int_ops, (SyZero, SyAllOnes))
@@ -509,7 +715,12 @@ class SyLShr(LShrOp, SynthOperator):
     res_type = SynthType.INT
 
     @staticmethod
-    def get_new_random_op(rd: Random, int_ops: list[SSAValue], bool_ops: list[SSAValue], bint_ops: list[SSAValue]):
+    def get_new_random_op(
+        rd: Random,
+        int_ops: list[SSAValue],
+        bool_ops: list[SSAValue],
+        bint_ops: list[SSAValue],
+    ):
         if SynthOperator.skip_trivial:
             int_ops = filter_ops(int_ops, (SyZero, SyAllOnes))
             bint_ops = filter_ops(bint_ops, (SyBitWidth,))
@@ -519,7 +730,13 @@ class SyLShr(LShrOp, SynthOperator):
         bint_val = rd.choice(bint_ops)
         return SyLShr(int_val1, bint_val)
 
-    def replace_an_operand(self, rd: Random, int_ops: list[SSAValue], bool_ops: list[SSAValue], bint_ops: list[SSAValue]):
+    def replace_an_operand(
+        self,
+        rd: Random,
+        int_ops: list[SSAValue],
+        bool_ops: list[SSAValue],
+        bint_ops: list[SSAValue],
+    ):
         ith = rd.randint(0, len(self.operands) - 1)
         if SynthOperator.skip_trivial:
             int_ops = filter_ops(int_ops, (SyZero, SyAllOnes))
@@ -537,7 +754,12 @@ class SySetLowBits(SetLowBitsOp, SynthOperator):
     res_type = SynthType.INT
 
     @staticmethod
-    def get_new_random_op(rd: Random, int_ops: list[SSAValue], bool_ops: list[SSAValue], bint_ops: list[SSAValue]):
+    def get_new_random_op(
+        rd: Random,
+        int_ops: list[SSAValue],
+        bool_ops: list[SSAValue],
+        bint_ops: list[SSAValue],
+    ):
         if SynthOperator.skip_trivial:
             int_ops = filter_ops(int_ops, (SyZero, SyAllOnes, SyOne))
             bint_ops = filter_ops(bint_ops, (SyBitWidth,))
@@ -547,7 +769,13 @@ class SySetLowBits(SetLowBitsOp, SynthOperator):
         bint_val = rd.choice(bint_ops)
         return SySetLowBits(int_val1, bint_val)
 
-    def replace_an_operand(self, rd: Random, int_ops: list[SSAValue], bool_ops: list[SSAValue], bint_ops: list[SSAValue]):
+    def replace_an_operand(
+        self,
+        rd: Random,
+        int_ops: list[SSAValue],
+        bool_ops: list[SSAValue],
+        bint_ops: list[SSAValue],
+    ):
         ith = rd.randint(0, len(self.operands) - 1)
         if SynthOperator.skip_trivial:
             int_ops = filter_ops(int_ops, (SyZero, SyAllOnes, SyOne))
@@ -565,7 +793,12 @@ class SySetHighBits(SetHighBitsOp, SynthOperator):
     res_type = SynthType.INT
 
     @staticmethod
-    def get_new_random_op(rd: Random, int_ops: list[SSAValue], bool_ops: list[SSAValue], bint_ops: list[SSAValue]):
+    def get_new_random_op(
+        rd: Random,
+        int_ops: list[SSAValue],
+        bool_ops: list[SSAValue],
+        bint_ops: list[SSAValue],
+    ):
         if SynthOperator.skip_trivial:
             int_ops = filter_ops(int_ops, (SyZero, SyAllOnes, SyOne))
             bint_ops = filter_ops(bint_ops, (SyBitWidth,))
@@ -575,7 +808,13 @@ class SySetHighBits(SetHighBitsOp, SynthOperator):
         bint_val = rd.choice(bint_ops)
         return SySetHighBits(int_val1, bint_val)
 
-    def replace_an_operand(self, rd: Random, int_ops: list[SSAValue], bool_ops: list[SSAValue], bint_ops: list[SSAValue]):
+    def replace_an_operand(
+        self,
+        rd: Random,
+        int_ops: list[SSAValue],
+        bool_ops: list[SSAValue],
+        bint_ops: list[SSAValue],
+    ):
         ith = rd.randint(0, len(self.operands) - 1)
         if SynthOperator.skip_trivial:
             int_ops = filter_ops(int_ops, (SyZero, SyAllOnes, SyOne))
@@ -593,7 +832,12 @@ class SyUMulOverflow(UMulOverflowOp, SynthOperator):
     res_type = SynthType.BOOL
 
     @staticmethod
-    def get_new_random_op(rd: Random, int_ops: list[SSAValue], bool_ops: list[SSAValue], bint_ops: list[SSAValue]):
+    def get_new_random_op(
+        rd: Random,
+        int_ops: list[SSAValue],
+        bool_ops: list[SSAValue],
+        bint_ops: list[SSAValue],
+    ):
         if SynthOperator.skip_trivial:
             int_ops = filter_ops(int_ops, (SyZero, SyOne))
             if len(int_ops) < 1:
@@ -602,7 +846,13 @@ class SyUMulOverflow(UMulOverflowOp, SynthOperator):
         int_val2 = rd.choice(int_ops)
         return SyUMulOverflow(int_val1, int_val2)
 
-    def replace_an_operand(self, rd: Random, int_ops: list[SSAValue], bool_ops: list[SSAValue], bint_ops: list[SSAValue]):
+    def replace_an_operand(
+        self,
+        rd: Random,
+        int_ops: list[SSAValue],
+        bool_ops: list[SSAValue],
+        bint_ops: list[SSAValue],
+    ):
         if SynthOperator.skip_trivial:
             int_ops = filter_ops(int_ops, (SyZero, SyOne))
             if len(int_ops) < 1:
