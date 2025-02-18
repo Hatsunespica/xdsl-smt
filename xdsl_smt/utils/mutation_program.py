@@ -51,6 +51,7 @@ class MutationProgram:
 
     The user should **manually** maintain the consistency between func and ops.
     """
+
     func: FuncOp
     ops: list[Operation]
 

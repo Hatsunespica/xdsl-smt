@@ -40,7 +40,7 @@ from xdsl.dialects.builtin import (
     IntegerType,
     i1,
 )
-from xdsl.dialects.func import FuncOp, Return
+from xdsl.dialects.func import FuncOp, ReturnOp
 from xdsl.ir import Operation, OpResult, SSAValue, Block
 import sys as sys
 
@@ -174,10 +174,8 @@ class MCMCSampler:
         # Part I: GetOp
         for k, arg in enumerate(block.args):
             if isinstance(arg.type, AbstractValueType):
-                # self.args_get.append([])
                 for i, field_type in enumerate(arg.type.get_fields()):
                     op = GetOp(arg, i)
-                    # self.args_get[k].append(op)
                     block.add_op(op)
 
         assert isinstance(block.last_op, GetOp)

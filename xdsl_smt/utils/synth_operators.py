@@ -58,6 +58,7 @@ class SynthOperator(IRDLOperation, ABC):
     """
     An abstract base class for all mutable synthesis operators.
     """
+
     operands_types: list[SynthType]
     res_type: SynthType
     commutative: bool = False

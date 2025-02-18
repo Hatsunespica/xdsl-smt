@@ -1,8 +1,17 @@
 import os
 from os import path
 from subprocess import run, PIPE
+from enum import Enum, auto
 
 from xdsl_smt.utils.compare_result import CompareResult
+
+
+class AbstractDomain(Enum):
+    KnownBits = auto()
+    ConstantRange = auto()
+
+    def __str__(self) -> str:
+        return self.name
 
 
 def get_build_cmd() -> list[str]:
@@ -69,41 +78,38 @@ def get_build_cmd() -> list[str]:
     return build_cmd
 
 
-def make_xfer_header(concrete_op: str) -> str:
+def make_xfer_header(concrete_op: str, num_funcs: int) -> str:
     includes = """
     #include <llvm/ADT/APInt.h>
-    #include <llvm/Support/KnownBits.h>
     #include <tuple>
     #include <vector>
+    #include "AbstVal.cpp"
     using llvm::APInt;
     """
+
     conc_op_wrapper = """
     uint8_t concrete_op_wrapper(const uint8_t a, const uint8_t b) {
       return concrete_op(APInt(8, a), APInt(8, b)).getZExtValue();
     }
     """
-    return includes + concrete_op + conc_op_wrapper
 
+    num_funcs_const = f"unsigned int numFuncs = {num_funcs};"
 
-func_to_eval_wrapper_name = "synth_function"
-ref_func_wrapper_name = "ref_function"
+    return includes + concrete_op + conc_op_wrapper + num_funcs_const
 
 
 def make_xfer_wrapper(func_names: list[str], wrapper_name: str) -> str:
     func_sig = (
-        "std::vector<llvm::KnownBits> "
+        "std::vector<AbstVal> "
         + wrapper_name
-        + "_wrapper(const llvm::KnownBits &lhs, const llvm::KnownBits &rhs)"
+        + "_wrapper(const AbstVal &lhs, const AbstVal &rhs)"
     )
 
     def make_func_call(x: str) -> str:
-        return (
-            f"const std::vector<llvm::APInt> res_v_{x} = {x}"
-            + "({lhs.Zero, lhs.One}, {rhs.Zero, rhs.One});"
-        )
+        return f"const std::vector<llvm::APInt> res_v_{x} = {x}" + "(lhs.v, rhs.v);"
 
     def make_res(x: str) -> str:
-        return f"llvm::KnownBits res_{x};\nres_{x}.Zero = res_v_{x}[0];\nres_{x}.One = res_v_{x}[1];\n"
+        return f"AbstVal res_{x}(lhs.domain, res_v_{x}, lhs.bitwidth);"
 
     func_calls = "\n".join([make_func_call(x) for x in func_names])
     results = "\n".join([make_res(x) for x in func_names])
@@ -119,8 +125,12 @@ def eval_transfer_func(
     concrete_op_expr: str,
     ref_xfer_names: list[str],
     ref_xfer_srcs: list[str],
+    domain: AbstractDomain,
 ) -> list[CompareResult]:
-    transfer_func_header = make_xfer_header(concrete_op_expr)
+    func_to_eval_wrapper_name = "synth_function"
+    ref_func_wrapper_name = "ref_function"
+
+    transfer_func_header = make_xfer_header(concrete_op_expr, len(xfer_names))
 
     # rename the transfer functions
     ref_xfer_srcs = [
@@ -161,7 +171,16 @@ def eval_transfer_func(
     os.chdir(path.join(base_dir, "build"))
 
     run(get_build_cmd(), stdout=PIPE)
-    eval_output = run(["./EvalEngine"], stdout=PIPE)
+    eval_output = run(
+        ["./EvalEngine", "--domain", str(domain)],
+        stdout=PIPE,
+        stderr=PIPE,
+    )
+
+    if eval_output.returncode != 0:
+        print("EvalEngine failed with this error:")
+        print(eval_output.stderr.decode("utf-8"), end="")
+        exit(eval_output.returncode)
 
     def get_floats(s: str) -> list[int]:
         return eval(s)
@@ -208,38 +227,45 @@ def eval_transfer_func(
     return cmp_results
 
 
-'''
-if __name__ == "__main__":
+def main():
     concrete_op = """
     APInt concrete_op(APInt a, APInt b) {
         return a+b;
     }
     """
-    transfer_func_name = "ANDImpl"
+
+    transfer_func_name = "cr_add"
     transfer_func_src = """
-    std::vector<APInt> ANDImpl(std::vector<APInt> arg0,
-                                     std::vector<APInt> arg1) {
-      APInt arg0_0 = arg0[0];
-      APInt arg0_1 = arg0[1];
-      APInt arg1_0 = arg1[0];
-      APInt arg1_1 = arg1[1];
-      APInt result_0 = arg0_0 | arg1_0;
-      APInt result_1 = arg0_1 & arg1_1;
-      return{result_0, result_1};
-    }
+std::vector<APInt> cr_add(std::vector<APInt> arg0, std::vector<APInt> arg1) {
+  bool res0_ov;
+  bool res1_ov;
+  APInt res0 = arg0[0].uadd_ov(arg1[0], res0_ov);
+  APInt res1 = arg0[1].uadd_ov(arg1[1], res1_ov);
+  if (res0.ugt(res1) || (res0_ov ^ res1_ov))
+    return {llvm::APInt::getMinValue(arg0[0].getBitWidth()),
+            llvm::APInt::getMaxValue(arg0[0].getBitWidth())};
+  return {res0, res1};
+}
     """
 
-    names = list(repeat(transfer_func_name, 10))
-    srcs = list(repeat(transfer_func_src, 10))
-    sound_percent, precise_percent = eval_transfer_func(names, srcs, concrete_op)
+    names = [transfer_func_name]
+    srcs = [transfer_func_src]
+    ref_names: list[str] = []  # TODO
+    ref_srcs: list[str] = []  # TODO
+    results = eval_transfer_func(
+        names, srcs, concrete_op, ref_names, ref_srcs, AbstractDomain.ConstantRange
+    )
 
-    print(f"sound percent:   {sound_percent}")
-    print(f"precise percent: {precise_percent}")
-'''
+    for res in results:
+        print(res)
+        print(f"cost:                  {res.get_cost():.04f}")
+        print(f"sound prop:            {res.get_sound_prop():.04f}")
+        print(f"exact prop:            {res.get_exact_prop():.04f}")
+        print(f"edit dis avg:          {res.get_edit_dis_avg():.04f}")
+        print(f"unsolved exact prop:   {res.get_unsolved_exact_prop():.04f}")
+        print(f"unsolved sound prop:   {res.get_unsolved_sound_prop():.04f}")
+        print(f"unsolved edit dis avg: {res.get_unsolved_edit_dis_avg():.04f}")
 
-# notes
-# 1    =  0.849s
-# 10   =  0.974s
-# 100  =  1.909s
-# 250  =  3.719s
-# 1000 = 12.361s
+
+if __name__ == "__main__":
+    main()
