@@ -109,12 +109,12 @@ class SyAllOnes(GetAllOnesOp):
         super().__init__(arg_for_bitw)
 
 
-class SyTrue(arith.Constant):
+class SyTrue(arith.ConstantOp):
     def __init__(self):
         super().__init__(IntegerAttr.from_int_and_width(1, 1), i1)
 
 
-class SyFalse(arith.Constant):
+class SyFalse(arith.ConstantOp):
     def __init__(self):
         super().__init__(IntegerAttr.from_int_and_width(0, 1), i1)
 
@@ -362,7 +362,7 @@ class SyXor(XorOp, SynthOperator):
         return True
 
 
-class SyAndI(arith.AndI, SynthOperator):
+class SyAndI(arith.AndIOp, SynthOperator):
     res_type = SynthType.BOOL
 
     @staticmethod

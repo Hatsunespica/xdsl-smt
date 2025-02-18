@@ -27,7 +27,7 @@ from xdsl.dialects.builtin import (
     IntegerType,
     i1,
 )
-from xdsl.dialects.func import FuncOp, Return
+from xdsl.dialects.func import FuncOp, ReturnOp
 from xdsl.ir import Operation, OpResult, SSAValue, Block
 import sys as sys
 
@@ -72,7 +72,7 @@ class MutationProgram:
         """
         Get live operations when only_live = True, otherwise return all operations in the main body
         """
-        assert isinstance(self.ops[-1], Return)
+        assert isinstance(self.ops[-1], ReturnOp)
         assert isinstance(self.ops[-2], MakeOp)
         last_make_op = self.ops[-2]
 

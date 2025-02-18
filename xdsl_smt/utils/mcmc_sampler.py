@@ -221,7 +221,7 @@ class MCMCSampler:
             return_val.append(op)
 
         # Part V: Return
-        block.add_op(Return(return_val[0]))
+        block.add_op(ReturnOp(return_val[0]))
 
         return MutationProgram(func)
 
