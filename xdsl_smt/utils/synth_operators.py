@@ -55,14 +55,14 @@ def filter_ops(
 
 
 class SynthOperator(IRDLOperation, ABC):
+    """
+    An abstract base class for all mutable synthesis operators.
+    """
     operands_types: list[SynthType]
     res_type: SynthType
     commutative: bool = False
     idempotent: bool = False
     skip_trivial: bool = True
-
-    # def __init__(self, res_type):
-    #     self.res_type = res_type
 
     @staticmethod
     @abstractmethod
@@ -72,6 +72,10 @@ class SynthOperator(IRDLOperation, ABC):
         bool_ops: list[SSAValue],
         bint_ops: list[SSAValue],
     ) -> Operation | None:
+        """
+        Return a new operation with random operands.
+        Return None if failed.
+        """
         pass
 
     @abstractmethod
@@ -82,6 +86,10 @@ class SynthOperator(IRDLOperation, ABC):
         bool_ops: list[SSAValue],
         bint_ops: list[SSAValue],
     ) -> bool:
+        """
+        Replace an operand in the operation.
+        Return False if failed.
+        """
         pass
 
 

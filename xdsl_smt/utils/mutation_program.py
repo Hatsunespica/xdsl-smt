@@ -42,9 +42,17 @@ from xdsl_smt.dialects.transfer import (
 
 
 class MutationProgram:
+    """
+    Represents a program that is mutated during MCMC.
+
+    Attributes:
+        func (FuncOp): The mutation program.
+        ops (list[Operation]): A list of operations within the function's body.
+
+    The user should **manually** maintain the consistency between func and ops.
+    """
     func: FuncOp
     ops: list[Operation]
-    # Maintain the consistency between ops and func manually
 
     def __init__(self, func: FuncOp, ops: list[Operation] | None = None):
         if ops is None:
@@ -60,6 +68,9 @@ class MutationProgram:
     def get_modifiable_operations(
         self, only_live: bool = True
     ) -> list[tuple[Operation, int]]:
+        """
+        Get live operations when only_live = True, otherwise return all operations in the main body
+        """
         assert isinstance(self.ops[-1], Return)
         assert isinstance(self.ops[-2], MakeOp)
         last_make_op = self.ops[-2]
@@ -87,6 +98,9 @@ class MutationProgram:
         return modifiable_ops
 
     def replace_operation(self, old_op, new_op):
+        """
+        Replace the old_op with the given new operation.
+        """
         block = self.func.body.block
         block.insert_op_before(new_op, old_op)
         if len(old_op.results) > 0 and len(new_op.results) > 0:
@@ -96,7 +110,7 @@ class MutationProgram:
 
     def get_valid_bool_operands(self, x: int) -> tuple[list[SSAValue], int]:
         """
-        Get operations that before ops[x] so that can serve as operands
+        Get bool operations that before ops[x] so that can serve as operands
         """
         bool_ops: list[SSAValue] = [
             op.results[0]
@@ -109,7 +123,7 @@ class MutationProgram:
 
     def get_valid_int_operands(self, x: int) -> tuple[list[SSAValue], int]:
         """
-        Get operations that before ops[x] so that can serve as operands
+        Get int operations that before ops[x] so that can serve as operands
         """
         int_ops: list[SSAValue] = [
             op.results[0]
@@ -122,7 +136,7 @@ class MutationProgram:
 
     def get_valid_bint_operands(self, x: int) -> tuple[list[SSAValue], int]:
         """
-        Get operations that before ops[x] so that can serve as operands
+        Get bint operations that before ops[x] so that can serve as operands
         """
         bint_ops: list[SSAValue] = [
             op.results[0]
