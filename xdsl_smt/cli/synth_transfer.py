@@ -385,6 +385,12 @@ def print_concrete_function_to_cpp(func: FuncOp) -> str:
     sio = StringIO()
     LowerToCpp(sio, True).apply(ctx, cast(ModuleOp, func))
     return sio.getvalue()
+    # return """
+    #     APInt concrete_op(APInt arg0, APInt arg1){
+    #        // return arg0.uge(arg1) ? arg0 : arg1;
+    #        return arg0 + arg1;
+    #     }
+    #     """
 
 
 def print_to_cpp(func: FuncOp) -> str:
@@ -501,7 +507,7 @@ def main() -> None:
         random.read_from_file(random_number_file)
 
     PROGRAM_LENGTH = 40
-    NUM_PROGRAMS = 100
+    NUM_PROGRAMS = 200
     INIT_COST = 1
     TOTAL_ROUNDS = 10000
 
@@ -561,7 +567,7 @@ def main() -> None:
                 # sampler = MCMCSampler(
                 #     func, context, PROGRAM_LENGTH, init_cost=compute_cost(
                 #         init_soundness[0], init_precision[0]), reset=False, init_soundness=init_soundness[0], init_precision=init_precision[0])
-
+                sampler.reset_to_random_prog()
                 mcmc_samplers.append(sampler)
 
             # Get the cost of initial programs
@@ -596,6 +602,7 @@ def main() -> None:
                 for i in range(NUM_PROGRAMS):
                     _: float = mcmc_samplers[i].sample_next()
                     proposed_solution = mcmc_samplers[i].get_proposed()
+
                     assert proposed_solution is not None
                     cpp_code = print_to_cpp(proposed_solution.clone())
                     cpp_codes.append(cpp_code)
@@ -613,20 +620,6 @@ def main() -> None:
                     ref_func_names,
                     ref_func_cpps,
                 )
-
-                # num_unsound, _imprecision, num_exact, num_cases, unsolved_unsound, unsolved_imprecision, unsolved_exact, unsolved_num_cases = eval_transfer_func(
-                #     [func_name] * NUM_PROGRAMS,
-                #     cpp_codes,
-                #     crt_func
-                #     + "\n"
-                #     + instance_constraint_func
-                #     + "\n"
-                #     + domain_constraint_func
-                #     + "\n"
-                #     + op_constraint_func,
-                #     ref_func_names,
-                #     ref_func_cpps,
-                # )
 
                 for i in range(NUM_PROGRAMS):
                     proposed_cost = cmp_results[i].get_cost()
