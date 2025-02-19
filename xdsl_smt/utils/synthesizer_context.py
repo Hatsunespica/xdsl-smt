@@ -23,7 +23,6 @@ from .synth_operators import (
 )
 from typing import TypeVar, Generic, Callable
 from xdsl.ir import Operation, SSAValue
-import xdsl.dialects.arith as arith
 from xdsl_smt.utils.random import Random
 
 T = TypeVar("T")
@@ -171,7 +170,7 @@ class SynthesizerContext:
         int_vals: list[SSAValue],
         i1_vals: list[SSAValue],
         bint_vals: list[SSAValue],
-    ) -> Operation:
+    ) -> Operation | None:
         result_type = self.i1_ops.get_random_element()
         # i1_val1 = self.random.choice(i1_vals)
         # i1_val2 = self.random.choice(i1_vals)
@@ -192,7 +191,7 @@ class SynthesizerContext:
         int_vals: list[SSAValue],
         i1_vals: list[SSAValue],
         bint_vals: list[SSAValue],
-    ) -> Operation:
+    ) -> Operation | None:
         result_type = self.int_ops.get_random_element()
         # if result_type == SelectOp:
         #     return SelectOp(i1_vals[0], int_vals[0], int_vals[1])
@@ -275,6 +274,6 @@ class SynthesizerContext:
         int_vals: list[SSAValue],
         i1_vals: list[SSAValue],
         bint_vals: list[SSAValue],
-    ) -> Operation:
+    ) -> Operation | None:
         result_type = self.bint_ops.get_random_element()
         return result_type.get_new_random_op(self.random, int_vals, i1_vals, bint_vals)
