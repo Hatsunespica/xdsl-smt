@@ -558,6 +558,7 @@ def main() -> None:
     """
     print("Round\tsoundness%\tprecision%\tcost")
     possible_solution: set[str] = set()
+    solutions: list[tuple[str, int]] = []
 
     random = Random(random_seed)
     if random_number_file is not None:
@@ -590,7 +591,8 @@ def main() -> None:
         if isinstance(func, FuncOp) and is_ref_function(func):
             ref_funcs.append(func)
 
-    assert len(ref_funcs) > 0
+    # We comment this out because ref functions could be empty
+    # assert len(ref_funcs) > 0
     ref_func_names = [func.sym_name.data for func in ref_funcs]
     ref_func_cpps = [print_to_cpp(func) for func in ref_funcs]
 
@@ -715,10 +717,29 @@ def main() -> None:
                     )
                     # print(res)
                     cost_data[i].append(res.get_cost())
+                    if res.sounds == res.all_cases:
+                        hasChanged = False
+                        for ith in range(len(solutions)):
+                            if res.exacts >= solutions[ith][1]:
+                                solutions = (
+                                    solutions[:ith]
+                                    + [
+                                        (
+                                            print_to_cpp(mcmc_samplers[i].current),
+                                            res.exacts,
+                                        )
+                                    ]
+                                    + solutions[ith:]
+                                )
+                                hasChanged = True
+                                break
+                        if not hasChanged and len(solutions) < 8:
+                            solutions.append(
+                                (print_to_cpp(mcmc_samplers[i].current), res.exacts)
+                            )
+                        elif len(solutions) > 8:
+                            solutions.pop()
 
-                # if soundness_percent[i] == 1 and precision_percent[i] == 1:
-                #     print(mcmc_samplers[i].get_current())
-                #     return
                 end = time.time()
                 used_time = end - start
 
@@ -745,5 +766,8 @@ def main() -> None:
                         if soundness_check_res:
                             print(mcmcSampler.func)
                         """
-    for item in possible_solution:
-        print(item)
+    with open("tmp.cpp", "w") as fout:
+        for item in solutions:
+            print(item[0])
+            fout.write(item[0])
+            fout.write("\n")
