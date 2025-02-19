@@ -21,31 +21,6 @@ from .synth_operators import (
     SyUMulOverflow,
     SyMul,
 )
-from ..dialects.transfer import (
-    NegOp,
-    CmpOp,
-    AndOp,
-    OrOp,
-    XorOp,
-    AddOp,
-    SubOp,
-    CountLOneOp,
-    CountLZeroOp,
-    CountROneOp,
-    CountRZeroOp,
-    SetHighBitsOp,
-    SetLowBitsOp,
-    GetLowBitsOp,
-    GetBitWidthOp,
-    # UMulOverflowOp,
-    # SMinOp,
-    # SMaxOp,
-    # UMinOp,
-    # UMaxOp,
-    ShlOp,
-    LShrOp,
-    SelectOp,
-)
 from typing import TypeVar, Generic, Callable
 from xdsl.ir import Operation, SSAValue
 import xdsl.dialects.arith as arith

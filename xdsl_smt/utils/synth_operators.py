@@ -535,7 +535,7 @@ class SyCountLZero(CountLZeroOp, SynthOperator):
         if SynthOperator.skip_trivial:
             int_ops = filter_ops(int_ops, (SyZero, SyAllOnes, SyOne))
             if len(int_ops) < 1:
-                return None
+                return False
         self.operands[ith] = rd.choice(int_ops)
         return True
 
