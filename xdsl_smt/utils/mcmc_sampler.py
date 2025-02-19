@@ -160,7 +160,7 @@ class MCMCSampler:
             block.detach_op(op)
 
         # Part I: GetOp
-        for k, arg in enumerate(block.args):
+        for arg in block.args:
             if isinstance(arg.type, AbstractValueType):
                 for i, field_type in enumerate(arg.type.get_fields()):
                     op = GetOp(arg, i)
@@ -179,7 +179,7 @@ class MCMCSampler:
         block.add_op(SyBitWidth(tmp_int_ssavalue))
 
         # Part III: Main Body
-        tmp_bool_ssavalue = false_op.results[0]
+        # tmp_bool_ssavalue = false_op.results[0]
         for i in range(length // 4):
             nop_int1 = SyAnd(tmp_int_ssavalue, tmp_int_ssavalue)
             nop_int2 = SyAnd(tmp_int_ssavalue, tmp_int_ssavalue)

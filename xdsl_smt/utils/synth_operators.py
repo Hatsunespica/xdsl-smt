@@ -20,7 +20,7 @@ from ..dialects.transfer import (
     CountRZeroOp,
     SetHighBitsOp,
     SetLowBitsOp,
-    GetLowBitsOp,
+    # GetLowBitsOp,
     GetBitWidthOp,
     UMulOverflowOp,
     # SMinOp,

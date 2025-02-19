@@ -1,11 +1,3 @@
-import argparse
-
-from xdsl.context import MLContext
-from xdsl.parser import Parser
-
-from xdsl.utils.exceptions import VerifyException
-from xdsl_smt.dialects import transfer
-from xdsl_smt.utils.compare_result import CompareResult
 from xdsl_smt.utils.synth_operators import (
     SyZero,
     SyOne,
@@ -13,31 +5,18 @@ from xdsl_smt.utils.synth_operators import (
     SyBitWidth,
     SyFalse,
     SyTrue,
-    SyCountLZero,
-    SyAndI,
-    SyAnd,
+    # SyCountLZero,
+    # SyAndI,
+    # SyAnd,
     SynthOperator,
     SynthType,
 )
-from xdsl_smt.utils.synthesizer_context import SynthesizerContext
-from xdsl_smt.utils.random import Random
-from xdsl.dialects import arith
-from xdsl.dialects.builtin import (
-    IntegerAttr,
-    IntegerType,
-    i1,
-)
 from xdsl.dialects.func import FuncOp, ReturnOp
-from xdsl.ir import Operation, OpResult, SSAValue, Block
-import sys as sys
+from xdsl.ir import Operation, SSAValue
 
 from xdsl_smt.dialects.transfer import (
-    AbstractValueType,
-    TransIntegerType,
     GetOp,
     MakeOp,
-    GetAllOnesOp,
-    Constant,
 )
 
 
@@ -98,7 +77,7 @@ class MutationProgram:
 
         return modifiable_ops
 
-    def replace_operation(self, old_op, new_op):
+    def replace_operation(self, old_op: Operation, new_op: Operation):
         """
         Replace the old_op with the given new operation.
         """
