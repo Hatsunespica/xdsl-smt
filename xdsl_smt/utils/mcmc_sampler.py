@@ -4,7 +4,6 @@ from xdsl.context import MLContext
 from xdsl.parser import Parser
 
 from xdsl.utils.exceptions import VerifyException
-from xdsl_smt.dialects import transfer
 from xdsl_smt.utils.compare_result import CompareResult
 from xdsl_smt.utils.mutation_program import MutationProgram
 from xdsl_smt.utils.synth_operators import (
@@ -15,7 +14,7 @@ from xdsl_smt.utils.synth_operators import (
     SyAllOnes,
     SyBitWidth,
     SyAnd,
-    SyAndI,
+    # SyAndI,
     SyCountLZero,
     SynthOperator,
     SynthType,
@@ -23,25 +22,14 @@ from xdsl_smt.utils.synth_operators import (
 )
 from xdsl_smt.utils.synthesizer_context import SynthesizerContext
 from xdsl_smt.utils.random import Random
-from xdsl.dialects import arith
 from xdsl_smt.dialects.transfer import (
     AbstractValueType,
     TransIntegerType,
     GetOp,
     MakeOp,
-    GetAllOnesOp,
-    Constant,
-    GetBitWidthOp,
-    AndOp,
-    CountLOneOp,
-)
-from xdsl.dialects.builtin import (
-    IntegerAttr,
-    IntegerType,
-    i1,
 )
 from xdsl.dialects.func import FuncOp, ReturnOp
-from xdsl.ir import Operation, OpResult, SSAValue, Block
+from xdsl.ir import Operation, OpResult
 import sys as sys
 
 
