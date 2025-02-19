@@ -183,7 +183,7 @@ class SynthesizerContext:
         #     i1_val1, i1_val2  # pyright: ignore [reportCallIssue]
         # )
 
-        assert issubclass(result_type, SynthOperator)
+        assert result_type is not None
         return result_type.get_new_random_op(self.random, int_vals, i1_vals, bint_vals)
 
     def get_random_int_op(
@@ -202,7 +202,7 @@ class SynthesizerContext:
         #     int_vals[0],  # pyright: ignore [reportCallIssue]
         #     int_vals[1],
         # )
-        assert issubclass(result_type, SynthOperator)
+        assert result_type is not None
         # return result
         return result_type.get_new_random_op(self.random, int_vals, i1_vals, bint_vals)
 
@@ -276,5 +276,5 @@ class SynthesizerContext:
         bint_vals: list[SSAValue],
     ) -> Operation | None:
         result_type = self.bint_ops.get_random_element()
-        assert issubclass(result_type, SynthOperator)
+        assert result_type is not None
         return result_type.get_new_random_op(self.random, int_vals, i1_vals, bint_vals)
