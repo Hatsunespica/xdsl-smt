@@ -1,22 +1,18 @@
-from xdsl_smt.utils.synth_operators import (
-    SyZero,
-    SyOne,
-    SyAllOnes,
-    SyBitWidth,
-    SyFalse,
-    SyTrue,
-    # SyCountLZero,
-    # SyAndI,
-    # SyAnd,
-    SynthOperator,
-    SynthType,
-)
 from xdsl.dialects.func import FuncOp, ReturnOp
 from xdsl.ir import Operation, SSAValue
+import xdsl.dialects.arith as arith
 
 from xdsl_smt.dialects.transfer import (
     GetOp,
     MakeOp,
+    Constant,
+    GetAllOnesOp,
+    TransIntegerType,
+)
+from xdsl.dialects.builtin import (
+    IntegerAttr,
+    IntegerType,
+    i1,
 )
 
 
@@ -62,9 +58,20 @@ class MutationProgram:
             assert isinstance(operand.owner, Operation)
             live_set.add(operand.owner)
 
+        def not_in_main_body(op: Operation):
+            # filter out operations not belong to main body
+            return (
+                isinstance(operation, Constant)
+                or isinstance(operation, arith.ConstantOp)
+                or isinstance(operation, GetAllOnesOp)
+                or isinstance(operation, GetOp)
+                or isinstance(operation, MakeOp)
+                or isinstance(operation, ReturnOp)
+            )
+
         for idx in range(len(self.ops) - 3, -1, -1):
             operation = self.ops[idx]
-            if not isinstance(operation, SynthOperator):
+            if not_in_main_body(operation):
                 continue
             if only_live:
                 if operation in live_set:
@@ -93,10 +100,7 @@ class MutationProgram:
         Get bool operations that before ops[x] so that can serve as operands
         """
         bool_ops: list[SSAValue] = [
-            op.results[0]
-            for op in self.ops[:x]
-            if (isinstance(op, SynthOperator) and op.res_type == SynthType.BOOL)
-            or isinstance(op, (SyTrue, SyFalse))
+            result for op in self.ops[:x] for result in op.results if result.type == i1
         ]
         bool_count = len(bool_ops)
         return bool_ops, bool_count
@@ -106,23 +110,10 @@ class MutationProgram:
         Get int operations that before ops[x] so that can serve as operands
         """
         int_ops: list[SSAValue] = [
-            op.results[0]
+            result
             for op in self.ops[:x]
-            if (isinstance(op, SynthOperator) and op.res_type == SynthType.INT)
-            or isinstance(op, (GetOp, SyOne, SyZero, SyAllOnes))
+            for result in op.results
+            if isinstance(result.type, TransIntegerType)
         ]
         int_count = len(int_ops)
         return int_ops, int_count
-
-    def get_valid_bint_operands(self, x: int) -> tuple[list[SSAValue], int]:
-        """
-        Get bint operations that before ops[x] so that can serve as operands
-        """
-        bint_ops: list[SSAValue] = [
-            op.results[0]
-            for op in self.ops[:x]
-            if (isinstance(op, SynthOperator) and op.res_type == SynthType.BOUNDED_INT)
-            or isinstance(op, (SyBitWidth,))
-        ]
-        bint_count = len(bint_ops)
-        return bint_ops, bint_count

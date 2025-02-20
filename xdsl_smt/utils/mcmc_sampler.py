@@ -1,25 +1,12 @@
 import argparse
 
 from xdsl.context import MLContext
+from xdsl.dialects.builtin import i1, IntegerAttr
 from xdsl.parser import Parser
 
 from xdsl.utils.exceptions import VerifyException
 from xdsl_smt.utils.compare_result import CompareResult
 from xdsl_smt.utils.mutation_program import MutationProgram
-from xdsl_smt.utils.synth_operators import (
-    SyFalse,
-    SyZero,
-    SyTrue,
-    SyOne,
-    SyAllOnes,
-    SyBitWidth,
-    SyAnd,
-    # SyAndI,
-    SyCountLZero,
-    SynthOperator,
-    SynthType,
-    SyEq,
-)
 from xdsl_smt.utils.synthesizer_context import SynthesizerContext
 from xdsl_smt.utils.random import Random
 from xdsl_smt.dialects.transfer import (
@@ -27,7 +14,12 @@ from xdsl_smt.dialects.transfer import (
     TransIntegerType,
     GetOp,
     MakeOp,
+    GetAllOnesOp,
+    Constant,
+    AndOp,
+    CmpOp,
 )
+import xdsl.dialects.arith as arith
 from xdsl.dialects.func import FuncOp, ReturnOp
 from xdsl.ir import Operation, OpResult
 import sys as sys
@@ -101,26 +93,13 @@ class MCMCSampler:
         old_op = prog.ops[idx]
         int_operands, _ = prog.get_valid_int_operands(idx)
         bool_operands, _ = prog.get_valid_bool_operands(idx)
-        bint_operands, _ = prog.get_valid_bint_operands(idx)
-
-        assert isinstance(
-            old_op, SynthOperator
-        ), f"The operation cannot be mutated: {old_op}"
 
         new_op = None
         while new_op is None:
-            if old_op.res_type == SynthType.BOOL:  # bool
-                new_op = self.context.get_random_i1_op(
-                    int_operands, bool_operands, bint_operands
-                )
-            elif old_op.res_type == SynthType.INT:  # integer
-                new_op = self.context.get_random_int_op(
-                    int_operands, bool_operands, bint_operands
-                )
-            elif old_op.res_type == SynthType.BOUNDED_INT:  # bounded_integer
-                new_op = self.context.get_random_bint_op(
-                    int_operands, bool_operands, bint_operands
-                )
+            if old_op.results[0].type == i1:  # bool
+                new_op = self.context.get_random_i1_op(int_operands, bool_operands)
+            elif isinstance(old_op.results[0].type, TransIntegerType):  # integer
+                new_op = self.context.get_random_int_op(int_operands, bool_operands)
             else:
                 raise VerifyException("Unexpected result type {}".format(old_op))
         prog.replace_operation(old_op, new_op)
@@ -130,14 +109,10 @@ class MCMCSampler:
         op = prog.ops[idx]
         int_operands, _ = prog.get_valid_int_operands(idx)
         bool_operands, _ = prog.get_valid_bool_operands(idx)
-        bint_operands, _ = prog.get_valid_bint_operands(idx)
-        assert isinstance(op, SynthOperator), f"The operation cannot be mutated: {op}"
 
         success = False
         while not success:
-            success = op.replace_an_operand(
-                self.random, int_operands, bool_operands, bint_operands
-            )
+            success = self.context.replace_operand(op, int_operands, bool_operands)
 
         return 1
 
@@ -170,25 +145,28 @@ class MCMCSampler:
         tmp_int_ssavalue = block.last_op.results[0]
 
         # Part II: Constants
-        false_op = SyFalse()
-        block.add_op(SyTrue())
-        block.add_op(false_op)
-        block.add_op(SyZero(tmp_int_ssavalue))
-        block.add_op(SyOne(tmp_int_ssavalue))
-        block.add_op(SyAllOnes(tmp_int_ssavalue))
-        block.add_op(SyBitWidth(tmp_int_ssavalue))
+        true: arith.ConstantOp = arith.ConstantOp(
+            IntegerAttr.from_int_and_width(1, 1), i1
+        )
+        false: arith.ConstantOp = arith.ConstantOp(
+            IntegerAttr.from_int_and_width(0, 1), i1
+        )
+        all_ones = GetAllOnesOp(tmp_int_ssavalue)
+        zero = Constant(tmp_int_ssavalue, 0)
+        one = Constant(tmp_int_ssavalue, 1)
+        block.add_op(true)
+        block.add_op(false)
+        block.add_op(zero)
+        block.add_op(one)
+        block.add_op(all_ones)
 
         # Part III: Main Body
         # tmp_bool_ssavalue = false_op.results[0]
-        for i in range(length // 4):
-            nop_int1 = SyAnd(tmp_int_ssavalue, tmp_int_ssavalue)
-            nop_int2 = SyAnd(tmp_int_ssavalue, tmp_int_ssavalue)
-            nop_bool = SyEq(tmp_int_ssavalue, tmp_int_ssavalue)
-            nop_bounded_int = SyCountLZero(tmp_int_ssavalue)
+        for i in range(length // 2):
+            nop_bool = CmpOp(tmp_int_ssavalue, tmp_int_ssavalue, 0)
+            nop_int1 = AndOp(tmp_int_ssavalue, tmp_int_ssavalue)
             block.add_op(nop_bool)
             block.add_op(nop_int1)
-            block.add_op(nop_bounded_int)
-            block.add_op(nop_int2)
 
         last_int_op = block.last_op
 
@@ -247,8 +225,9 @@ class MCMCSampler:
 
     def reset_to_random_prog(self):
         # Part III-2: Random reset main body
-        ops = self.current.ops
-
-        for i, op in enumerate(ops):
-            if isinstance(op, SynthOperator):
-                self.replace_entire_operation(self.current, i)
+        """
+        for i in range(length):
+            ops = list(block.ops)
+            tmp_ops_len = len(block.ops)
+            self.replace_entire_operation(self.current, tmp_ops_len - 1 - i)
+        """
