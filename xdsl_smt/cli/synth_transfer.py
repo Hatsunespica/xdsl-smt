@@ -119,6 +119,13 @@ def register_all_arguments(arg_parser: argparse.ArgumentParser):
         nargs="?",
         help="Specify the number of programs that runs at every round. 100 by default.",
     )
+    arg_parser.add_argument(
+        "-inv_temp",
+        type=int,
+        nargs="?",
+        help="Inverse temperature \\beta for MCMC. The larger the value is, the lower the probability of accepting a program with a higher cost. 200 by default. "
+             "E.g., MCMC has a 1/2 probability of accepting a program with a cost 1/beta higher. "
+    )
 
 
 def verify_pattern(ctx: MLContext, op: ModuleOp) -> bool:
@@ -432,6 +439,7 @@ PROGRAM_LENGTH = 40
 NUM_PROGRAMS = 100
 INIT_COST = 1
 TOTAL_ROUNDS = 10000
+INV_TEMP = 200
 INSTANCE_CONSTRAINT = "getInstanceConstraint"
 DOMAIN_CONSTRAINT = "getConstraint"
 OP_CONSTRAINT = "op_constraint"
@@ -508,6 +516,7 @@ def main() -> None:
     num_programs = args.num_programs
     total_rounds = args.total_rounds
     program_length = args.program_length
+    inv_temp = args.inv_temp
 
     # Set up llvm_build_dir
     llvm_build_dir = args.llvm_build_dir
@@ -522,6 +531,8 @@ def main() -> None:
         total_rounds = TOTAL_ROUNDS
     if program_length is None:
         program_length = PROGRAM_LENGTH
+    if inv_temp is None:
+        inv_temp = INV_TEMP
 
     assert isinstance(module, ModuleOp)
 
@@ -666,7 +677,7 @@ def main() -> None:
                     proposed_cost = cmp_results[i].get_cost()
                     current_cost = mcmc_samplers[i].current_cmp.get_cost()
                     p = random.random()
-                    decision = decide(p, 200, current_cost, proposed_cost)
+                    decision = decide(p, inv_temp, current_cost, proposed_cost)
                     if decision:
                         cost_reduce = current_cost - proposed_cost
 
