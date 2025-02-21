@@ -124,7 +124,7 @@ def register_all_arguments(arg_parser: argparse.ArgumentParser):
         type=int,
         nargs="?",
         help="Inverse temperature \\beta for MCMC. The larger the value is, the lower the probability of accepting a program with a higher cost. 200 by default. "
-             "E.g., MCMC has a 1/2 probability of accepting a program with a cost 1/beta higher. "
+        "E.g., MCMC has a 1/2 probability of accepting a program with a cost 1/beta higher. ",
     )
 
 
