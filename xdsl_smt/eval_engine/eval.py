@@ -33,7 +33,7 @@ def get_build_cmd() -> list[str]:
         .split("\n")[0]
     )
 
-    if has_libclang == -1:
+    if llvm_bin_dir != "" or has_libclang == -1:
         all_llvm_link_flags = (
             run(
                 [
@@ -60,6 +60,7 @@ def get_build_cmd() -> list[str]:
             llvm_bin_dir + "clang++",
             "-std=c++23",
             f"-I{llvm_include_dir}",
+            f"-I{llvm_bin_dir}../include",
             "../src/main.cpp",
             "-o",
             "EvalEngine",
