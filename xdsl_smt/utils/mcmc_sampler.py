@@ -58,6 +58,7 @@ class MCMCSampler:
         length: int,
         init_cost: float,
         reset: bool = True,
+        random_init_program: bool = True,
         init_cmp_res: CompareResult = CompareResult(0, 0, 0, 0, 0, 0, 0, 0),
     ):
         if reset:
@@ -68,6 +69,8 @@ class MCMCSampler:
         self.current_cmp = init_cmp_res
         self.context = context
         self.random = context.get_random_class()
+        if random_init_program:
+            self.reset_to_random_prog(length)
 
     def get_current(self):
         return self.current.func
@@ -223,11 +226,18 @@ class MCMCSampler:
 
         return ratio
 
-    def reset_to_random_prog(self):
+    def reset_to_random_prog(self, length: int):
         # Part III-2: Random reset main body
+        total_ops_len = len(self.current.ops)
+        """
+        the function in self.current should include:
+          init_constant_values
+          main body with number of operations (length)
+          last make and return op
+
+        As a result, total_ops_len = len(constant_values) + length + 2
+        the last operation at the main body should have idea total_ops_len - 3
+        so we iterate i 0 -> length, and replace the operation at total_ops_len - 3 - i
         """
         for i in range(length):
-            ops = list(block.ops)
-            tmp_ops_len = len(block.ops)
-            self.replace_entire_operation(self.current, tmp_ops_len - 1 - i)
-        """
+            self.replace_entire_operation(self.current, total_ops_len - 3 - i)

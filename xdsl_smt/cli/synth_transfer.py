@@ -609,12 +609,15 @@ def main() -> None:
 
             for _ in range(num_programs):
                 sampler = MCMCSampler(
-                    func, context, program_length, init_cost=INIT_COST
+                    func,
+                    context,
+                    program_length,
+                    random_init_program=True,
+                    init_cost=INIT_COST,
                 )
                 # sampler = MCMCSampler(
                 #     func, context, PROGRAM_LENGTH, init_cost=compute_cost(
                 #         init_soundness[0], init_precision[0]), reset=False, init_soundness=init_soundness[0], init_precision=init_precision[0])
-                sampler.reset_to_random_prog()
                 mcmc_samplers.append(sampler)
 
             # Get the cost of initial programs
