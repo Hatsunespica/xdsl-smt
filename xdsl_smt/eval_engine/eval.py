@@ -61,6 +61,8 @@ def get_build_cmd() -> list[str]:
             "-std=c++23",
             f"-I{llvm_include_dir}",
             f"-I{llvm_bin_dir}../include",
+            "-L",
+            f"{llvm_bin_dir}../lib",
             "../src/main.cpp",
             "-o",
             "EvalEngine",
