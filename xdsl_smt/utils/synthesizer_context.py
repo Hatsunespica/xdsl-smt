@@ -281,7 +281,7 @@ class SynthesizerContext:
     def select_operand(
         self, vals: list[SSAValue], constraint: Callable[[SSAValue], bool]
     ) -> SSAValue:
-        current_pos = self.random.randint(0, len(vals))
+        current_pos = self.random.randint(0, len(vals) - 1)
         for i in range(len(vals)):
             if not constraint(vals[current_pos]):
                 return vals[current_pos]
@@ -355,9 +355,9 @@ class SynthesizerContext:
                 is_idempotent=self.is_idempotent(result_type),
             )
             return SelectOp(cond, true_val, false_val)
-        elif result_type == NegOp:
-            val = self.select_operand(int_vals, self.get_constraint(NegOp))
-            return NegOp(val)
+        elif issubclass(result_type, UnaryOp):
+            val = self.select_operand(int_vals, self.get_constraint(result_type))
+            return result_type(val)
         elif self.skip_trivial and result_type in optimize_complex_operands_selection:
             constraint1, constraint2 = optimize_complex_operands_selection[result_type]
             val1, val2 = self.select_two_operand(
