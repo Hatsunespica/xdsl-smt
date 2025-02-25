@@ -2,7 +2,7 @@
 
 This repository is based on xdsl-smt and contains a tool for synthesizing transfer functions in dataflow analysis.
 
-It currently contains the implementation of the synthesizer and several examples files on KnownBits domain. 
+It currently contains the implementation of the synthesizer and several examples files on KnownBits domain.
 
 The diagram below shows the overview of this project.
 
@@ -60,8 +60,8 @@ on known bits domain.
 ```bash
 synth-transfer ./tests/synth/knownBitsXor.mlir -llvm_build_dir /pathToYourLLVM/llvm-project/build/ -total_rounds 10  -num_programs 10
 ```
-Our argument `-total_rounds` controls how many rounds we run and `-num_programs` specifies how many functions 
-we synthesize at once in one round. 
+Our argument `-total_rounds` controls how many rounds we run and `-num_programs` specifies how many functions
+we synthesize at once in one round.
 
 If it runs successfully, we can observe some output like:
 ```text
@@ -78,8 +78,8 @@ Round	soundness%	precision%	cost
 0_9	77.23%	2.11%	2.075	0.256
 Used Time: 2.79
 ```
-In the example above, we set both arguments to `10` so for the input XOR specification, we it runs 10 rounds and 
-samples 10 function in every round. 
+In the example above, we set both arguments to `10` so for the input XOR specification, we it runs 10 rounds and
+samples 10 function in every round.
 
 After running out all rounds, it prints the evaluation of synthesized solution:
 ```text
@@ -105,7 +105,7 @@ std::vector<APInt> solution(std::vector<APInt> autogen0,std::vector<APInt> autog
 ```
 We will discuss more information about input and output file in the next section.
 
-You can play with other input specification under `tests/synth`. 
+You can play with other input specification under `tests/synth`.
 
 ## Extending the project with one new abstract domain
   Needs to be down
