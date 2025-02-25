@@ -1,4 +1,4 @@
-from xdsl.dialects.builtin import i1
+from xdsl.dialects.builtin import i1, IntegerAttr
 
 from ..dialects.transfer import (
     NegOp,
@@ -123,8 +123,8 @@ basic_i1_ops: list[type[Operation]] = [arith.AndIOp, arith.OrIOp, arith.XOrIOp, 
 
 
 def is_constant_constructor(constants: list[int]) -> Callable[[SSAValue], bool]:
-    is_constant: Callable[[SSAValue], bool] = (
-        lambda val: isinstance(val, Constant) and val.value.value.data in constants
+    is_constant: Callable[[SSAValue], bool] = lambda val=SSAValue: (
+        isinstance(val, Constant) and val.value.value.data in constants
     )
     return is_constant
 
@@ -135,15 +135,19 @@ is_zero: Callable[[SSAValue], bool] = is_constant_constructor([0])
 
 is_one: Callable[[SSAValue], bool] = is_constant_constructor([1])
 
-is_true: Callable[[SSAValue], bool] = (
-    lambda val: isinstance(val, arith.ConstantOp) and val.value.data == 1
+is_true: Callable[[SSAValue], bool] = lambda val=SSAValue: (
+    isinstance(val, arith.ConstantOp)
+    and isinstance(val.value, IntegerAttr)
+    and val.value.value.data == 1
 )
 
-is_false: Callable[[SSAValue], bool] = (
-    lambda val: isinstance(val, arith.ConstantOp) and val.value.data == 0
+is_false: Callable[[SSAValue], bool] = lambda val=SSAValue: (
+    isinstance(val, arith.ConstantOp)
+    and isinstance(val.value, IntegerAttr)
+    and val.value.value.data == 0
 )
 
-is_constant_bool: Callable[[SSAValue], bool] = lambda val: isinstance(
+is_constant_bool: Callable[[SSAValue], bool] = lambda val=SSAValue: isinstance(
     val, arith.ConstantOp
 )
 
@@ -282,7 +286,7 @@ class SynthesizerContext:
         self, vals: list[SSAValue], constraint: Callable[[SSAValue], bool]
     ) -> SSAValue:
         current_pos = self.random.randint(0, len(vals) - 1)
-        for i in range(len(vals)):
+        for _ in range(len(vals)):
             if not constraint(vals[current_pos]):
                 return vals[current_pos]
             current_pos += 1
@@ -300,7 +304,7 @@ class SynthesizerContext:
         if constraint2 is None:
             constraint2 = constraint1
         if is_idempotent:
-            constraint2 = lambda val: constraint1(val) and val != val1
+            constraint2 = lambda val=SSAValue: constraint1(val) and val != val1
         val2 = self.select_operand(vals, constraint2)
         return val1, val2
 
@@ -385,6 +389,7 @@ class SynthesizerContext:
         i1_vals: list[SSAValue],
     ) -> Operation:
         result_type = self.i1_ops.get_random_element()
+        assert result_type is not None
         return self.build_i1_op(result_type, int_vals, i1_vals)
 
     def get_random_int_op(
@@ -393,6 +398,7 @@ class SynthesizerContext:
         i1_vals: list[SSAValue],
     ) -> Operation:
         result_type = self.int_ops.get_random_element()
+        assert result_type is not None
         return self.build_int_op(result_type, int_vals, i1_vals)
 
     def get_random_i1_op_except(
@@ -402,7 +408,7 @@ class SynthesizerContext:
         except_op: Operation,
     ) -> Operation:
         result_type = self.i1_ops.get_random_element_if(
-            lambda op_ty: op_ty != type(except_op)
+            lambda op_ty=type[Operation]: op_ty != type(except_op)
         )
         assert result_type is not None
         return self.build_i1_op(result_type, int_vals, i1_vals)
@@ -414,7 +420,7 @@ class SynthesizerContext:
         except_op: Operation,
     ) -> Operation:
         result_type = self.int_ops.get_random_element_if(
-            lambda op_ty: op_ty != type(except_op)
+            lambda op_ty=type[Operation]: op_ty != type(except_op)
         )
         assert result_type is not None
         return self.build_int_op(result_type, int_vals, i1_vals)
@@ -435,22 +441,31 @@ class SynthesizerContext:
                 )
             return True
         op_type = type(op)
-        constraint = self.get_constraint(op_type)
+        constraint: Callable[[SSAValue], bool] = self.get_constraint(op_type)
         if op_type in optimize_complex_operands_selection:
             constraint = optimize_complex_operands_selection[op_type][ith]
 
         is_idempotent = self.is_idempotent(op_type)
+        new_constraint: Callable[[SSAValue], bool] | None = None
         if is_idempotent:
             # not the condition variable of select op
             if op_type == SelectOp and ith != 0:
                 # 3 - ith -> given ith, select the other branch
-                constraint = lambda val: constraint(val) and val != op.operands[3 - ith]
+                new_constraint = lambda val=SSAValue: (
+                    constraint(val) and val != op.operands[3 - ith]
+                )
             else:
-                constraint = lambda val: constraint(val) and val != op.operands[1 - ith]
+                new_constraint = lambda val=SSAValue: (
+                    constraint(val) and val != op.operands[1 - ith]
+                )
         if isinstance(op.operands[ith].type, TransIntegerType):
-            op.operands[ith] = self.select_operand(int_vals, constraint)
+            op.operands[ith] = self.select_operand(
+                int_vals, constraint if new_constraint is None else new_constraint
+            )
         elif op.operands[ith].type == i1:
-            op.operands[ith] = self.select_operand(i1_vals, constraint)
+            op.operands[ith] = self.select_operand(
+                i1_vals, constraint if new_constraint is None else new_constraint
+            )
         else:
             raise ValueError(
                 "unknown type when replacing operand: " + str(op.operands[ith].type)

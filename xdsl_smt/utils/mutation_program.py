@@ -10,8 +10,6 @@ from xdsl_smt.dialects.transfer import (
     TransIntegerType,
 )
 from xdsl.dialects.builtin import (
-    IntegerAttr,
-    IntegerType,
     i1,
 )
 
