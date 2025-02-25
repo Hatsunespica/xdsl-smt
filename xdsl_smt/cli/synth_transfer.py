@@ -440,6 +440,7 @@ NUM_PROGRAMS = 100
 INIT_COST = 1
 TOTAL_ROUNDS = 10000
 INV_TEMP = 200
+SOLUTION_SIZE = 8
 INSTANCE_CONSTRAINT = "getInstanceConstraint"
 DOMAIN_CONSTRAINT = "getConstraint"
 OP_CONSTRAINT = "op_constraint"
@@ -471,7 +472,7 @@ def generate_meet_solution(meet_funcs: list[FuncOp]) -> FuncOp:
     part_result: list[CallOp] = []
     for ith, func in enumerate(meet_funcs):
         cur_func_name = "part_solution_" + str(ith)
-        meet_funcs[ith].sym_name = StringAttr("part_solution_" + str(ith))
+        func.sym_name = StringAttr("part_solution_" + str(ith))
         part_result.append(CallOp(cur_func_name, result.args, result_type))
     if len(part_result) == 1:
         result.body.block.add_ops(part_result + [ReturnOp(part_result[-1])])
@@ -590,11 +591,9 @@ def main() -> None:
                 op_constraint_func = print_to_cpp(func)
             elif func_name == MEET_FUNC:
                 meet_func = print_to_cpp(func)
-    has_meet_func = meet_func != ""
-    if has_meet_func:
-        SOLUTION_SIZE = 8
-    else:
-        SOLUTION_SIZE = 1
+    solution_size = 1
+    if meet_func != "":
+        solution_size = SOLUTION_SIZE
 
     ref_funcs: list[FuncOp] = []
     for func in module.ops:
@@ -718,7 +717,7 @@ def main() -> None:
                     if res.sounds == res.all_cases:
                         cost = res.get_cost()
                         # If solutions has less than eight element, we directly add it
-                        if len(solutions) < SOLUTION_SIZE:
+                        if len(solutions) < solution_size:
                             if i in solutions:
                                 if cost < solutions[i][0]:
                                     solutions[i] = (
@@ -732,7 +731,7 @@ def main() -> None:
                                 )
                         # Otherwise we replace the one with maximal cost in current solution
                         else:
-                            max_ith = None
+                            max_ith = -1
                             max_cost = 0
                             if i in solutions:
                                 max_ith = i
@@ -748,7 +747,7 @@ def main() -> None:
                                     cost,
                                     mcmc_samplers[i].current.func.clone(),
                                 )
-                        assert len(solutions) <= SOLUTION_SIZE
+                        assert len(solutions) <= solution_size
                 end = time.time()
                 used_time = end - start
 
