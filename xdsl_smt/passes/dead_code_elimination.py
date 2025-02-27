@@ -1,4 +1,5 @@
 from xdsl.dialects.builtin import ModuleOp
+from xdsl.dialects.func import FuncOp, ReturnOp
 from xdsl.ir import Operation
 from xdsl.context import MLContext
 from xdsl.passes import ModulePass
@@ -8,7 +9,7 @@ from ..traits.effects import Pure
 
 class RemoveDeadPattern(RewritePattern):
     def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
-        if not isinstance(op, Pure):
+        if isinstance(op, ModuleOp) or isinstance(op, FuncOp) or isinstance(op, ReturnOp):
             return None
         if all(len(result.uses) == 0 for result in op.results):
             rewriter.erase_matched_op()
