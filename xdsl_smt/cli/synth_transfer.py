@@ -464,20 +464,23 @@ ctx: MLContext
 OUTPUTS_FOLDER = "outputs"
 
 
+def eliminate_dead_code(func: FuncOp) -> FuncOp:
+    new_module = ModuleOp([func.clone()])
+    DeadCodeElimination().apply(ctx, new_module)
+    assert isinstance(new_module.ops.first, FuncOp)
+    return new_module.ops.first
+
+
 def print_func_to_file(sampler: MCMCSampler, rd: int, i: int, path: str):
     res = sampler.current_cmp
 
     func = sampler.get_current()
-    new_module = ModuleOp([func.clone()])
-    DeadCodeElimination().apply(ctx, new_module)
-
-    assert(isinstance(new_module.ops.first, FuncOp))
 
     with open(f"{path}/tf{rd}_{i}.mlir", "w") as file:
         file.write(
             f"Run: {rd}_{i}\nCost: {res.get_cost()}\nSound: {res.get_sound_prop()}\nUExact: {res.get_unsolved_exact_prop()}\nUDis: {res.get_unsolved_edit_dis_avg()}\n{res}\n"
         )
-        file.write(str(new_module.ops.first))
+        file.write(str(eliminate_dead_code(func)))
 
 
 def is_ref_function(func: FuncOp) -> bool:
@@ -627,6 +630,7 @@ def main() -> None:
 
     # We comment this out because ref functions could be empty
     # assert len(ref_funcs) > 0
+    ref_funcs = [eliminate_dead_code(func) for func in ref_funcs]
     ref_func_names = [func.sym_name.data for func in ref_funcs]
     ref_func_cpps = [print_to_cpp(func) for func in ref_funcs]
     used_crt_func = None
@@ -660,7 +664,7 @@ def main() -> None:
             cpp_codes: list[str] = []
             for i in range(num_programs):
                 func_to_eval = mcmc_samplers[i].get_current().clone()
-                cpp_code = print_to_cpp(func_to_eval)
+                cpp_code = print_to_cpp(eliminate_dead_code(func_to_eval))
                 cpp_codes.append(cpp_code)
 
             cmp_results: list[CompareResult] = eval_engine.eval_transfer_func(
@@ -687,21 +691,20 @@ def main() -> None:
             for i in range(num_programs):
                 mcmc_samplers[i].current_cmp = cmp_results[i]
                 sound_most_exact_tfs.append(
-                    (mcmc_samplers[i].current, cmp_results[i], 0))
+                    (mcmc_samplers[i].current, cmp_results[i], 0)
+                )
                 most_exact_tfs.append((mcmc_samplers[i].current, cmp_results[i], 0))
                 lowest_cost_tfs.append((mcmc_samplers[i].current, cmp_results[i], 0))
 
             # MCMC start
             for rnd in range(total_rounds):
-
-
                 cpp_codes: list[str] = []
                 for i in range(num_programs):
                     _: float = mcmc_samplers[i].sample_next()
                     proposed_solution = mcmc_samplers[i].get_proposed()
 
                     assert proposed_solution is not None
-                    cpp_code = print_to_cpp(proposed_solution.clone())
+                    cpp_code = print_to_cpp(eliminate_dead_code(proposed_solution))
                     cpp_codes.append(cpp_code)
 
                 start = time.time()
@@ -722,7 +725,6 @@ def main() -> None:
                 end = time.time()
                 used_time = end - start
 
-
                 for i in range(num_programs):
                     proposed_cost = cmp_results[i].get_cost()
                     current_cost = mcmc_samplers[i].current_cmp.get_cost()
@@ -737,16 +739,17 @@ def main() -> None:
 
                         # Update sound_most_exact_tfs
                         if (
-                                cmp_results[i].is_sound()
-                                and cmp_results[i].exacts > sound_most_exact_tfs[i][1].exacts
+                            cmp_results[i].is_sound()
+                            and cmp_results[i].exacts
+                            > sound_most_exact_tfs[i][1].exacts
                         ):
                             sound_most_exact_tfs[i] = tmp_tuple
                             need_print = True
 
                         # Update most_exact_tfs
                         if (
-                                cmp_results[i].unsolved_exacts
-                                > most_exact_tfs[i][1].unsolved_exacts
+                            cmp_results[i].unsolved_exacts
+                            > most_exact_tfs[i][1].unsolved_exacts
                         ):
                             most_exact_tfs[i] = tmp_tuple
                             need_print = True
@@ -756,14 +759,11 @@ def main() -> None:
                             lowest_cost_tfs[i] = tmp_tuple
                             need_print = True
                         if need_print:
-                            print_func_to_file(
-                                mcmc_samplers[i], rnd, i, OUTPUTS_FOLDER)
+                            print_func_to_file(mcmc_samplers[i], rnd, i, OUTPUTS_FOLDER)
 
                     else:
                         mcmc_samplers[i].reject_proposed()
                         pass
-
-
 
                 for i in range(num_programs):
                     res = mcmc_samplers[i].current_cmp
