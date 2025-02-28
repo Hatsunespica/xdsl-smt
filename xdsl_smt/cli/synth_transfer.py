@@ -471,14 +471,14 @@ def eliminate_dead_code(func: FuncOp) -> FuncOp:
     return new_module.ops.first
 
 
-def print_func_to_file(sampler: MCMCSampler, rd: int, i: int, path: str):
+def print_func_to_file(sampler: MCMCSampler, c: int, rd: int, i: int, path: str):
     res = sampler.current_cmp
 
     func = sampler.get_current()
 
-    with open(f"{path}/tf{rd}_{i}.mlir", "w") as file:
+    with open(f"{path}/tf{c}_{rd}_{i}.mlir", "w") as file:
         file.write(
-            f"Run: {rd}_{i}\nCost: {res.get_cost()}\nSound: {res.get_sound_prop()}\nUExact: {res.get_unsolved_exact_prop()}\nUDis: {res.get_unsolved_edit_dis_avg()}\n{res}\n"
+            f"Run: {c}_{rd}_{i}\nCost: {res.get_cost()}\nSound: {res.get_sound_prop()}\nUExact: {res.get_unsolved_exact_prop()}\nUDis: {res.get_unsolved_edit_dis_avg()}\n{res}\n"
         )
         file.write(str(eliminate_dead_code(func)))
 
@@ -643,7 +643,8 @@ def main() -> None:
     assert crt_func != "", "Failed to get concrete function from input file"
     xfer_func_name = xfer_func.sym_name.data
 
-    for _ in range(100):
+    num_iters = 100  # todo: make it a command line argument
+    for iter in range(100):
         mcmc_samplers: list[MCMCSampler] = []
         for _ in range(num_programs):
             sampler = MCMCSampler(
@@ -738,14 +739,16 @@ def main() -> None:
                         lowest_cost_tfs[i] = tmp_tuple
                         need_print = True
                     if need_print:
-                        print_func_to_file(mcmc_samplers[i], rnd, i, OUTPUTS_FOLDER)
+                        print_func_to_file(
+                            mcmc_samplers[i], iter, rnd, i, OUTPUTS_FOLDER
+                        )
                 else:
                     mcmc_samplers[i].reject_proposed()
                     pass
             for i in range(num_programs):
                 res = mcmc_samplers[i].current_cmp
                 print(
-                    f"{rnd}_{i}\t{res.get_sound_prop() * 100:.2f}%\t{res.get_unsolved_exact_prop() * 100:.2f}%\t{res.get_unsolved_edit_dis_avg():.3f}\t{res.get_cost():.3f}"
+                    f"{iter}_{rnd}_{i}\t{res.get_sound_prop() * 100:.2f}%\t{res.get_unsolved_exact_prop() * 100:.2f}%\t{res.get_unsolved_edit_dis_avg():.3f}\t{res.get_cost():.3f}"
                 )
                 cost_data[i].append(res.get_cost())
                 """
@@ -801,7 +804,8 @@ def main() -> None:
                 for i in range(num_programs):
                     print(f"{i}_{lowest_cost_tfs[i][2]}\t{lowest_cost_tfs[i][1]}")
 
-        cur_most_e: float = 0  # Todo: switch to edit distance later (for now add new transformer if it makes more inputs exact)
+        # Todo: switch to edit distance later (for now add new transformer if it makes more inputs exact)
+        cur_most_e: float = 0
         for i in range(num_programs):
             if (not sound_most_exact_tfs[i][1].is_sound()) or sound_most_exact_tfs[i][
                 1
@@ -820,13 +824,18 @@ def main() -> None:
                 [instance_constraint_func, domain_constraint_func, op_constraint_func],
             )
             if cmp_results[0].exacts > cur_most_e:
-                print(f"Add a new func: {cmp_results[0]}")
+                print(
+                    f"Add a new transformer {iter}_{sound_most_exact_tfs[i][2]}_{i}. Exact: {cmp_results[0].get_exact_prop() * 100:.2f}%, Precision: {cmp_results[0].get_bitwise_precision() * 100:.2f}%"
+                )
+                print(cmp_results[0])
                 cur_most_e = cmp_results[0].exacts
                 ref_funcs.append(sound_most_exact_tfs[i][0].func)
                 ref_func_names.append(xfer_func_name)
                 ref_func_cpps.append(cpp_code)
 
         print(f"Current size of ref funcs: {len(ref_func_names)}")
+        for f in ref_funcs:
+            print(eliminate_dead_code(f))
 
         if cur_most_e == 0:
             print(f"No improvement in the last {total_rounds} rounds!")
