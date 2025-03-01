@@ -834,16 +834,38 @@ def main() -> None:
                 ref_func_cpps.append(cpp_code)
 
         print(f"Current size of ref funcs: {len(ref_func_names)}")
-        for f in ref_funcs:
-            print(eliminate_dead_code(f))
 
         if cur_most_e == 0:
             print(f"No improvement in the last {total_rounds} rounds!")
             # exit(0)
 
         # Todo: Remove transformers that are already covered by others
+        size_of_meet = len(ref_funcs)
+        keep_idx = {i for i in range(size_of_meet)}
 
-        if cur_most_e == sound_most_exact_tfs[i][1].all_cases:
+        for i in range(size_of_meet):
+            cmp_results: list[CompareResult] = eval_engine.eval_transfer_func(
+                [ref_func_names[i]],
+                [ref_func_cpps[i]],
+                crt_func,
+                [ref_func_names[k] for k in keep_idx if k != i],
+                [ref_func_cpps[k] for k in keep_idx if k != i],
+                eval_engine.AbstractDomain.KnownBits,
+                bitwidth,
+                [instance_constraint_func, domain_constraint_func, op_constraint_func],
+            )
+            if cmp_results[0].unsolved_exacts == 0:
+                keep_idx.remove(i)
+                print(f"Remove {i}-th transformers \n{cmp_results[0]}")
+        ref_funcs = [ref_funcs[i] for i in keep_idx]
+        ref_func_names = [ref_func_names[i] for i in keep_idx]
+        ref_func_cpps = [ref_func_cpps[i] for i in keep_idx]
+
+        print(f"Current size of ref funcs: {len(ref_func_names)}")
+        for f in ref_funcs:
+            print(eliminate_dead_code(f))
+
+        if cur_most_e == sound_most_exact_tfs[0][1].all_cases:
             print(f"Find a perfect solution:\n")
             for f in ref_funcs:
                 print(eliminate_dead_code(f))
