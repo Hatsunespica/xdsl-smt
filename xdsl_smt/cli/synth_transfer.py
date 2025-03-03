@@ -84,6 +84,7 @@ from ..utils.transfer_function_util import (
     SMTTransferFunction,
     fixDefiningOpReturnType,
 )
+from ..utils.visualize import print_figure
 
 
 def register_all_arguments(arg_parser: argparse.ArgumentParser):
