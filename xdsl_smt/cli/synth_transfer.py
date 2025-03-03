@@ -587,8 +587,6 @@ def main() -> None:
     if random_number_file is not None:
         random.read_from_file(random_number_file)
 
-    cost_data: list[list[float]] = [[] for _ in range(num_programs)]
-
     context = SynthesizerContext(random)
     context.set_cmp_flags([0, 6, 7])
     context.use_full_int_ops()
@@ -673,6 +671,8 @@ def main() -> None:
         )
         for i in range(num_programs):
             mcmc_samplers[i].current_cmp = cmp_results[i]
+
+        cost_data: list[list[float]] = [[cmp_results[i].get_cost()] for i in range(num_programs)]
         """
         These 3 lists store "good" transformers during the search
         """
@@ -839,10 +839,9 @@ def main() -> None:
             print(f"No improvement in the last {total_rounds} rounds!")
             # exit(0)
 
-        # Todo: Remove transformers that are already covered by others
+        # Remove redundant transformers
         size_of_meet = len(ref_funcs)
         keep_idx = {i for i in range(size_of_meet)}
-
         for i in range(size_of_meet):
             cmp_results: list[CompareResult] = eval_engine.eval_transfer_func(
                 [ref_func_names[i]],
@@ -864,6 +863,8 @@ def main() -> None:
         print(f"Current size of ref funcs: {len(ref_func_names)}")
         for f in ref_funcs:
             print(eliminate_dead_code(f))
+
+        print_figure(cost_data, OUTPUTS_FOLDER, f"curve{iter}")
 
         if cur_most_e == sound_most_exact_tfs[0][1].all_cases:
             print(f"Find a perfect solution:\n")
