@@ -199,7 +199,7 @@ optimize_operands_selection: dict[type[Operation], Callable[[SSAValue], bool]] =
     # arith operations
     arith.AndIOp: is_constant_bool,
     arith.OrIOp: is_constant_bool,
-    arith.XOrIOp: is_false,
+    arith.XOrIOp: is_constant_bool,
 }
 
 
