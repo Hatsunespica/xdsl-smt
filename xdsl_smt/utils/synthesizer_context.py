@@ -12,8 +12,6 @@ from ..dialects.transfer import (
     CountLZeroOp,
     CountROneOp,
     CountRZeroOp,
-    # SetHighBitsOp,
-    # SetLowBitsOp,
     # GetBitWidthOp,
     # UMulOverflowOp,
     # SMinOp,
@@ -113,10 +111,13 @@ full_int_ops: list[type[Operation]] = [
     SelectOp,
     LShrOp,
     ShlOp,
+    MulOp,
     CountLOneOp,
     CountLZeroOp,
     CountROneOp,
     CountRZeroOp,
+    # SetHighBitsOp,
+    # SetLowBitsOp,
 ]
 
 basic_i1_ops: list[type[Operation]] = [arith.AndIOp, arith.OrIOp, arith.XOrIOp, CmpOp]
