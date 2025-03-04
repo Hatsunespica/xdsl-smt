@@ -711,7 +711,7 @@ def main() -> None:
             most_exact_tfs.append((mcmc_samplers[i].current, cmp_results[i], 0))
             lowest_cost_tfs.append((mcmc_samplers[i].current, cmp_results[i], 0))
         # MCMC start
-        logger.info(f"Start {num_programs} MCMC. Each one is run for {total_rounds} steps...")
+        logger.info(f"Iter {iter}: Start {num_programs} MCMC. Each one is run for {total_rounds} steps...")
         for rnd in range(total_rounds):
             cpp_codes: list[str] = []
             for i in range(num_programs):
@@ -774,7 +774,7 @@ def main() -> None:
                     pass
             for i in range(num_programs):
                 res = mcmc_samplers[i].current_cmp
-                logger.info(
+                logger.debug(
                     f"{iter}_{rnd}_{i}\t{res.get_sound_prop() * 100:.2f}%\t{res.get_unsolved_exact_prop() * 100:.2f}%\t{res.get_unsolved_edit_dis_avg():.3f}\t{res.get_cost():.3f}"
                 )
                 cost_data[i].append(res.get_cost())
