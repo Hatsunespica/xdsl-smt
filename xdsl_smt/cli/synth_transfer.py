@@ -85,6 +85,7 @@ from ..utils.transfer_function_util import (
     fixDefiningOpReturnType,
 )
 from ..utils.visualize import print_figure
+import logging
 
 
 def register_all_arguments(arg_parser: argparse.ArgumentParser):
@@ -463,6 +464,8 @@ TMP_MODULE: list[ModuleOp] = []
 ctx: MLContext
 
 OUTPUTS_FOLDER = "outputs"
+LOG_FILE = "synth.log"
+VERBOSE = 1 # todo: make it a cmd line arg
 
 
 def eliminate_dead_code(func: FuncOp) -> FuncOp:
@@ -486,6 +489,26 @@ def print_func_to_file(sampler: MCMCSampler, c: int, rd: int, i: int, path: str)
 
 def is_ref_function(func: FuncOp) -> bool:
     return func.sym_name.data.startswith("ref_")
+
+def setup_loggers(output_dir: str, verbose:int = 1):
+    """Sets up loggers to write INFO+DEBUG to one file, and only INFO to another."""
+    logger = logging.getLogger("custom_logger")
+    logger.setLevel(logging.DEBUG)  # Capture all log levels
+    formatter = logging.Formatter("%(message)s")
+
+    # File Handler 1: info.log (Only INFO and higher)
+    info_handler = logging.FileHandler(output_dir+"/info.log")
+    info_handler.setLevel(logging.INFO)
+    info_handler.setFormatter(formatter)
+    logger.addHandler(info_handler)
+    if verbose > 0:
+        # File Handler 2: debug.log (DEBUG and higher, including INFO)
+        debug_handler = logging.FileHandler(output_dir+"/debug.log")
+        debug_handler.setLevel(logging.DEBUG)
+        debug_handler.setFormatter(formatter)
+        logger.addHandler(debug_handler)
+
+    return logger
 
 
 def generate_meet_solution(meet_funcs: list[FuncOp]) -> FuncOp:
@@ -577,7 +600,9 @@ def main() -> None:
     if not os.path.isdir(OUTPUTS_FOLDER):
         os.mkdir(OUTPUTS_FOLDER)
 
-    print("Round_ID\tSound%\tUExact%\tUDis\tCost")
+    logger = setup_loggers(OUTPUTS_FOLDER, VERBOSE)
+
+    logger.debug("Round_ID\tSound%\tUExact%\tUDis\tCost")
     """
     This structure maintains a dictionary of potential solutions
     All solutions must come from different program groups, sorted by cost
@@ -643,7 +668,7 @@ def main() -> None:
     xfer_func_name = xfer_func.sym_name.data
 
     num_iters = 100  # todo: make it a command line argument
-    for iter in range(100):
+    for iter in range(num_iters):
         mcmc_samplers: list[MCMCSampler] = []
         for _ in range(num_programs):
             sampler = MCMCSampler(
@@ -686,6 +711,7 @@ def main() -> None:
             most_exact_tfs.append((mcmc_samplers[i].current, cmp_results[i], 0))
             lowest_cost_tfs.append((mcmc_samplers[i].current, cmp_results[i], 0))
         # MCMC start
+        logger.info(f"Start {num_programs} MCMC. Each one is run for {total_rounds} steps...")
         for rnd in range(total_rounds):
             cpp_codes: list[str] = []
             for i in range(num_programs):
@@ -748,7 +774,7 @@ def main() -> None:
                     pass
             for i in range(num_programs):
                 res = mcmc_samplers[i].current_cmp
-                print(
+                logger.info(
                     f"{iter}_{rnd}_{i}\t{res.get_sound_prop() * 100:.2f}%\t{res.get_unsolved_exact_prop() * 100:.2f}%\t{res.get_unsolved_edit_dis_avg():.3f}\t{res.get_cost():.3f}"
                 )
                 cost_data[i].append(res.get_cost())
@@ -790,27 +816,25 @@ def main() -> None:
                             )
                     assert len(solutions) <= solution_size
 
-            print(f"Used Time: {used_time:.2f}")
+            logger.debug(f"Used Time: {used_time:.2f}")
             # Print the current best result every K rounds
             if rnd % 250 == 100 or rnd == total_rounds - 1:
-                print("Sound transformers with most exact outputs:")
+                logger.debug("Sound transformers with most exact outputs:")
                 for i in range(num_programs):
                     res = sound_most_exact_tfs[i][1]
                     if res.is_sound():
-                        print(f"{i}_{sound_most_exact_tfs[i][2]}\t{res}")
-                print("Transformers with most unsolved exact outputs:")
+                        logger.debug(f"{i}_{sound_most_exact_tfs[i][2]}\t{res}")
+                logger.debug("Transformers with most unsolved exact outputs:")
                 for i in range(num_programs):
-                    print(f"{i}_{most_exact_tfs[i][2]}\t{most_exact_tfs[i][1]}")
-                print("Transformers with lowest cost:")
+                    logger.debug(f"{i}_{most_exact_tfs[i][2]}\t{most_exact_tfs[i][1]}")
+                logger.debug("Transformers with lowest cost:")
                 for i in range(num_programs):
-                    print(f"{i}_{lowest_cost_tfs[i][2]}\t{lowest_cost_tfs[i][1]}")
+                    logger.debug(f"{i}_{lowest_cost_tfs[i][2]}\t{lowest_cost_tfs[i][1]}")
 
         # Todo: switch to edit distance later (for now add new transformer if it makes more inputs exact)
         cur_most_e: float = 0
         for i in range(num_programs):
-            if (not sound_most_exact_tfs[i][1].is_sound()) or sound_most_exact_tfs[i][
-                1
-            ].unsolved_exacts == 0:
+            if (not sound_most_exact_tfs[i][1].is_sound()) or sound_most_exact_tfs[i][1].unsolved_exacts == 0:
                 continue
             func_to_eval = sound_most_exact_tfs[i][0].func
             cpp_code = print_to_cpp(eliminate_dead_code(func_to_eval))
@@ -825,19 +849,19 @@ def main() -> None:
                 [instance_constraint_func, domain_constraint_func, op_constraint_func],
             )
             if cmp_results[0].exacts > cur_most_e:
-                print(
+                logger.info(
                     f"Add a new transformer {iter}_{sound_most_exact_tfs[i][2]}_{i}. Exact: {cmp_results[0].get_exact_prop() * 100:.2f}%, Precision: {cmp_results[0].get_bitwise_precision() * 100:.2f}%"
                 )
-                print(cmp_results[0])
+                logger.debug(cmp_results[0])
                 cur_most_e = cmp_results[0].exacts
                 ref_funcs.append(sound_most_exact_tfs[i][0].func)
                 ref_func_names.append(xfer_func_name)
                 ref_func_cpps.append(cpp_code)
 
-        print(f"Current size of ref funcs: {len(ref_func_names)}")
+        logger.info(f"Size of the sound set: {len(ref_func_names)}")
 
         if cur_most_e == 0:
-            print(f"No improvement in the last {total_rounds} rounds!")
+            logger.info(f"[LOG] No improvement in the last {total_rounds} rounds!")
             # exit(0)
 
         # Remove redundant transformers
@@ -856,21 +880,21 @@ def main() -> None:
             )
             if cmp_results[0].unsolved_exacts == 0:
                 keep_idx.remove(i)
-                print(f"Remove {i}-th transformers \n{cmp_results[0]}")
+                logger.info(f"Remove {i}-th transformers \n{cmp_results[0]}")
         ref_funcs = [ref_funcs[i] for i in keep_idx]
         ref_func_names = [ref_func_names[i] for i in keep_idx]
         ref_func_cpps = [ref_func_cpps[i] for i in keep_idx]
 
-        print(f"Current size of ref funcs: {len(ref_func_names)}")
+        logger.info(f"Size of the sound set after removal: {len(ref_func_names)}")
         for f in ref_funcs:
-            print(eliminate_dead_code(f))
+            logger.info(eliminate_dead_code(f))
 
         print_figure(cost_data, OUTPUTS_FOLDER, f"curve{iter}")
 
         if cur_most_e == sound_most_exact_tfs[0][1].all_cases:
-            print(f"Find a perfect solution:\n")
+            logger.info(f"Find a perfect solution:\n")
             for f in ref_funcs:
-                print(eliminate_dead_code(f))
+                logger.info(eliminate_dead_code(f))
             exit(0)
 
     # Eval last solution:
