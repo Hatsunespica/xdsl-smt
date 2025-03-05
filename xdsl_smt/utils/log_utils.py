@@ -43,4 +43,4 @@ def print_set_of_funcs_to_file(funcs: List[FuncOp], iter: int, path: str):
         #     f"Run: {c}_{rd}_{i}\nCost: {res.get_cost()}\nSound: {res.get_sound_prop()}\nUExact: {res.get_unsolved_exact_prop()}\nUDis: {res.get_unsolved_edit_dis_avg()}\n{res}\n"
         # )
         for f in funcs:
-            file.write(str(f))
+            file.write(f"{f}\n")
