@@ -13,13 +13,13 @@ def setup_loggers(output_dir: str, verbose: int):
     formatter = logging.Formatter("%(message)s")
 
     # File Handler 1: info.log (Only INFO and higher)
-    info_handler = logging.FileHandler(output_dir + "/info.log")
+    info_handler = logging.FileHandler(output_dir + "/info.log", mode="w")
     info_handler.setLevel(logging.INFO)
     info_handler.setFormatter(formatter)
     logger.addHandler(info_handler)
     if verbose > 0:
         # File Handler 2: debug.log (DEBUG and higher, including INFO)
-        debug_handler = logging.FileHandler(output_dir + "/debug.log")
+        debug_handler = logging.FileHandler(output_dir + "/debug.log", mode="w")
         debug_handler.setLevel(logging.DEBUG)
         debug_handler.setFormatter(formatter)
         logger.addHandler(debug_handler)
@@ -43,4 +43,4 @@ def print_set_of_funcs_to_file(funcs: List[FuncOp], iter: int, path: str):
         #     f"Run: {c}_{rd}_{i}\nCost: {res.get_cost()}\nSound: {res.get_sound_prop()}\nUExact: {res.get_unsolved_exact_prop()}\nUDis: {res.get_unsolved_edit_dis_avg()}\n{res}\n"
         # )
         for f in funcs:
-            file.write(f"{f}\n")
+            file.write(f"{str(f)}\n")
