@@ -73,7 +73,6 @@ import sys as sys
 from ..utils.cost_model import decide
 from ..utils.log_utils import (
     setup_loggers,
-    print_func_to_file,
     print_set_of_funcs_to_file,
 )
 from ..utils.mcmc_sampler import MCMCSampler
@@ -90,7 +89,6 @@ from ..utils.transfer_function_util import (
     fixDefiningOpReturnType,
 )
 from ..utils.visualize import print_figure
-import logging
 
 
 def register_all_arguments(arg_parser: argparse.ArgumentParser):
