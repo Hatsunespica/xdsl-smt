@@ -50,6 +50,6 @@
   %6 = "transfer.constant"(%3) {"value" = 0 : index} : (!transfer.integer) -> !transfer.integer
   %29 = "transfer.make"(%6, %6) : (!transfer.integer, !transfer.integer) -> !transfer.abs_value<[!transfer.integer, !transfer.integer]>
   func.return %29 : !transfer.abs_value<[!transfer.integer, !transfer.integer]>
-  }) {function_type = (!transfer.abs_value<[!transfer.integer,!transfer.integer]>,!transfer.abs_value<[!transfer.integer,!transfer.integer]>) -> !transfer.abs_value<[!transfer.integer,!transfer.integer]>, sym_name = "ASHRImpl", applied_to=["comb.ShrS"], CPPCLASS=["circt::comb::SHRSOp"], is_forward=true} : () -> ()
+  }) {function_type = (!transfer.abs_value<[!transfer.integer,!transfer.integer]>,!transfer.abs_value<[!transfer.integer,!transfer.integer]>) -> !transfer.abs_value<[!transfer.integer,!transfer.integer]>, sym_name = "ASHRImpl", applied_to=["comb.shrs"], CPPCLASS=["circt::comb::SHRSOp"], is_forward=true} : () -> ()
 
 }) {"builtin.NEED_VERIFY"=[["MUL","MULImpl"],["OR","ORImpl"],["AND","ANDImpl"],["XOR","XORImpl"],["ADD","ADDImpl"],["SUB","SUBImpl"],["MUX","MUXImpl"],["SHL","SHLImpl"]]}: () -> ()

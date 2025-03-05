@@ -116,7 +116,7 @@ operNameToCpp = {
     "comb.mods": ".srem",
     "comb.modu": ".urem",
     "comb.mux": ["?", ":"],
-    "comb.shrs": ".alhr",
+    "comb.shrs": ".ashr",
     "comb.shru": ".lshr",
     "comb.shl": ".shl",
     "comb.extract": ".extractBits",
