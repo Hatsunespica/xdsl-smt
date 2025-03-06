@@ -88,7 +88,8 @@ from ..utils.transfer_function_util import (
     SMTTransferFunction,
     fixDefiningOpReturnType,
 )
-from ..utils.visualize import print_figure
+
+# from ..utils.visualize import print_figure
 
 
 def register_all_arguments(arg_parser: argparse.ArgumentParser):
@@ -870,7 +871,7 @@ def main() -> None:
         logger.info(f"Size of the sound set after removal: {len(ref_func_names)}")
         print_set_of_funcs_to_file(ref_funcs, iter, OUTPUTS_FOLDER)
 
-        print_figure(cost_data, OUTPUTS_FOLDER, f"iter{iter}")
+        # print_figure(cost_data, OUTPUTS_FOLDER, f"iter{iter}")
 
         if cur_most_e == sound_most_exact_tfs[0][1].all_cases:
             logger.info(f"Find a perfect solution:\n")
