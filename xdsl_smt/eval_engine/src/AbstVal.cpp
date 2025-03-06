@@ -1,5 +1,7 @@
 #pragma once
 
+#include <algorithm>
+#include <array>
 #include <cassert>
 #include <cmath>
 #include <cstdio>
@@ -81,8 +83,8 @@ public:
 
 template <unsigned char N> class KnownBits : public AbstVal<KnownBits<N>, N> {
 private:
-  llvm::APInt zero() const { return this->v[0]; }
-  llvm::APInt one() const { return this->v[1]; }
+  const llvm::APInt zero() const { return this->v[0]; }
+  const llvm::APInt one() const { return this->v[1]; }
   bool hasConflict() const { return zero().intersects(one()); }
 
 public:
@@ -176,8 +178,8 @@ public:
 template <unsigned char N>
 class ConstantRange : public AbstVal<ConstantRange<N>, N> {
 private:
-  llvm::APInt lower() const { return this->v[0]; }
-  llvm::APInt upper() const { return this->v[1]; }
+  const llvm::APInt lower() const { return this->v[0]; }
+  const llvm::APInt upper() const { return this->v[1]; }
 
 public:
   explicit ConstantRange(const std::vector<llvm::APInt> &v)
@@ -263,4 +265,109 @@ public:
 
     return ret;
   }
+};
+
+template <unsigned char N>
+class IntegerModulo : public AbstVal<IntegerModulo<N>, N> {
+private:
+  constexpr const static unsigned char n = 10;
+  constexpr const static std::array<unsigned char, n> primes = {
+      2, 3, 5, 7, 11, 13, 17, 19, 23, 29};
+  // constexpr const static unsigned long P =
+  //     std::accumulate(primes.begin(), primes.end(),
+  //                     static_cast<unsigned int>(1), std::multiplies<>{});
+
+  const std::vector<llvm::APInt> residues() const { return this->v; }
+
+  static unsigned int modInv(unsigned int a, unsigned int b) {
+    unsigned int b0 = b, t, q;
+    unsigned int x0 = 0, x1 = 1;
+    if (b == 1)
+      return 1;
+    while (a > 1) {
+      q = a / b;
+      t = b, b = a % b, a = t;
+      t = x0, x0 = x1 - q * x0, x1 = t;
+    }
+    return (x1 < 0) ? x1 + b0 : x1;
+  }
+
+  unsigned int chineseRemainder() {
+    unsigned int result = 0;
+    unsigned long long p = 1;
+    for (size_t i = 0; i < n; ++i) {
+      if (residues()[i] != primes[i]) {
+        p *= primes[i];
+      }
+    }
+
+    for (size_t i = 0; i < n; ++i) {
+      if (residues()[i] == primes[i])
+        continue;
+      unsigned int pp = p / primes[i];
+      result += residues()[i] * modInv(pp, primes[i]) * pp;
+    }
+    return result % p;
+  }
+
+public:
+  explicit IntegerModulo(const std::vector<llvm::APInt> &v)
+      : AbstVal<IntegerModulo<N>, N>(v) {}
+
+  const std::string display() const;
+
+  bool isConstant() const;
+  const llvm::APInt getConstant() const;
+
+  const IntegerModulo meet(const IntegerModulo &rhs) const {
+    std::vector<unsigned int> r(n);
+
+    for (unsigned int i = 0; i < n; ++i) {
+      if (residues()[i] == rhs.residues()[i])
+        r[i] = residues()[i];
+      else if (residues()[i] == primes[i])
+        r[i] = rhs.residues()[i];
+      else if (rhs.residues()[i] == primes[i])
+        r[i] = residues()[i];
+      else
+        r[i] = primes[i] + 1;
+    }
+
+    return IntegerModulo(r);
+  }
+
+  const IntegerModulo join(const IntegerModulo &rhs) const {
+    std::vector<unsigned int> r(n);
+
+    for (unsigned int i = 0; i < n; ++i) {
+      if (residues()[i] == rhs.residues()[i])
+        r[i] = residues()[i];
+      else
+        r[i] = primes[i];
+    }
+
+    return IntegerModulo(r);
+  }
+
+  const std::vector<unsigned int> toConcrete() const;
+
+  static IntegerModulo fromConcrete(const llvm::APInt &x) {
+    unsigned int xVal = x.getZExtValue();
+    std::vector<llvm::APInt> v(primes.size());
+    std::transform(
+        primes.begin(), primes.end(), v.begin(),
+        [xVal](unsigned char pr) { return llvm::APInt(N, xVal % pr); });
+
+    return IntegerModulo(v);
+  }
+
+  static IntegerModulo top() { return IntegerModulo(primes); }
+  static IntegerModulo bottom() {
+    std::vector<unsigned int> r(n);
+    std::transform(primes.begin(), primes.end(), r.begin(),
+                   [](unsigned int x) { return x + 1; });
+    return r;
+  }
+
+  static std::vector<IntegerModulo> const enumVals();
 };
