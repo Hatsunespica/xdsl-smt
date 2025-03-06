@@ -109,7 +109,10 @@ public:
   }
 
   bool isConstant() const { return zero().popcount() + one().popcount() == N; }
-  const llvm::APInt getConstant() const { return zero(); }
+  const llvm::APInt getConstant() const {
+    assert(isConstant());
+    return zero();
+  }
 
   const KnownBits meet(const KnownBits &rhs) const {
     return KnownBits({zero() | rhs.zero(), one() | rhs.one()});
@@ -196,7 +199,10 @@ public:
   }
 
   bool isConstant() const { return lower() == upper(); }
-  const llvm::APInt getConstant() const { return lower(); }
+  const llvm::APInt getConstant() const {
+    assert(isConstant());
+    return lower();
+  }
 
   const ConstantRange meet(const ConstantRange &rhs) const {
     llvm::APInt l = rhs.lower().ugt(lower()) ? rhs.lower() : lower();
