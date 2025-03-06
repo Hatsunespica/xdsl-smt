@@ -743,10 +743,11 @@ def main() -> None:
                         need_print = True
 
                     # disable it temporarily
-                    # if need_print:
-                    #     print_func_to_file(
-                    #         mcmc_samplers[i].current_cmp, eliminate_dead_code(mcmc_samplers[i].current.func), iter, rnd, i, OUTPUTS_FOLDER
-                    #     )
+                    if need_print:
+                        pass
+                        # print_func_to_file(
+                        #     mcmc_samplers[i].current_cmp, eliminate_dead_code(mcmc_samplers[i].current.func), iter, rnd, i, OUTPUTS_FOLDER
+                        # )
                 else:
                     mcmc_samplers[i].reject_proposed()
                     pass
