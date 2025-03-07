@@ -27,7 +27,7 @@ from ..dialects.transfer import (
     MulOp,
     SetLowBitsOp,
     SetHighBitsOp,
-    TransIntegerType,
+    TransIntegerType, GetBitWidthOp,
 )
 from typing import TypeVar, Generic, Callable
 from xdsl.ir import Operation, SSAValue
@@ -120,7 +120,9 @@ full_int_ops: list[type[Operation]] = [
     # SetLowBitsOp,
 ]
 
-basic_i1_ops: list[type[Operation]] = [arith.AndIOp, arith.OrIOp, arith.XOrIOp, CmpOp]
+full_i1_ops: list[type[Operation]] = [arith.AndIOp, arith.OrIOp, arith.XOrIOp, CmpOp]
+
+basic_i1_ops: list[type[Operation]] = [CmpOp]
 
 
 def is_constant_constructor(constants: list[int]) -> Callable[[SSAValue], bool]:
