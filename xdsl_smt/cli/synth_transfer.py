@@ -492,6 +492,11 @@ def is_ref_function(func: FuncOp) -> bool:
     return func.sym_name.data.startswith("ref_")
 
 
+"""
+This function returns a simplified eval_func receiving transfer functions and base functions
+"""
+
+
 def solution_set_eval_func(
     concrete_op_expr: str,
     domain: eval_engine.AbstractDomain,
@@ -514,6 +519,11 @@ def solution_set_eval_func(
     )
 
 
+"""
+This function returns a simplified eval_func only receiving transfer names and sources
+"""
+
+
 def main_eval_func(
     concrete_op_expr: str,
     base_transfer_names: list[str],
@@ -534,6 +544,11 @@ def main_eval_func(
             helper_funcs,
         )
     )
+
+
+"""
+Given ith_iter, performs total_rounds mcmc sampling
+"""
 
 
 def synthesize_transfer_function(
@@ -682,7 +697,7 @@ def synthesize_transfer_function(
             for i in range(num_programs):
                 logger.debug(f"{i}_{lowest_cost_tfs[i][2]}\t{lowest_cost_tfs[i][1]}")
 
-    candidates = []
+    candidates: list[FuncOp] = []
     if solution_size == 0:
         # Todo: switch to edit distance later (for now add new transformer if it makes more inputs exact)
         for i in range(num_programs):

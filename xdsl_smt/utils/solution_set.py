@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, Self
 
 from xdsl.dialects.builtin import StringAttr
 from xdsl.dialects.func import FuncOp, CallOp, ReturnOp
@@ -14,6 +14,12 @@ def rename_functions(lst: list[FuncOp], prefix: str) -> list[str]:
         func_names.append(prefix + str(i))
         func.sym_name = StringAttr(func_names[-1])
     return func_names
+
+
+"""
+This class is an abstract class for maintaining solutions.
+It supports to generate the meet of solutions
+"""
 
 
 class SolutionSet(ABC):
@@ -49,7 +55,7 @@ class SolutionSet(ABC):
         self.solution_srcs = [self.lower_to_cpp(func) for func in self.solutions]
 
     @abstractmethod
-    def construct_new_solution_set(self, new_candidates: list[FuncOp]):
+    def construct_new_solution_set(self, new_candidates: list[FuncOp]) -> Self:
         ...
 
     def has_solution(self) -> bool:
@@ -97,6 +103,11 @@ class SolutionSet(ABC):
         solution_str += self.lower_to_cpp(final_solution)
         solution_str += "\n"
         return final_solution, solution_str
+
+
+"""
+This class maintains a list of solutions with a specified size
+"""
 
 
 class SizedSolutionSet(SolutionSet):
@@ -173,6 +184,11 @@ class SizedSolutionSet(SolutionSet):
             ref_func_srcs.append(candidate_srcs.pop(index))
 
         return SizedSolutionSet(self.size, ref_funcs, self.lower_to_cpp, self.eval_func)
+
+
+"""
+This class maintains a list of solutions without a specified size
+"""
 
 
 class UnsizedSolutionSet(SolutionSet):
