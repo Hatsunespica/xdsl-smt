@@ -125,7 +125,7 @@ basic_i1_ops: list[type[Operation]] = [arith.AndIOp, arith.OrIOp, arith.XOrIOp, 
 
 def is_constant_constructor(constants: list[int]) -> Callable[[SSAValue], bool]:
     is_constant: Callable[[SSAValue], bool] = lambda val=SSAValue: (
-        isinstance(val, Constant) and val.value.value.data in constants
+        isinstance(val.owner, Constant) and val.owner.value.value.data in constants
     )
     return is_constant
 
@@ -137,19 +137,19 @@ is_zero: Callable[[SSAValue], bool] = is_constant_constructor([0])
 is_one: Callable[[SSAValue], bool] = is_constant_constructor([1])
 
 is_true: Callable[[SSAValue], bool] = lambda val=SSAValue: (
-    isinstance(val, arith.ConstantOp)
-    and isinstance(val.value, IntegerAttr)
-    and val.value.value.data == 1
+    isinstance(val.owner, arith.ConstantOp)
+    and isinstance(val.owner.value, IntegerAttr)
+    and val.owner.value.value.data == 1
 )
 
 is_false: Callable[[SSAValue], bool] = lambda val=SSAValue: (
-    isinstance(val, arith.ConstantOp)
-    and isinstance(val.value, IntegerAttr)
-    and val.value.value.data == 0
+    isinstance(val.owner, arith.ConstantOp)
+    and isinstance(val.owner.value, IntegerAttr)
+    and val.owner.value.value.data == 0
 )
 
 is_constant_bool: Callable[[SSAValue], bool] = lambda val=SSAValue: isinstance(
-    val, arith.ConstantOp
+    val.owner, arith.ConstantOp
 )
 
 
@@ -158,7 +158,7 @@ def is_allones(val: SSAValue) -> bool:
 
 
 def is_get_bitwidth(val: SSAValue) -> bool:
-    return isinstance(val.owner, GetAllOnesOp)
+    return isinstance(val.owner, GetBitWidthOp)
 
 
 def is_zero_or_allones(val: SSAValue) -> bool:
@@ -243,8 +243,8 @@ class SynthesizerContext:
     i1_ops: Collection[type[Operation]]
     int_ops: Collection[type[Operation]]
     commutative: bool = False
-    idempotent: bool = False
-    skip_trivial: bool = False
+    idempotent: bool = True
+    skip_trivial: bool = True
 
     def __init__(self, random: Random):
         self.random = random
