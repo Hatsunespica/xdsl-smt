@@ -27,7 +27,8 @@ from ..dialects.transfer import (
     MulOp,
     SetLowBitsOp,
     SetHighBitsOp,
-    TransIntegerType, GetBitWidthOp,
+    TransIntegerType,
+    GetBitWidthOp,
 )
 from typing import TypeVar, Generic, Callable
 from xdsl.ir import Operation, SSAValue
