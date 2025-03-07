@@ -260,6 +260,12 @@ class SynthesizerContext:
     def use_full_int_ops(self):
         self.int_ops = Collection(full_int_ops, self.random)
 
+    def use_basic_i1_ops(self):
+        self.i1_ops = Collection(basic_i1_ops, self.random)
+
+    def use_full_i1_ops(self):
+        self.i1_ops = Collection(full_i1_ops, self.random)
+
     def get_available_i1_ops(self) -> tuple[type[Operation], ...]:
         return self.i1_ops.get_all_elements()
 
