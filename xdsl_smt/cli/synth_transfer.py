@@ -41,7 +41,7 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     StringAttr,
 )
-from xdsl.dialects.func import Func, FuncOp, ReturnOp, CallOp
+from xdsl.dialects.func import Func, FuncOp, ReturnOp
 from ..dialects.transfer import Transfer
 from xdsl.dialects.arith import Arith
 from xdsl.dialects.comb import Comb
@@ -903,7 +903,7 @@ def main() -> None:
     if not solution_set.has_solution():
         print("Found no solutions")
         exit(0)
-    last_solution, solution_str = solution_set.generate_solution_and_cpp()
+    _, solution_str = solution_set.generate_solution_and_cpp()
     with open("tmp.cpp", "w") as fout:
         fout.write(solution_str)
     cmp_results: list[CompareResult] = eval_engine.eval_transfer_func(

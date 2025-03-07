@@ -1,4 +1,5 @@
-from typing import Callable, Self
+from __future__ import annotations
+from typing import Callable
 
 from xdsl.dialects.builtin import StringAttr
 from xdsl.dialects.func import FuncOp, CallOp, ReturnOp
@@ -55,7 +56,7 @@ class SolutionSet(ABC):
         self.solution_srcs = [self.lower_to_cpp(func) for func in self.solutions]
 
     @abstractmethod
-    def construct_new_solution_set(self, new_candidates: list[FuncOp]) -> Self:
+    def construct_new_solution_set(self, new_candidates: list[FuncOp]) -> SolutionSet:
         ...
 
     def has_solution(self) -> bool:
@@ -161,7 +162,7 @@ class SizedSolutionSet(SolutionSet):
         ref_func_srcs.append(candidate_srcs.pop(index))
 
         # Greedy select all subsequent functions
-        for ith in range(1, self.size + 1):
+        for _ in range(1, self.size + 1):
             index = 0
             num_exacts = 0
             cost = 2
@@ -178,7 +179,7 @@ class SizedSolutionSet(SolutionSet):
                     and cost > result[ith_result].get_cost()
                 ):
                     index = ith_result
-                    cost = result[ith_result].cost
+                    cost = result[ith_result].get_cost()
             ref_funcs.append(candidates.pop(index))
             ref_func_names.append(candidates_names.pop(index))
             ref_func_srcs.append(candidate_srcs.pop(index))
