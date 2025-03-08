@@ -719,7 +719,11 @@ def synthesize_transfer_function(
         logger.info(
             f"Size of the sound set after removal: {new_solution_set.solutions_size}"
         )
-        print_set_of_funcs_to_file([eliminate_dead_code(f) for f in new_solution_set.solutions], ith_iter, OUTPUTS_FOLDER)
+        print_set_of_funcs_to_file(
+            [eliminate_dead_code(f) for f in new_solution_set.solutions],
+            ith_iter,
+            OUTPUTS_FOLDER,
+        )
     return new_solution_set
 
 
