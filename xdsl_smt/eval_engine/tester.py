@@ -25,8 +25,8 @@ concrete_xor = "APInt concrete_op(APInt a, APInt b) { return a^b; }"
 concrete_and = "APInt concrete_op(APInt a, APInt b) { return a&b; }"
 concrete_udiv = "APInt concrete_op(APInt a, APInt b) { return a.udiv(b); }"
 concrete_urem = "APInt concrete_op(APInt a, APInt b) { return a.urem(b); }"
-concrete_umin = "APInt concrete_op(APInt a,APInt b) {return llvm::APIntOps::umin(a,b);}"
-concrete_umax = "APInt concrete_op(APInt a,APInt b) {return llvm::APIntOps::umax(a,b);}"
+concrete_umin = "APInt concrete_op(APInt a,APInt b) {return APIntOps::umin(a,b);}"
+concrete_umax = "APInt concrete_op(APInt a,APInt b) {return APIntOps::umax(a,b);}"
 
 kb_and = (
     "kb_and",
@@ -70,8 +70,8 @@ std::vector<APInt> cr_add(std::vector<APInt> arg0, std::vector<APInt> arg1) {
   APInt res0 = arg0[0].uadd_ov(arg1[0], res0_ov);
   APInt res1 = arg0[1].uadd_ov(arg1[1], res1_ov);
   if (res0.ugt(res1) || (res0_ov ^ res1_ov))
-    return {llvm::APInt::getMinValue(arg0[0].getBitWidth()),
-            llvm::APInt::getMaxValue(arg0[0].getBitWidth())};
+    return {APInt::getMinValue(arg0[0].getBitWidth()),
+            APInt::getMaxValue(arg0[0].getBitWidth())};
   return {res0, res1};
 }
 """,
@@ -86,8 +86,8 @@ std::vector<APInt> cr_sub(std::vector<APInt> arg0, std::vector<APInt> arg1) {
   APInt res0 = arg0[0].usub_ov(arg1[1], res0_ov);
   APInt res1 = arg0[1].usub_ov(arg1[0], res1_ov);
   if (res0.ugt(res1) || (res0_ov ^ res1_ov))
-    return {llvm::APInt::getMinValue(arg0[0].getBitWidth()),
-            llvm::APInt::getMaxValue(arg0[0].getBitWidth())};
+    return {APInt::getMinValue(arg0[0].getBitWidth()),
+            APInt::getMaxValue(arg0[0].getBitWidth())};
   return {res0, res1};
 }
 """,

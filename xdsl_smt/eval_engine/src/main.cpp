@@ -4,7 +4,8 @@
 #include <iostream>
 #include <vector>
 
-#include <llvm/ADT/APInt.h>
+#include "APInt.h"
+#include "APInt.cpp"
 
 #include "Results.cpp"
 #include "synth.cpp"
@@ -20,9 +21,9 @@ const Domain toBestAbst(const Domain &lhs, const Domain &rhs,
                         unsigned int (*op)(const unsigned int,
                                            const unsigned int)) {
   const unsigned char bitwidth = lhs.getBitWidth();
-  llvm::APInt x(bitwidth, 0);
-  llvm::APInt lhs_op_con(bitwidth, 0);
-  llvm::APInt rhs_op_con(bitwidth, 0);
+  APInt x(bitwidth, 0);
+  APInt lhs_op_con(bitwidth, 0);
+  APInt rhs_op_con(bitwidth, 0);
   unsigned int mask = makeMask(bitwidth);
   std::vector<Domain> crtVals;
   const std::vector<unsigned int> rhss = rhs.toConcrete();

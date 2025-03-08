@@ -14,90 +14,15 @@ class AbstractDomain(Enum):
         return self.name
 
 
-llvm_bin_dir: str = ""
-
-
 def get_build_cmd() -> list[str]:
-    has_libclang = (
-        run(["ldconfig", "-p"], stdout=PIPE)
-        .stdout.decode("utf-8")
-        .find("libclang.so.19")
-    )
-
-    llvm_include_dir = (
-        run(
-            [llvm_bin_dir + "llvm-config", "--includedir"],
-            stdout=PIPE,
-        )
-        .stdout.decode("utf-8")
-        .split("\n")[0]
-    )
-
-    if llvm_bin_dir != "" or has_libclang == -1:
-        all_llvm_link_flags = (
-            run(
-                [
-                    llvm_bin_dir + "llvm-config",
-                    "--ldflags",
-                    "--libdir",
-                    "--libs",
-                    "--system-libs",
-                ],
-                stdout=PIPE,
-            )
-            .stdout.decode("utf-8")
-            .split("\n")
-        )
-        all_llvm_link_flags = [x for x in all_llvm_link_flags if x != ""]
-        lib_dir = all_llvm_link_flags[1]
-        llvm_link_libs = all_llvm_link_flags[2].split(" ")
-
-        llvm_link_flags = [all_llvm_link_flags[0]] + [
-            x for x in llvm_link_libs if ("LLVMSupport" in x)
-        ]
-
-        build_cmd = [
-            llvm_bin_dir + "clang++",
-            "-std=c++20",
-            "-O1",
-            f"-I{llvm_include_dir}",
-            f"-I{llvm_bin_dir}../include",
-            "-L",
-            f"{llvm_bin_dir}../lib",
-            "../src/main.cpp",
-            "-o",
-            "EvalEngine",
-            f"-Wl,-rpath,{lib_dir}",
-        ] + llvm_link_flags
-    else:
-        llvm_link_flags = (
-            run(
-                ["llvm-config", "--ldflags", "--libs", "--system-libs"],
-                stdout=PIPE,
-            )
-            .stdout.decode("utf-8")
-            .split("\n")
-        )
-        llvm_link_flags = [x for x in llvm_link_flags if x != ""]
-        build_cmd = [
-            "clang++",
-            "-std=c++20",
-            "-O1",
-            f"-I{llvm_include_dir}",
-            "../src/main.cpp",
-            "-o",
-            "EvalEngine",
-        ] + llvm_link_flags
-
-    return build_cmd
+    return ["clang++", "-std=c++20", "../src/main.cpp", "-o", "EvalEngine"]
 
 
 def make_xfer_header(concrete_op: str) -> str:
     includes = """
-    #include <llvm/ADT/APInt.h>
     #include <vector>
+    #include "APInt.h"
     #include "AbstVal.cpp"
-    using llvm::APInt;
     """
 
     conc_op_wrapper = """
@@ -117,7 +42,7 @@ def make_xfer_wrapper(func_names: list[str], wrapper_name: str) -> str:
     )
 
     def make_func_call(x: str) -> str:
-        return f"const std::vector<llvm::APInt> res_v_{x} = {x}" + "(lhs.v, rhs.v);"
+        return f"const std::vector<APInt> res_v_{x} = {x}" + "(lhs.v, rhs.v);"
 
     def make_res(x: str) -> str:
         return f"Domain res_{x}(res_v_{x});"
@@ -266,8 +191,8 @@ std::vector<APInt> cr_add(std::vector<APInt> arg0, std::vector<APInt> arg1) {
   APInt res0 = arg0[0].uadd_ov(arg1[0], res0_ov);
   APInt res1 = arg0[1].uadd_ov(arg1[1], res1_ov);
   if (res0.ugt(res1) || (res0_ov ^ res1_ov))
-    return {llvm::APInt::getMinValue(arg0[0].getBitWidth()),
-            llvm::APInt::getMaxValue(arg0[0].getBitWidth())};
+    return {APInt::getMinValue(arg0[0].getBitWidth()),
+            APInt::getMaxValue(arg0[0].getBitWidth())};
   return {res0, res1};
 }
     """
