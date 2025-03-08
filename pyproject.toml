@@ -3,20 +3,22 @@ name = "xdsl-smt"
 version = "0.0.0"
 dependencies = [
   "z3-solver==4.12.1.0",
-  "xdsl==0.22.0",
+  "xdsl==0.27.0",
 ]
 
 [project.optional-dependencies]
 dev = [
-  "pyright==1.1.309",
+  "pyright==1.1.393",
   "lit<16.0.0",
   "pytest<8.0",
   "filecheck==0.0.23",
   "pre-commit==3.3.1",
+  "typing-extensions==4.12.2",
 ]
 
 [tool.setuptools]
 platforms = ["Linux", "Mac OS-X", "Unix"]
+packages = ["xdsl_smt"]
 zip-safe = false
 
 [tool.setuptools.package-data]
@@ -34,12 +36,14 @@ cpp-translate = "xdsl_smt.cli.cpp_translate:main"
 superoptimize = "xdsl_smt.cli.superoptimize:main"
 syn-test = "xdsl_smt.cli.syn_test:main"
 synth-transfer = "xdsl_smt.cli.synth_transfer:main"
+eval-test= "xdsl_smt.cli.eval_test:main"
 
 [build-system]
 requires = ["setuptools>=61", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.pyright]
+enableExperimentalFeatures = true
 reportImportCycles = false
 reportUnnecessaryIsInstance = false
 typeCheckingMode = "strict"
@@ -52,5 +56,6 @@ ignore = [
   "xdsl_smt/passes/transfer_lower.py",
   "xdsl_smt/cli/xdsl_translate.py",
   "xdsl_smt/cli/verifier.py",
-  "tests"
+  "tests",
+  "outputs"
 ]
