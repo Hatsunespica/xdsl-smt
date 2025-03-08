@@ -35,5 +35,9 @@ set(CLANG_LIBS clang-cpp)
 
 add_executable(eval_engine src/jit.cpp)
 
+target_link_options(eval_engine PRIVATE
+    -Wl,--copy-dt-needed-entries
+)
+
 # Link against LLVM and Clang
 target_link_libraries(eval_engine PRIVATE ${LLVM_LIBS} ${CLANG_LIBS})

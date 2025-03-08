@@ -1,82 +1,81 @@
-#include <iostream>
-#include <memory>
-#include <string>
-
 #include <clang/Basic/Diagnostic.h>
-#include <clang/Basic/FileManager.h>
-#include <clang/Basic/SourceManager.h>
 #include <clang/CodeGen/CodeGenAction.h>
-#include <clang/Driver/Options.h>
-#include <clang/Frontend/ASTUnit.h>
 #include <clang/Frontend/CompilerInstance.h>
-#include <clang/Frontend/CompilerInvocation.h>
 #include <clang/Frontend/TextDiagnosticPrinter.h>
+#include <clang/Lex/PreprocessorOptions.h>
 
 #include <llvm/ExecutionEngine/Orc/LLJIT.h>
-#include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/Function.h>
+#include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Module.h>
-#include <llvm/Support/raw_ostream.h>
+#include <llvm/Support/TargetSelect.h>
 
-std::unique_ptr<llvm::Module>
-generateLLVMIRFromCode(const std::string &sourceCode) {
-  llvm::LLVMContext llvmContext;
-  clang::CompilerInstance clangInstance;
+// largely adopted from
+// https://blog.memzero.de/llvm-orc-jit/
+class Compiler {
+private:
+  std::unique_ptr<clang::TextDiagnosticPrinter> dp;
+  std::unique_ptr<clang::DiagnosticsEngine> de;
 
-  clangInstance.createDiagnostics();
-  clang::DiagnosticsEngine &diagEngine = clangInstance.getDiagnostics();
-  clang::DiagnosticOptions diagnosticOptions;
-  clang::TextDiagnosticPrinter *diagnosticPrinter =
-      new clang::TextDiagnosticPrinter(llvm::errs(), &diagnosticOptions);
-  diagEngine.setClient(diagnosticPrinter, false);
+  struct CompileResult {
+    std::unique_ptr<llvm::LLVMContext> c;
+    std::unique_ptr<llvm::Module> m;
+  };
 
-  clangInstance.createFileManager();
-  clangInstance.createSourceManager(clangInstance.getFileManager());
-
-  llvm::MemoryBufferRef sourceBuffer(llvm::StringRef(sourceCode), "<memory>");
-  clangInstance.getSourceManager().setMainFileID(
-      clangInstance.getSourceManager().createFileID(sourceBuffer,
-                                                    clang::SrcMgr::C_User));
-
-  std::shared_ptr<clang::CompilerInvocation> invocation =
-      std::make_shared<clang::CompilerInvocation>();
-  if (!clang::CompilerInvocation::CreateFromArgs(
-          *invocation, {"-v", "-emit-llvm", "-O2", "-x", "c++"}, diagEngine)) {
-    llvm::errs() << "Failed to create a compiler invocation.\n";
-    return nullptr;
+public:
+  Compiler() {
+    llvm::IntrusiveRefCntPtr<clang::DiagnosticOptions> opts;
+    dp = std::make_unique<clang::TextDiagnosticPrinter>(llvm::errs(),
+                                                        opts.get());
+    de = std::make_unique<clang::DiagnosticsEngine>(nullptr, std::move(opts),
+                                                    dp.get(), false);
   }
 
-  clangInstance.setInvocation(invocation);
-  std::unique_ptr<clang::CodeGenAction> codeGenAction(
-      new clang::EmitLLVMAction());
+  CompileResult compile(const std::string &code) {
+    clang::CompilerInstance clang;
+    clang::CompilerInvocation::CreateFromArgs(clang.getInvocation(),
+                                              {"<memory>"}, *de);
 
-  std::cerr << "here\n";
+    clang.createDiagnostics(dp.get(), false);
+    clang.getPreprocessorOpts().addRemappedFile(
+        "<memory>", llvm::MemoryBuffer::getMemBuffer(code).release());
 
-  if (!clangInstance.ExecuteAction(*codeGenAction)) {
-    llvm::errs() << "Failed to generate LLVM IR.\n";
-    return nullptr;
+    clang.getCodeGenOpts().setInlining(
+        clang::CodeGenOptions::OnlyAlwaysInlining);
+
+    clang::EmitLLVMOnlyAction action;
+    clang.ExecuteAction(action);
+
+    return CompileResult{
+        std::unique_ptr<llvm::LLVMContext>(action.takeLLVMContext()),
+        action.takeModule()};
   }
-
-  std::cerr << "not here\n";
-
-  return codeGenAction->takeModule();
-}
+};
 
 int main() {
+  llvm::InitializeNativeTarget();
+  llvm::InitializeNativeTargetAsmParser();
+  llvm::InitializeNativeTargetAsmPrinter();
+
   std::string sourceCode = R"cpp(
     int f() {
         return 42;
     }
     )cpp";
 
-  std::unique_ptr<llvm::Module> llvmIRModule =
-      generateLLVMIRFromCode(sourceCode);
+  auto [context, module] = Compiler().compile(sourceCode);
+  llvm::orc::ThreadSafeModule mod =
+      llvm::orc::ThreadSafeModule(std::move(module), std::move(context));
 
-  if (llvmIRModule) {
-    llvm::outs() << "LLVM IR (internal representation):\n";
-    llvmIRModule->print(llvm::outs(), nullptr);
-  } else {
-    llvm::errs() << "Error: Failed to generate LLVM IR.\n";
-  }
+  auto jit = llvm::cantFail(llvm::orc::LLJITBuilder().create());
+  llvm::cantFail(jit->addIRModule(std::move(mod)));
+
+  auto Add1Addr = llvm::cantFail(jit->lookup("f"));
+  int (*Add1)() = Add1Addr.toPtr<int()>();
+
+  int Result = Add1();
+
+  llvm::outs() << "result: " << Result << "\n";
 
   return 0;
 }
