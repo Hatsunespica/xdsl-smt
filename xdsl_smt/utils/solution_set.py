@@ -311,8 +311,9 @@ class UnsizedSolutionSet(SolutionSet):
                 self.solution_names[:i] + self.solution_names[i + 1 :],
                 self.solution_srcs[:i] + self.solution_srcs[i + 1 :],
             )
-            self.logger.info(f"func {i}: improve {cmp_results[0].exacts - cmp_results[0].unsolved_exacts} -> {cmp_results[0].exacts}")
-            if cmp_results[0].get_unsolved_exact_prop() > 0.1:
+            res = cmp_results[0]
+            self.logger.info(f"func {i}: improve {res.exacts - res.unsolved_exacts} -> {res.exacts}, new exact%: {res.get_new_exact_prop()}")
+            if res.get_new_exact_prop() > 0.001:
                 d_int, d_i1 = SynthesizerContext.count_op_frequency(self.eliminate_dead_code(self.solutions[i]))
                 add_another_dict(freq_int, d_int)
                 add_another_dict(freq_i1, d_i1)
