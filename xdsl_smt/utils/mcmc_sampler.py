@@ -89,6 +89,14 @@ class MCMCSampler:
     def reject_proposed(self):
         self.proposed = None
 
+    @staticmethod
+    def is_i1_op(op: Operation):
+        return op.results[0].type == i1
+
+    @staticmethod
+    def is_int_op(op: Operation):
+        return isinstance(op.results[0].type, TransIntegerType)
+
     def replace_entire_operation(self, prog: MutationProgram, idx: int) -> float:
         """
         Random pick an operation and replace it with a new one
@@ -99,9 +107,9 @@ class MCMCSampler:
 
         new_op = None
         while new_op is None:
-            if old_op.results[0].type == i1:  # bool
+            if MCMCSampler.is_i1_op(old_op):  # bool
                 new_op = self.context.get_random_i1_op(int_operands, bool_operands)
-            elif isinstance(old_op.results[0].type, TransIntegerType):  # integer
+            elif MCMCSampler.is_int_op(old_op):  # integer
                 new_op = self.context.get_random_int_op(int_operands, bool_operands)
             else:
                 raise VerifyException("Unexpected result type {}".format(old_op))
@@ -164,18 +172,20 @@ class MCMCSampler:
         block.add_op(all_ones)
 
         # Part III: Main Body
-        # tmp_bool_ssavalue = false_op.results[0]
-        for i in range(length // 4):
-            nop_bool = CmpOp(tmp_int_ssavalue, tmp_int_ssavalue, 0)
-            nop_int1 = AndOp(tmp_int_ssavalue, tmp_int_ssavalue)
-            nop_int2 = AndOp(tmp_int_ssavalue, tmp_int_ssavalue)
-            nop_int3 = AndOp(tmp_int_ssavalue, tmp_int_ssavalue)
-            block.add_op(nop_bool)
-            block.add_op(nop_int1)
-            block.add_op(nop_int2)
-            block.add_op(nop_int3)
-
         last_int_op = block.last_op
+        for i in range(length):
+            if i % 4 == 0:
+                nop_bool = CmpOp(tmp_int_ssavalue, tmp_int_ssavalue, 0)
+                block.add_op(nop_bool)
+            elif i % 4 == 1:
+                last_int_op = AndOp(tmp_int_ssavalue, tmp_int_ssavalue)
+                block.add_op(last_int_op)
+            elif i % 4 == 2:
+                last_int_op = AndOp(tmp_int_ssavalue, tmp_int_ssavalue)
+                block.add_op(last_int_op)
+            else:
+                last_int_op = AndOp(tmp_int_ssavalue, tmp_int_ssavalue)
+                block.add_op(last_int_op)
 
         # Part IV: MakeOp
         return_val: list[Operation] = []
@@ -186,8 +196,11 @@ class MCMCSampler:
                 assert isinstance(field_type, TransIntegerType)
                 assert last_int_op is not None
                 operands.append(last_int_op.results[0])
-                assert last_int_op.prev_op is not None
-                last_int_op = last_int_op.prev_op.prev_op
+                while True:
+                    last_int_op = last_int_op.prev_op
+                    assert last_int_op is not None
+                    if MCMCSampler.is_int_op(last_int_op):
+                        break
 
             op = MakeOp(operands)
             block.add_op(op)

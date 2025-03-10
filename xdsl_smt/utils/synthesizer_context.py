@@ -1,4 +1,5 @@
 from xdsl.dialects.builtin import i1, IntegerAttr
+from xdsl.dialects.func import FuncOp
 
 from ..dialects.transfer import (
     NegOp,
@@ -76,6 +77,11 @@ class Collection(Generic[T]):
     def get_random_element(self) -> T | None:
         if self.lst_len != 0:
             return self.random.choice(self.lst)
+        return None
+
+    def get_weighted_random_element(self, weights: dict[T, int]) -> T | None:
+        if self.lst_len != 0:
+            return self.random.choice_weighted(self.lst, weights=weights)
         return None
 
     def get_all_elements(self) -> tuple[T, ...]:
@@ -245,6 +251,9 @@ class SynthesizerContext:
     cmp_flags: list[int]
     i1_ops: Collection[type[Operation]]
     int_ops: Collection[type[Operation]]
+    i1_weights: dict[type[Operation], int]
+    int_weights: dict[type[Operation], int]
+    weighted: bool
     commutative: bool = False
     idempotent: bool = True
     skip_trivial: bool = True
@@ -254,24 +263,43 @@ class SynthesizerContext:
         self.cmp_flags = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
         self.i1_ops = Collection(basic_i1_ops, self.random)
         self.int_ops = Collection(basic_int_ops, self.random)
+        self.i1_weights = {key: 1 for key in basic_i1_ops}
+        self.int_weights = {key: 1 for key in basic_int_ops}
+        self.weighted = True
 
     def use_basic_int_ops(self):
         self.int_ops = Collection(basic_int_ops, self.random)
+        self.int_weights = {key: 1 for key in basic_int_ops}
 
     def use_full_int_ops(self):
         self.int_ops = Collection(full_int_ops, self.random)
+        self.int_weights = {key: 1 for key in full_int_ops}
 
     def use_basic_i1_ops(self):
         self.i1_ops = Collection(basic_i1_ops, self.random)
+        self.i1_weights = {key: 1 for key in basic_i1_ops}
 
     def use_full_i1_ops(self):
         self.i1_ops = Collection(full_i1_ops, self.random)
+        self.i1_weights = {key: 1 for key in full_i1_ops}
 
     def get_available_i1_ops(self) -> tuple[type[Operation], ...]:
         return self.i1_ops.get_all_elements()
 
     def get_available_int_ops(self) -> tuple[type[Operation], ...]:
         return self.int_ops.get_all_elements()
+
+    def update_i1_weights(self, frequency: dict[type[Operation], int]):
+        self.i1_weights = {key: 1 for key in self.i1_ops.get_all_elements()}
+        for key in frequency:
+            assert key in self.i1_weights
+            self.i1_weights[key] = frequency[key] + 1
+
+    def update_int_weights(self, frequency: dict[type[Operation], int]):
+        self.int_weights = {key: 1 for key in self.int_ops.get_all_elements()}
+        for key in frequency:
+            assert key in self.int_weights
+            self.int_weights[key] = frequency[key] + 1
 
     def set_cmp_flags(self, cmp_flags: list[int]):
         assert len(cmp_flags) != 0
@@ -398,7 +426,10 @@ class SynthesizerContext:
         int_vals: list[SSAValue],
         i1_vals: list[SSAValue],
     ) -> Operation:
-        result_type = self.i1_ops.get_random_element()
+        if self.weighted:
+            result_type = self.i1_ops.get_weighted_random_element(self.i1_weights)
+        else:
+            result_type = self.i1_ops.get_random_element()
         assert result_type is not None
         return self.build_i1_op(result_type, int_vals, i1_vals)
 
@@ -407,7 +438,10 @@ class SynthesizerContext:
         int_vals: list[SSAValue],
         i1_vals: list[SSAValue],
     ) -> Operation:
-        result_type = self.int_ops.get_random_element()
+        if self.weighted:
+            result_type = self.int_ops.get_weighted_random_element(self.int_weights)
+        else:
+            result_type = self.int_ops.get_random_element()
         assert result_type is not None
         return self.build_int_op(result_type, int_vals, i1_vals)
 
@@ -481,3 +515,17 @@ class SynthesizerContext:
                 "unknown type when replacing operand: " + str(op.operands[ith].type)
             )
         return True
+
+    @staticmethod
+    def count_op_frequency(
+        func: FuncOp,
+    ) -> (dict[type(Operation), int], dict[type(Operation), int]):
+        freq_int: dict[type(Operation), int] = {}
+        freq_i1: dict[type(Operation), int] = {}
+        for op in func.body.block.ops:
+            ty = type(op)
+            if ty in full_int_ops:
+                freq_int[ty] = freq_int.get(ty, 0) + 1
+            if ty in full_i1_ops:
+                freq_i1[ty] = freq_i1.get(ty, 0) + 1
+        return freq_int, freq_i1

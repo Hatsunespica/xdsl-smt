@@ -556,6 +556,7 @@ def synthesize_transfer_function(
     ith_iter: int,
     func: FuncOp,
     context: SynthesizerContext,
+    context_weighted: SynthesizerContext,
     random: Random,
     solution_set: SolutionSet,
     logger: logging.Logger,
@@ -571,10 +572,10 @@ def synthesize_transfer_function(
     mcmc_samplers: list[MCMCSampler] = []
     func_name = func.sym_name.data
 
-    for _ in range(num_programs):
+    for i in range(num_programs):
         sampler = MCMCSampler(
             func,
-            context,
+            context if i * 2 < num_programs else context_weighted,
             program_length,
             random_init_program=True,
             init_cost=INIT_COST,
@@ -616,7 +617,7 @@ def synthesize_transfer_function(
         for i in range(num_programs):
             _: float = mcmc_samplers[i].sample_next()
             proposed_solution = mcmc_samplers[i].get_proposed()
-
+            # print(proposed_solution)
             assert proposed_solution is not None
             cpp_code = print_to_cpp(eliminate_dead_code(proposed_solution))
             cpp_codes.append(cpp_code)
@@ -716,9 +717,6 @@ def synthesize_transfer_function(
     new_solution_set: SolutionSet = solution_set.construct_new_solution_set(candidates)
 
     if solution_size == 0:
-        logger.info(
-            f"Size of the sound set after removal: {new_solution_set.solutions_size}"
-        )
         print_set_of_funcs_to_file(
             [eliminate_dead_code(f) for f in new_solution_set.solutions],
             ith_iter,
@@ -798,6 +796,11 @@ def main() -> None:
     context.use_full_int_ops()
     context.use_basic_i1_ops()
 
+    context_weighted = SynthesizerContext(random)
+    context_weighted.set_cmp_flags([0, 6, 7])
+    context_weighted.use_full_int_ops()
+    context_weighted.use_basic_i1_ops()
+
     domain_constraint_func = ""
     instance_constraint_func = ""
     op_constraint_func = get_default_op_constraint()
@@ -857,7 +860,7 @@ def main() -> None:
     )
     if solution_size == 0:
         solution_set: SolutionSet = UnsizedSolutionSet(
-            [], print_to_cpp, solution_eval_func, logger
+            [], print_to_cpp, solution_eval_func, logger, eliminate_dead_code
         )
     else:
         solution_set: SolutionSet = SizedSolutionSet(
@@ -879,18 +882,32 @@ def main() -> None:
         helper_funcs,
     )
 
+    current_prog_len = 0
+    current_total_rounds = 0
     for ith_iter in range(num_iters):
+        # gradually increase the program length
+        current_prog_len += (program_length - current_prog_len) // (
+            num_iters - ith_iter
+        )
+        current_total_rounds += (total_rounds - current_total_rounds) // (
+            num_iters - ith_iter
+        )
+        if solution_size == 0:
+            assert isinstance(solution_set, UnsizedSolutionSet)
+            solution_set.learn_weights(context_weighted)
+
         solution_set = synthesize_transfer_function(
             ith_iter,
             transfer_func,
             context,
+            context_weighted,
             random,
             solution_set,
             logger,
             eval_func,
             num_programs,
-            program_length,
-            total_rounds,
+            current_prog_len,
+            current_total_rounds,
             solution_size,
             inv_temp,
         )

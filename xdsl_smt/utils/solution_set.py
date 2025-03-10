@@ -3,10 +3,12 @@ from typing import Callable
 
 from xdsl.dialects.builtin import StringAttr
 from xdsl.dialects.func import FuncOp, CallOp, ReturnOp
-
+from xdsl.ir import Operation
 from xdsl_smt.utils.compare_result import CompareResult
 from abc import ABC, abstractmethod
 import logging
+
+from xdsl_smt.utils.synthesizer_context import SynthesizerContext
 
 
 def rename_functions(lst: list[FuncOp], prefix: str) -> list[str]:
@@ -167,7 +169,7 @@ class SizedSolutionSet(SolutionSet):
             num_exacts = 0
             cost = 2
             result = self.eval_func(
-                candidates_names, candidate_srcs, ref_func_names, ref_func_srcs
+                solution_names, candidate_srcs, ref_func_names, ref_func_srcs
             )
             for ith_result in range(len(result)):
                 if result[ith_result].unsolved_exacts > num_exacts:
@@ -203,56 +205,120 @@ class UnsizedSolutionSet(SolutionSet):
             [list[str], list[str], list[str], list[str]], list[CompareResult]
         ],
         logger: logging.Logger,
+        eliminate_dead_code: Callable[[FuncOp], FuncOp],
     ):
         super().__init__(initial_solutions, lower_to_cpp, eval_func)
         self.logger = logger
+        self.eliminate_dead_code = eliminate_dead_code
 
     def construct_new_solution_set(self, new_candidates: list[FuncOp]) -> SolutionSet:
         cur_most_e: float = 0
-        candidate_names = rename_functions(new_candidates, "candidates_")
-        self.logger.info(f"Size of candidates: {len(new_candidates)}")
-        for i, func in enumerate(new_candidates):
-            cpp_code = self.lower_to_cpp(func)
+        candidates = self.solutions + new_candidates
+        candidates_names = rename_functions(candidates, "part_solution_")
+        candidate_srcs: list[str] = [
+            self.lower_to_cpp(self.eliminate_dead_code(ele)) for ele in candidates
+        ]
 
-            cmp_results: list[CompareResult] = self.eval_func(
-                [candidate_names[i]],
-                [cpp_code],
+        self.logger.info(f"Size of new candidates: {len(new_candidates)}")
+        self.logger.info(f"Size of solutions: {len(candidates)}")
+        # for i, func in enumerate(new_candidates):
+        #     cpp_code = self.lower_to_cpp(self.eliminate_dead_code(func))
+        #
+        #     cmp_results: list[CompareResult] = self.eval_func(
+        #         [candidate_names[i]],
+        #         [cpp_code],
+        #         self.solution_names,
+        #         self.solution_srcs,
+        #     )
+        #     if cmp_results[0].exacts > cur_most_e:
+        #         self.logger.info(
+        #             f"Add a new transformer {i}. Exact: {cmp_results[0].get_exact_prop() * 100:.2f}%, Precision: {cmp_results[0].get_bitwise_precision() * 100:.2f}%"
+        #         )
+        #         self.logger.debug(cmp_results[0])
+        #         cur_most_e = cmp_results[0].exacts
+        #         self.solutions.append(func)
+        #         self.solution_names.append(candidate_names[i])
+        #         self.solution_srcs.append(cpp_code)
+        #         self.solutions_size += 1
+        #
+        # self.logger.info(f"Size of the sound set: {self.solutions_size}")
+
+        # if cur_most_e == 0:
+        #     self.logger.info(f"No improvement in the last one iteration!")
+
+        # Remove redundant transformers
+        # i = 0
+        # while i < self.solutions_size:
+        #     cmp_results: list[CompareResult] = self.eval_func(
+        #         [self.solution_names[i]],
+        #         [self.solution_srcs[i]],
+        #         self.solution_names[:i] + self.solution_names[i + 1 :],
+        #         self.solution_srcs[:i] + self.solution_srcs[i + 1 :],
+        #     )
+        #     if cmp_results[0].unsolved_exacts == 0:
+        #         del self.solutions[i]
+        #         del self.solution_names[i]
+        #         del self.solution_srcs[i]
+        #         self.solutions_size -= 1
+        #     else:
+        #         i += 1
+
+        self.solutions: list[FuncOp] = []
+        self.solution_names: list[str] = []
+        self.solution_srcs: list[str] = []
+        self.logger.info("Reset solution set...")
+        while len(candidates) > 0:
+            index = 0
+            most_unsol_e = 0
+            result = self.eval_func(
+                candidates_names,
+                candidate_srcs,
                 self.solution_names,
                 self.solution_srcs,
             )
-            if cmp_results[0].exacts > cur_most_e:
-                self.logger.info(
-                    f"Add a new transformer {i}. Exact: {cmp_results[0].get_exact_prop() * 100:.2f}%, Precision: {cmp_results[0].get_bitwise_precision() * 100:.2f}%"
-                )
-                self.logger.debug(cmp_results[0])
-                cur_most_e = cmp_results[0].exacts
-                self.solutions.append(func)
-                self.solution_names.append(candidate_names[i])
-                self.solution_srcs.append(cpp_code)
-                self.solutions_size += 1
+            for ith_result in range(len(result)):
+                if result[ith_result].unsolved_exacts > most_unsol_e:
+                    index = ith_result
+                    most_unsol_e = result[ith_result].unsolved_exacts
+            if most_unsol_e == 0:
+                break
+            self.logger.info(
+                f"Add a transformer. Exact: {result[index].get_exact_prop() * 100:.2f}%, Precision: {result[index].get_bitwise_precision() * 100:.2f}%"
+            )
+            self.solutions.append(candidates.pop(index))
+            self.solution_names.append(candidates_names.pop(index))
+            self.solution_srcs.append(candidate_srcs.pop(index))
 
-        self.logger.info(f"Size of the sound set: {self.solutions_size}")
+        self.logger.info(f"Size of solutions after reseting: {len(self.solutions)}")
 
-        if cur_most_e == 0:
-            self.logger.info(f"No improvement in the last one iteration!")
+        # return UnsizedSolutionSet(
+        #     self.solutions.copy(), self.lower_to_cpp, self.eval_func, self.logger, self.eliminate_dead_code
+        # )
+        return self
 
-        # Remove redundant transformers
-        i = 0
-        while i < self.solutions_size:
+    def learn_weights(self, context_weighted):
+        freq_i1: dict[type(Operation), int] = {}
+        freq_int: dict[type(Operation), int] = {}
+
+        def add_another_dict(dict1: dict, dict2: dict):
+            for key, value in dict2.items():
+                dict1[key] = dict1.get(key, 0) + value
+
+        for i in range(len(self.solutions)):
             cmp_results: list[CompareResult] = self.eval_func(
                 [self.solution_names[i]],
                 [self.solution_srcs[i]],
                 self.solution_names[:i] + self.solution_names[i + 1 :],
                 self.solution_srcs[:i] + self.solution_srcs[i + 1 :],
             )
-            if cmp_results[0].unsolved_exacts == 0:
-                del self.solutions[i]
-                del self.solution_names[i]
-                del self.solution_srcs[i]
-                self.solutions_size -= 1
-            else:
-                i += 1
+            self.logger.info(f"func {i}: improve {cmp_results[0].exacts - cmp_results[0].unsolved_exacts} -> {cmp_results[0].exacts}")
+            if cmp_results[0].get_unsolved_exact_prop() > 0.1:
+                d_int, d_i1 = SynthesizerContext.count_op_frequency(self.eliminate_dead_code(self.solutions[i]))
+                add_another_dict(freq_int, d_int)
+                add_another_dict(freq_i1, d_i1)
 
-        return UnsizedSolutionSet(
-            self.solutions.copy(), self.lower_to_cpp, self.eval_func, self.logger
-        )
+        context_weighted.update_i1_weights(freq_i1)
+        context_weighted.update_int_weights(freq_int)
+
+        for key, value in context_weighted.int_weights.items():
+            self.logger.info(f"{key}: {value}")
