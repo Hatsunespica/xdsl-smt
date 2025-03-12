@@ -91,7 +91,7 @@ const Results eval(const std::vector<XferAddr> &xferFns,
         r.incResult(Result(sound, dis, exact, solved), i);
       }
 
-      r.incCases(solved);
+      r.incCases(solved, cur_kb.distance(best_abstract_res));
     }
   }
 
