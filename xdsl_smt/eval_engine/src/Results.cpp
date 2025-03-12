@@ -60,15 +60,20 @@ public:
     printMember("sound", [](const Result &x) { return x.sound; });
     printMember("precise", [](const Result &x) { return x.precise; });
     printMember("exact", [](const Result &x) { return x.exact; });
-    printMember("num_cases", [this](const Result &_) { return cases; });
+    printMember("num_cases", [this](const Result &x) {
+      (void)x;
+      return cases;
+    });
     printMember("unsolved_sound",
                 [](const Result &x) { return x.unsolvedSound; });
     printMember("unsolved_precise",
                 [](const Result &x) { return x.unsolvedPrecise; });
     printMember("unsolved_exact",
                 [](const Result &x) { return x.unsolvedExact; });
-    printMember("unsolved_num_cases",
-                [this](const Result &_) { return unsolvedCases; });
+    printMember("unsolved_num_cases", [this](const Result &x) {
+      (void)x;
+      return unsolvedCases;
+    });
   }
 
   void incResult(const Result &newR, unsigned int i) { r[i] += newR; }

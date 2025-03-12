@@ -33,7 +33,7 @@ include_directories(${CLANG_INCLUDE_DIRS})
 llvm_map_components_to_libnames(LLVM_LIBS core)
 set(CLANG_LIBS clang-cpp)
 
-add_executable(eval_engine src/jit.cpp)
+add_executable(eval_engine src/main.cpp)
 
 target_link_options(eval_engine PRIVATE
     -Wl,--copy-dt-needed-entries

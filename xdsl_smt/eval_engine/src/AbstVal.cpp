@@ -8,21 +8,21 @@
 #include <string>
 #include <vector>
 
-#include "APInt.h"
+#include "APInt.cpp"
 
 template <typename Domain, unsigned char N> class AbstVal {
 protected:
-  explicit AbstVal(const std::vector<APInt> &v) : v(v) {}
+  explicit AbstVal(const std::vector<A::APInt> &x) : v(x) {}
 
 public:
-  std::vector<APInt> v;
+  std::vector<A::APInt> v;
 
   // static ctors
   static const Domain bottom() { return Domain::bottom(); }
   static const Domain top() { return Domain::top(); }
   static const std::vector<Domain> enumVals() { return Domain::enumVals(); }
 
-  static const Domain fromConcrete(const APInt &x) {
+  static const Domain fromConcrete(const A::APInt &x) {
     return Domain::fromConcrete(x);
   }
 
@@ -62,7 +62,7 @@ public:
   bool isConstant() const {
     return static_cast<const Domain *>(this)->isConstant();
   };
-  const APInt getConstant() const {
+  const A::APInt getConstant() const {
     return static_cast<const Domain *>(this)->getConstant();
   };
   const Domain meet(const Domain &rhs) const {
@@ -81,12 +81,12 @@ public:
 
 template <unsigned char N> class KnownBits : public AbstVal<KnownBits<N>, N> {
 private:
-  APInt zero() const { return this->v[0]; }
-  APInt one() const { return this->v[1]; }
+  A::APInt zero() const { return this->v[0]; }
+  A::APInt one() const { return this->v[1]; }
   bool hasConflict() const { return zero().intersects(one()); }
 
 public:
-  explicit KnownBits(const std::vector<APInt> &v)
+  explicit KnownBits(const std::vector<A::APInt> &v)
       : AbstVal<KnownBits<N>, N>(v) {}
 
   const std::string display() const {
@@ -109,7 +109,7 @@ public:
   }
 
   bool isConstant() const { return zero().popcount() + one().popcount() == N; }
-  const APInt getConstant() const { return zero(); }
+  const A::APInt getConstant() const { return zero(); }
 
   const KnownBits meet(const KnownBits &rhs) const {
     return KnownBits({zero() | rhs.zero(), one() | rhs.one()});
@@ -121,10 +121,12 @@ public:
 
   const std::vector<unsigned int> toConcrete() const {
     std::vector<unsigned int> ret;
-    const unsigned int z = zero().getZExtValue();
-    const unsigned int o = one().getZExtValue();
-    const unsigned int min = APInt::getZero(N).getZExtValue();
-    const unsigned int max = APInt::getMaxValue(N).getZExtValue();
+    const unsigned int z = static_cast<unsigned int>(zero().getZExtValue());
+    const unsigned int o = static_cast<unsigned int>(one().getZExtValue());
+    const unsigned int min =
+        static_cast<unsigned int>(A::APInt::getZero(N).getZExtValue());
+    const unsigned int max =
+        static_cast<unsigned int>(A::APInt::getMaxValue(N).getZExtValue());
 
     for (unsigned int i = min; i <= max; ++i)
       if ((z & i) == 0 && (o & ~i) == 0)
@@ -133,24 +135,25 @@ public:
     return ret;
   }
 
-  static KnownBits fromConcrete(const APInt &x) {
+  static KnownBits fromConcrete(const A::APInt &x) {
     return KnownBits({~x, x});
   }
 
   static KnownBits bottom() {
-    APInt max = APInt::getMaxValue(N);
+    A::APInt max = A::APInt::getMaxValue(N);
     return KnownBits({max, max});
   }
 
   static KnownBits top() {
-    APInt min = APInt::getMinValue(N);
+    A::APInt min = A::APInt::getMinValue(N);
     return KnownBits({min, min});
   }
 
   static std::vector<KnownBits> const enumVals() {
-    const unsigned int max = APInt::getMaxValue(N).getZExtValue();
-    APInt zero = APInt(N, 0);
-    APInt one = APInt(N, 0);
+    const unsigned int max =
+        static_cast<unsigned int>(A::APInt::getMaxValue(N).getZExtValue());
+    A::APInt zero = A::APInt(N, 0);
+    A::APInt one = A::APInt(N, 0);
     std::vector<KnownBits> ret;
     ret.reserve(max * max);
 
@@ -173,11 +176,11 @@ public:
 template <unsigned char N>
 class ConstantRange : public AbstVal<ConstantRange<N>, N> {
 private:
-  APInt lower() const { return this->v[0]; }
-  APInt upper() const { return this->v[1]; }
+  A::APInt lower() const { return this->v[0]; }
+  A::APInt upper() const { return this->v[1]; }
 
 public:
-  explicit ConstantRange(const std::vector<APInt> &v)
+  explicit ConstantRange(const std::vector<A::APInt> &v)
       : AbstVal<ConstantRange<N>, N>(v) {}
 
   const std::string display() const {
@@ -196,19 +199,19 @@ public:
   }
 
   bool isConstant() const { return lower() == upper(); }
-  const APInt getConstant() const { return lower(); }
+  const A::APInt getConstant() const { return lower(); }
 
   const ConstantRange meet(const ConstantRange &rhs) const {
-    APInt l = rhs.lower().ugt(lower()) ? rhs.lower() : lower();
-    APInt u = rhs.upper().ult(upper()) ? rhs.upper() : upper();
+    A::APInt l = rhs.lower().ugt(lower()) ? rhs.lower() : lower();
+    A::APInt u = rhs.upper().ult(upper()) ? rhs.upper() : upper();
     if (l.ugt(u))
       return bottom();
     return ConstantRange({std::move(l), std::move(u)});
   }
 
   const ConstantRange join(const ConstantRange &rhs) const {
-    const APInt l = rhs.lower().ult(lower()) ? rhs.lower() : lower();
-    const APInt u = rhs.upper().ugt(upper()) ? rhs.upper() : upper();
+    const A::APInt l = rhs.lower().ult(lower()) ? rhs.lower() : lower();
+    const A::APInt u = rhs.upper().ugt(upper()) ? rhs.upper() : upper();
     return ConstantRange({std::move(l), std::move(u)});
   }
 
@@ -224,27 +227,29 @@ public:
     return ret;
   }
 
-  static ConstantRange fromConcrete(const APInt &x) {
+  static ConstantRange fromConcrete(const A::APInt &x) {
     return ConstantRange({x, x});
   }
 
   static ConstantRange bottom() {
-    APInt min = APInt::getMinValue(N);
-    APInt max = APInt::getMaxValue(N);
+    A::APInt min = A::APInt::getMinValue(N);
+    A::APInt max = A::APInt::getMaxValue(N);
     return ConstantRange({max, min});
   }
 
   static ConstantRange top() {
-    APInt min = APInt::getMinValue(N);
-    APInt max = APInt::getMaxValue(N);
+    A::APInt min = A::APInt::getMinValue(N);
+    A::APInt max = A::APInt::getMaxValue(N);
     return ConstantRange({min, max});
   }
 
   static std::vector<ConstantRange> const enumVals() {
-    const unsigned int min = APInt::getMinValue(N).getZExtValue();
-    const unsigned int max = APInt::getMaxValue(N).getZExtValue();
-    APInt l = APInt(N, 0);
-    APInt u = APInt(N, 0);
+    const unsigned int min =
+        static_cast<unsigned int>(A::APInt::getMinValue(N).getZExtValue());
+    const unsigned int max =
+        static_cast<unsigned int>(A::APInt::getMaxValue(N).getZExtValue());
+    A::APInt l = A::APInt(N, 0);
+    A::APInt u = A::APInt(N, 0);
     std::vector<ConstantRange> ret = {top()};
 
     for (unsigned int i = min; i <= max; ++i) {
