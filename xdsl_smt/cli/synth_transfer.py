@@ -595,7 +595,7 @@ def synthesize_transfer_function(
             solution_set.solution_srcs,
         )
     else:
-        cmp_results: list[CompareResult] = solution_set.eval_func(
+        cmp_results: list[CompareResult] = eval_func(
             [func_name] * num_programs,
             cpp_codes,
         )
@@ -890,8 +890,8 @@ def main() -> None:
         helper_funcs,
     )
 
-    current_prog_len = 0
-    current_total_rounds = 0
+    current_prog_len = 10
+    current_total_rounds = 20
     for ith_iter in range(num_iters):
         # gradually increase the program length
         current_prog_len += (program_length - current_prog_len) // (
