@@ -28,7 +28,7 @@ class CompareResult:
     unsolved_edit_dis: int
     """The sum of edit distance between the outputs of f /\ F and the f_best on unsolved inputs"""
 
-    cost: float | None = None
+    # cost: float | None = None
 
     def __init__(
         self,
@@ -57,13 +57,13 @@ class CompareResult:
     def __str__(self):
         return f"all: {self.all_cases}\ts: {self.sounds}\te: {self.exacts}\tp: {self.edit_dis}\tunsolved:{self.unsolved_cases}\tus: {self.unsolved_sounds}\tue: {self.unsolved_exacts}\tup: {self.unsolved_edit_dis}\tbasep: {self.base_edit_dis}"
 
-    def get_cost(self) -> float:
-        if self.cost is None:
-            alpha = 8
-            sound = self.get_sound_prop()
-            dis = self.get_unsolved_edit_dis_avg() / (self.bitwidth * 2)
-            self.cost = (1 - sound + alpha * dis) / (1 + alpha)
-        return self.cost
+    # def get_cost(self) -> float:
+    #     if self.cost is None:
+    #         alpha = 8
+    #         sound = self.get_sound_prop()
+    #         dis = self.get_unsolved_edit_dis_avg() / (self.bitwidth * 2)
+    #         self.cost = (1 - sound + alpha * dis) / (1 + alpha)
+    #     return self.cost
 
     def get_sound_prop(self) -> float:
         return self.sounds / self.all_cases
@@ -93,4 +93,6 @@ class CompareResult:
         return 1 - (self.get_edit_dis_avg() / (self.bitwidth * 2))
 
     def get_prec_improve_avg(self):
-        return (self.base_edit_dis - self.edit_dis) / (self.bitwidth * 2 * self.all_cases)
+        return (self.base_edit_dis - self.edit_dis) / (
+            self.bitwidth * 2 * self.all_cases
+        )

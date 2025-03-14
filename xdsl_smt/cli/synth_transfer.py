@@ -71,7 +71,15 @@ from xdsl_smt.semantics.transfer_semantics import (
 from xdsl_smt.semantics.comb_semantics import comb_semantics
 import sys as sys
 
-from ..utils.cost_model import decide
+from ..utils.cost_model import (
+    decide,
+    sound_and_precise_cost,
+    precise_cost,
+    abduction_cost,
+)
+from ..utils.func_with_cpp import FuncWithCond
+
+# from ..utils.func_with_cpp import FuncWithCpp, to_names, to_srcs, to_cond_names, to_cond_srcs, to_mlirs
 from ..utils.log_utils import (
     setup_loggers,
     print_set_of_funcs_to_file,
@@ -492,6 +500,53 @@ def is_ref_function(func: FuncOp) -> bool:
     return func.sym_name.data.startswith("ref_")
 
 
+def eval_transfer_func_helper(
+    # transfer_funcs: list[FuncOp],
+    # transfer_conds: list[FuncOp],
+    # base_funcs: list[FuncOp],
+    # base_conds: list[FuncOp],
+    transfer: list[FuncWithCond],
+    base: list[FuncWithCond],
+    concrete_op_expr: str,
+    domain: eval_engine.AbstractDomain,
+    bitwidth: int,
+    helper_funcs: list[str] | None = None,
+) -> list[CompareResult]:
+    transfer_func_names = [fc.func.sym_name.data for fc in transfer]
+    transfer_func_srcs = [print_to_cpp(eliminate_dead_code(fc.func)) for fc in transfer]
+    transfer_cond_names = [
+        None if fc.cond is None else fc.cond.sym_name.data for fc in transfer
+    ]
+    transfer_cond_srcs = [
+        None if fc.cond is None else print_to_cpp(eliminate_dead_code(fc.cond))
+        for fc in transfer
+    ]
+    base_func_names = [fc.func.sym_name.data for fc in base]
+    base_func_srcs = [print_to_cpp(eliminate_dead_code(fc.func)) for fc in base]
+    base_cond_names = [
+        None if fc.cond is None else fc.cond.sym_name.data for fc in base
+    ]
+    base_cond_srcs = [
+        None if fc.cond is None else print_to_cpp(eliminate_dead_code(fc.cond))
+        for fc in base
+    ]
+
+    return eval_engine.eval_transfer_func(
+        transfer_func_names,
+        transfer_func_srcs,
+        transfer_cond_names,
+        transfer_cond_srcs,
+        concrete_op_expr,
+        base_func_names,
+        base_func_srcs,
+        base_cond_names,
+        base_cond_srcs,
+        domain,
+        bitwidth,
+        helper_funcs,
+    )
+
+
 """
 This function returns a simplified eval_func receiving transfer functions and base functions
 """
@@ -502,16 +557,12 @@ def solution_set_eval_func(
     domain: eval_engine.AbstractDomain,
     bitwidth: int,
     helper_funcs: list[str] | None = None,
-) -> Callable[[list[str], list[str], list[str], list[str]], list[CompareResult]]:
-    return lambda transfer_names=list[str], transfer_srcs=list[
-        str
-    ], base_transfer_names=list[str], base_transfer_srcs=list[str]: (
-        eval_engine.eval_transfer_func(
-            transfer_names,
-            transfer_srcs,
+) -> Callable[[list[FuncWithCond], list[FuncWithCond],], list[CompareResult],]:
+    return lambda transfer=list[FuncWithCond], base=list[FuncWithCond]: (
+        eval_transfer_func_helper(
+            transfer,
+            base,
             concrete_op_expr,
-            base_transfer_names,
-            base_transfer_srcs,
             domain,
             bitwidth,
             helper_funcs,
@@ -526,24 +577,39 @@ This function returns a simplified eval_func only receiving transfer names and s
 
 def main_eval_func(
     concrete_op_expr: str,
-    base_transfer_names: list[str],
-    base_transfer_srcs: list[str],
+    base_transfers: list[FuncWithCond],
     domain: eval_engine.AbstractDomain,
     bitwidth: int,
     helper_funcs: list[str] | None = None,
-) -> Callable[[list[str], list[str]], list[CompareResult]]:
-    return lambda transfer_names=list[str], transfer_srcs=list[str]: (
-        eval_engine.eval_transfer_func(
-            transfer_names,
-            transfer_srcs,
+) -> Callable[[list[FuncOp]], list[CompareResult]]:
+    return lambda transfers=list[FuncWithCond]: (
+        eval_transfer_func_helper(
+            transfers,
+            base_transfers,
             concrete_op_expr,
-            base_transfer_names,
-            base_transfer_srcs,
             domain,
             bitwidth,
             helper_funcs,
         )
     )
+
+
+def build_eval_list(
+    mcmc_funcs: list[FuncOp],
+    sp: range,
+    p: range,
+    c: range,
+    prec_func_after_distribute: list[FuncOp],
+) -> list[FuncWithCond]:
+    lst = []
+    for i in sp:
+        lst.append(FuncWithCond(mcmc_funcs[i]))
+    for i in p:
+        lst.append(FuncWithCond(mcmc_funcs[i]))
+    for i in c:
+        lst.append(FuncWithCond(prec_func_after_distribute[i - c.start], mcmc_funcs[i]))
+
+    return lst
 
 
 """
@@ -555,55 +621,109 @@ def synthesize_transfer_function(
     # Necessary items
     ith_iter: int,
     func: FuncOp,
-    context: SynthesizerContext,
+    context_regular: SynthesizerContext,
     context_weighted: SynthesizerContext,
+    context_cond: SynthesizerContext,
     random: Random,
     solution_set: SolutionSet,
     logger: logging.Logger,
     # Evalate transfer functions
-    eval_func: Callable[[list[str], list[str]], list[CompareResult]],
+    eval_func: Callable[[list[FuncOp]], list[CompareResult]],
     # Global arguments
     num_programs: int,
     program_length: int,
+    cond_length: int,
     total_rounds: int,
     solution_size: int,
     inv_temp: int,
 ) -> SolutionSet:
     mcmc_samplers: list[MCMCSampler] = []
-    func_name = func.sym_name.data
+
+    if solution_size == 0:
+        # c, p, sp
+        proportion = [1, 1, 1]
+    else:
+        proportion = [0, 1, 0]
+
+    c_size, sp_size, p_size = [
+        round(num_programs * r / sum(proportion)) for r in proportion
+    ]
+    p_size = num_programs - sp_size - c_size
+
+    if len(solution_set.precise_set) == 0:
+        c_size = 0
+
+    sp_range = range(0, sp_size)
+    p_range = range(sp_size, sp_size + p_size)
+    c_range = range(sp_size + p_size, sp_size + p_size + c_size)
+
+    prec_set_after_distribute = []
+
+    if c_size > 0:
+        # Distribute the precise funcs into c_range
+        prec_set_size = len(solution_set.precise_set)
+        base_count = c_size // prec_set_size
+        remainder = c_size % prec_set_size
+        for i, item in enumerate(solution_set.precise_set):
+            prec_set_after_distribute.extend(
+                [item] * (base_count + (1 if i < remainder else 0))
+            )
+
+    num_programs = sp_size + p_size + c_size
+
+    print(sp_range, p_range, c_range, num_programs)
 
     for i in range(num_programs):
-        sampler = MCMCSampler(
-            func,
-            context if i * 2 < num_programs else context_weighted,
-            program_length,
-            random_init_program=True,
-            init_cost=INIT_COST,
-        )
+        if i in sp_range:
+            sampler = MCMCSampler(
+                func,
+                context_regular
+                if i < (sp_range.start + sp_range.stop) // 2
+                else context_weighted,
+                sound_and_precise_cost,
+                program_length,
+                random_init_program=True,
+            )
+        elif i in p_range:
+            sampler = MCMCSampler(
+                func,
+                context_regular
+                if i < (p_range.start + p_range.stop) // 2
+                else context_weighted,
+                precise_cost,
+                program_length,
+                random_init_program=True,
+            )
+        else:
+            sampler = MCMCSampler(
+                func,
+                context_cond,
+                abduction_cost,
+                cond_length,
+                random_init_program=True,
+                is_cond=True,
+            )
+
         mcmc_samplers.append(sampler)
+
     # Get the cost of initial programs
-    cpp_codes: list[str] = []
+    transfers: list[FuncOp] = []
     for i in range(num_programs):
-        func_to_eval = mcmc_samplers[i].get_current().clone()
-        cpp_code = print_to_cpp(eliminate_dead_code(func_to_eval))
-        cpp_codes.append(cpp_code)
+        transfers.append(mcmc_samplers[i].get_current().clone())
+        # print(transfers[i])
+
     if solution_size == 0:
-        cmp_results: list[CompareResult] = solution_set.eval_func(
-            [func_name] * num_programs,
-            cpp_codes,
-            solution_set.solution_names,
-            solution_set.solution_srcs,
+        func_with_cond_lst = build_eval_list(
+            transfers, sp_range, p_range, c_range, prec_set_after_distribute
         )
+        cmp_results: list[CompareResult] = solution_set.eval_improve(func_with_cond_lst)
     else:
-        cmp_results: list[CompareResult] = eval_func(
-            [func_name] * num_programs,
-            cpp_codes,
-        )
+        cmp_results: list[CompareResult] = eval_func(transfers)
     for i in range(num_programs):
         mcmc_samplers[i].current_cmp = cmp_results[i]
 
     cost_data: list[list[float]] = [
-        [cmp_results[i].get_cost()] for i in range(num_programs)
+        [mcmc_samplers[i].compute_current_cost()] for i in range(num_programs)
     ]
     """
     These 3 lists store "good" transformers during the search
@@ -620,58 +740,54 @@ def synthesize_transfer_function(
     logger.info(
         f"Iter {ith_iter}: Start {num_programs} MCMC. Each one is run for {total_rounds} steps..."
     )
+
     for rnd in range(total_rounds):
-        cpp_codes: list[str] = []
+        transfers: list[FuncOp] = []
         for i in range(num_programs):
             _: float = mcmc_samplers[i].sample_next()
             proposed_solution = mcmc_samplers[i].get_proposed()
             # print(proposed_solution)
             assert proposed_solution is not None
-            cpp_code = print_to_cpp(eliminate_dead_code(proposed_solution))
-            cpp_codes.append(cpp_code)
+            transfers.append(proposed_solution)
 
         start = time.time()
         if solution_size == 0:
-            cmp_results: list[CompareResult] = solution_set.eval_func(
-                [func_name] * num_programs,
-                cpp_codes,
-                solution_set.solution_names,
-                solution_set.solution_srcs,
+            func_with_cond_lst = build_eval_list(
+                transfers, sp_range, p_range, c_range, prec_set_after_distribute
+            )
+            cmp_results: list[CompareResult] = solution_set.eval_improve(
+                func_with_cond_lst
             )
         else:
-            cmp_results: list[CompareResult] = eval_func(
-                [func_name] * num_programs,
-                cpp_codes,
-            )
+            cmp_results: list[CompareResult] = eval_func(transfers)
         end = time.time()
         used_time = end - start
 
         for i in range(num_programs):
-            proposed_cost = cmp_results[i].get_cost()
-            current_cost = mcmc_samplers[i].current_cmp.get_cost()
+            spl_i = mcmc_samplers[i]
+            res_i = cmp_results[i]
+            proposed_cost = spl_i.compute_cost(res_i)
+            current_cost = spl_i.compute_current_cost()
             p = random.random()
             decision = decide(p, inv_temp, current_cost, proposed_cost)
             if decision:
-                mcmc_samplers[i].accept_proposed(cmp_results[i])
-                assert mcmc_samplers[i].get_proposed() is None
-                tmp_tuple = (mcmc_samplers[i].current, cmp_results[i], rnd)
+                spl_i.accept_proposed(res_i)
+                assert spl_i.get_proposed() is None
+                tmp_tuple = (spl_i.current, res_i, rnd)
                 need_print = False
                 # Update sound_most_exact_tfs
                 if (
-                    cmp_results[i].is_sound()
-                    and cmp_results[i].exacts > sound_most_exact_tfs[i][1].exacts
+                    res_i.is_sound()
+                    and res_i.exacts > sound_most_exact_tfs[i][1].exacts
                 ):
                     sound_most_exact_tfs[i] = tmp_tuple
                     need_print = True
                 # Update most_exact_tfs
-                if (
-                    cmp_results[i].unsolved_exacts
-                    > most_exact_tfs[i][1].unsolved_exacts
-                ):
+                if res_i.unsolved_exacts > most_exact_tfs[i][1].unsolved_exacts:
                     most_exact_tfs[i] = tmp_tuple
                     need_print = True
                 # Update lowest_cost_tfs
-                if cmp_results[i].get_cost() < lowest_cost_tfs[i][1].get_cost():
+                if proposed_cost < spl_i.compute_cost(lowest_cost_tfs[i][1]):
                     lowest_cost_tfs[i] = tmp_tuple
                     need_print = True
 
@@ -682,14 +798,15 @@ def synthesize_transfer_function(
                     #     mcmc_samplers[i].current_cmp, eliminate_dead_code(mcmc_samplers[i].current.func), iter, rnd, i, OUTPUTS_FOLDER
                     # )
             else:
-                mcmc_samplers[i].reject_proposed()
+                spl_i.reject_proposed()
                 pass
         for i in range(num_programs):
             res = mcmc_samplers[i].current_cmp
+            res_cost = mcmc_samplers[i].compute_current_cost()
             logger.debug(
-                f"{ith_iter}_{rnd}_{i}\t{res.get_sound_prop() * 100:.2f}%\t{res.get_unsolved_exact_prop() * 100:.2f}%\t{res.get_unsolved_edit_dis_avg():.3f}\t{res.get_cost():.3f}"
+                f"{ith_iter}_{rnd}_{i}\t{res.get_sound_prop() * 100:.2f}%\t{res.get_unsolved_exact_prop() * 100:.2f}%\t{res.get_unsolved_edit_dis_avg():.3f}\t{res_cost:.3f}"
             )
-            cost_data[i].append(res.get_cost())
+            cost_data[i].append(res_cost)
 
         logger.debug(f"Used Time: {used_time:.2f}")
         # Print the current best result every K rounds
@@ -706,27 +823,50 @@ def synthesize_transfer_function(
             for i in range(num_programs):
                 logger.debug(f"{i}_{lowest_cost_tfs[i][2]}\t{lowest_cost_tfs[i][1]}")
 
-    candidates: list[FuncOp] = []
+    candidates_sp: list[FuncWithCond] = []
+    candidates_p: list[FuncOp] = []
+    candidates_c: list[FuncWithCond] = []
     if solution_size == 0:
-        # Todo: switch to edit distance later (for now add new transformer if it makes more inputs exact)
-        for i in range(num_programs):
-            if (not sound_most_exact_tfs[i][1].is_sound()) or sound_most_exact_tfs[i][
-                1
-            ].unsolved_exacts == 0:
-                continue
-            candidates.append(sound_most_exact_tfs[i][0].func.clone())
+        for i in list(sp_range) + list(p_range):
+            if (
+                sound_most_exact_tfs[i][1].is_sound()
+                and sound_most_exact_tfs[i][1].unsolved_exacts > 0
+            ):
+                candidates_sp.append(
+                    FuncWithCond(sound_most_exact_tfs[i][0].func.clone())
+                )
+            if (
+                not most_exact_tfs[i][1].is_sound()
+                and most_exact_tfs[i][1].unsolved_exacts >= 0
+            ):
+                candidates_p.append(most_exact_tfs[i][0].func.clone())
+        for i in c_range:
+            if (
+                sound_most_exact_tfs[i][1].is_sound()
+                and sound_most_exact_tfs[i][1].unsolved_exacts > 0
+            ):
+                candidates_c.append(
+                    FuncWithCond(
+                        prec_set_after_distribute[i - sp_size - p_size],
+                        sound_most_exact_tfs[i][0].func.clone(),
+                    )
+                )
     else:
         for i in range(num_programs):
             if sound_most_exact_tfs[i][1].is_sound():
-                candidates.append(sound_most_exact_tfs[i][0].func.clone())
+                candidates_sp.append(
+                    FuncWithCond(sound_most_exact_tfs[i][0].func.clone())
+                )
             if lowest_cost_tfs[i][1].is_sound():
-                candidates.append(lowest_cost_tfs[i][0].func.clone())
+                candidates_sp.append(FuncWithCond(lowest_cost_tfs[i][0].func.clone()))
 
-    new_solution_set: SolutionSet = solution_set.construct_new_solution_set(candidates)
+    new_solution_set: SolutionSet = solution_set.construct_new_solution_set(
+        candidates_sp, candidates_p, candidates_c
+    )
 
     if solution_size == 0:
         print_set_of_funcs_to_file(
-            [eliminate_dead_code(f) for f in new_solution_set.solutions],
+            [f.to_str(eliminate_dead_code) for f in new_solution_set.solutions],
             ith_iter,
             OUTPUTS_FOLDER,
         )
@@ -809,6 +949,11 @@ def main() -> None:
     context_weighted.use_full_int_ops()
     context_weighted.use_basic_i1_ops()
 
+    context_cond = SynthesizerContext(random)
+    context_cond.set_cmp_flags([0, 6, 7])
+    context_cond.use_full_int_ops()
+    context_cond.use_full_i1_ops()
+
     domain_constraint_func = ""
     instance_constraint_func = ""
     op_constraint_func = get_default_op_constraint()
@@ -835,9 +980,7 @@ def main() -> None:
 
     # We comment this out because ref functions could be empty
     # assert len(ref_funcs) > 0
-    ref_funcs = [eliminate_dead_code(func) for func in ref_funcs]
-    ref_func_names = [func.sym_name.data for func in ref_funcs]
-    ref_func_cpps = [print_to_cpp(func) for func in ref_funcs]
+    base_transfers = [FuncWithCond(f) for f in ref_funcs]
 
     transfer_func = None
     crt_func = ""
@@ -866,13 +1009,14 @@ def main() -> None:
         bitwidth,
         [instance_constraint_func, domain_constraint_func, op_constraint_func],
     )
+
     if solution_size == 0:
         solution_set: SolutionSet = UnsizedSolutionSet(
             [], print_to_cpp, solution_eval_func, logger, eliminate_dead_code
         )
     else:
         solution_set: SolutionSet = SizedSolutionSet(
-            solution_size, [], print_to_cpp, solution_eval_func
+            solution_size, [], print_to_cpp, eliminate_dead_code, solution_eval_func
         )
 
     helper_funcs = [
@@ -883,39 +1027,40 @@ def main() -> None:
 
     eval_func = main_eval_func(
         crt_func,
-        ref_func_names,
-        ref_func_cpps,
+        base_transfers,
         eval_engine.AbstractDomain.KnownBits,
         bitwidth,
         helper_funcs,
     )
 
-    current_prog_len = 10
-    current_total_rounds = 20
+    # current_prog_len = 10
+    # current_total_rounds = 20
     for ith_iter in range(num_iters):
         # gradually increase the program length
-        current_prog_len += (program_length - current_prog_len) // (
-            num_iters - ith_iter
-        )
-        current_total_rounds += (total_rounds - current_total_rounds) // (
-            num_iters - ith_iter
-        )
+        # current_prog_len += (program_length - current_prog_len) // (
+        #     num_iters - ith_iter
+        # )
+        # current_total_rounds += (total_rounds - current_total_rounds) // (
+        #     num_iters - ith_iter
+        # )
         if solution_size == 0:
             assert isinstance(solution_set, UnsizedSolutionSet)
             solution_set.learn_weights(context_weighted)
-
+        cond_length = 6 # todo: make it a cmd line args
         solution_set = synthesize_transfer_function(
             ith_iter,
             transfer_func,
             context,
             context_weighted,
+            context_cond,
             random,
             solution_set,
             logger,
             eval_func,
             num_programs,
-            current_prog_len,
-            current_total_rounds,
+            program_length,
+            cond_length,
+            total_rounds,
             solution_size,
             inv_temp,
         )
@@ -929,29 +1074,34 @@ def main() -> None:
             exit(0)
         """
 
+    # todo: Xuanyu commented this. Will fix later
     # Eval last solution:
-    if not solution_set.has_solution():
-        print("Found no solutions")
-        exit(0)
-    _, solution_str = solution_set.generate_solution_and_cpp()
-    with open("tmp.cpp", "w") as fout:
-        fout.write(solution_str)
-    cmp_results: list[CompareResult] = eval_engine.eval_transfer_func(
-        ["solution"],
-        [solution_str],
-        crt_func,
-        [],
-        [],
-        eval_engine.AbstractDomain.KnownBits,
-        bitwidth,
-        [
-            instance_constraint_func,
-            domain_constraint_func,
-            op_constraint_func,
-            meet_func,
-        ],
-    )
-    solution_result = cmp_results[0]
-    print(
-        f"last_solution\t{solution_result.get_sound_prop() * 100:.2f}%\t{solution_result.get_exact_prop() * 100:.2f}%\t{solution_result.get_unsolved_edit_dis_avg():.3f}\t{solution_result.get_cost():.3f}"
-    )
+    # if not solution_set.has_solution():
+    #     print("Found no solutions")
+    #     exit(0)
+    # _, solution_str = solution_set.generate_solution_and_cpp()
+    # with open("tmp.cpp", "w") as fout:
+    #     fout.write(solution_str)
+    # cmp_results: list[CompareResult] = eval_engine.eval_transfer_func(
+    #     ["solution"],
+    #     [solution_str],
+    #     crt_func,
+    #     [],
+    #     [],
+    #     eval_engine.AbstractDomain.KnownBits,
+    #     bitwidth,
+    #     [
+    #         instance_constraint_func,
+    #         domain_constraint_func,
+    #         op_constraint_func,
+    #         meet_func,
+    #     ],
+    # )
+    # solution_result = cmp_results[0]
+    # print(
+    #     f"last_solution\t{solution_result.get_sound_prop() * 100:.2f}%\t{solution_result.get_exact_prop() * 100:.2f}%\t{solution_result.get_unsolved_edit_dis_avg():.3f}"
+    # )
+
+
+if __name__ == "__main__":
+    main()
