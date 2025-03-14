@@ -9,7 +9,7 @@ from xdsl_smt.utils.compare_result import CompareResult
 from abc import ABC, abstractmethod
 import logging
 
-from xdsl_smt.utils.func_with_cpp import FuncWithCond
+from xdsl_smt.utils.func_with_cond import FuncWithCond
 from xdsl_smt.utils.synthesizer_context import SynthesizerContext
 
 

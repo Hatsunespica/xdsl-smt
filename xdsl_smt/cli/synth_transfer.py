@@ -77,7 +77,7 @@ from ..utils.cost_model import (
     precise_cost,
     abduction_cost,
 )
-from ..utils.func_with_cpp import FuncWithCond
+from ..utils.func_with_cond import FuncWithCond
 
 # from ..utils.func_with_cpp import FuncWithCpp, to_names, to_srcs, to_cond_names, to_cond_srcs, to_mlirs
 from ..utils.log_utils import (
