@@ -5,6 +5,8 @@ from enum import Enum, auto
 
 from xdsl_smt.utils.compare_result import CompareResult
 
+# from xdsl_smt.utils.func_with_cpp import FuncWithCpp
+
 
 class AbstractDomain(Enum):
     KnownBits = auto()
@@ -18,11 +20,12 @@ llvm_bin_dir: str = ""
 
 
 def get_build_cmd() -> list[str]:
-    has_libclang = (
-        run(["ldconfig", "-p"], stdout=PIPE)
-        .stdout.decode("utf-8")
-        .find("libclang.so.19")
-    )
+    # has_libclang = (
+    #     run(["ldconfig", "-p"], stdout=PIPE)
+    #     .stdout.decode("utf-8")
+    #     .find("libclang.so.19")
+    # )
+    has_libclang = 1
 
     llvm_include_dir = (
         run(
@@ -59,7 +62,7 @@ def get_build_cmd() -> list[str]:
         build_cmd = [
             llvm_bin_dir + "clang++",
             "-std=c++20",
-            "-O1",
+            # "-O1",
             f"-I{llvm_include_dir}",
             f"-I{llvm_bin_dir}../include",
             "-L",
@@ -82,7 +85,7 @@ def get_build_cmd() -> list[str]:
         build_cmd = [
             "clang++",
             "-std=c++20",
-            "-O1",
+            # "-O1",
             f"-I{llvm_include_dir}",
             "../src/main.cpp",
             "-o",
@@ -109,18 +112,28 @@ def make_xfer_header(concrete_op: str) -> str:
     return includes + concrete_op + conc_op_wrapper
 
 
+def make_func_call(x: str) -> str:
+    return f"const std::vector<llvm::APInt> res_v_{x} = {x}" + "(lhs.v, rhs.v);"
+
+
+def make_func_call_cond(x: str) -> str:
+    return f"const bool res_v_{x} = {x}" + "(lhs.v, rhs.v);"
+
+
+def make_res(x: str) -> str:
+    return f"Domain res_{x}(res_v_{x});"
+
+
+def make_res_cond(x: str) -> str:
+    return f"bool res_{x};\nres_{x} = res_v_{x};\n"
+
+
 def make_xfer_wrapper(func_names: list[str], wrapper_name: str) -> str:
     func_sig = (
         "std::vector<Domain> "
         + wrapper_name
         + "_wrapper(const Domain &lhs, const Domain &rhs)"
     )
-
-    def make_func_call(x: str) -> str:
-        return f"const std::vector<llvm::APInt> res_v_{x} = {x}" + "(lhs.v, rhs.v);"
-
-    def make_res(x: str) -> str:
-        return f"Domain res_{x}(res_v_{x});"
 
     func_calls = "\n".join([make_func_call(x) for x in func_names])
     results = "\n".join([make_res(x) for x in func_names])
@@ -130,47 +143,101 @@ def make_xfer_wrapper(func_names: list[str], wrapper_name: str) -> str:
     return func_sig + "{" + f"\n{func_calls}\n{results}\n{return_statment}" + "}"
 
 
+def make_conds_wrapper(cond_names: list[str | None], wrapper_name: str) -> str:
+    func_sig = (
+        "std::vector<bool> "
+        + wrapper_name
+        + "_wrapper(const Domain &lhs, const Domain &rhs)"
+    )
+    func_calls = "\n".join(
+        [make_func_call_cond(x) for x in cond_names if x is not None]
+    )
+    results = "\n".join([make_res_cond(x) for x in cond_names if x is not None])
+    return_elems = ", ".join(
+        [("true" if x is None else f"res_{x}") for x in cond_names]
+    )
+    return_statment = "return {%s};" % return_elems
+
+    return func_sig + "{" + f"\n{func_calls}\n{results}\n{return_statment}" + "}"
+
+
+def rename(
+    srcs: list[str | None], names: list[str | None], label: str = ""
+) -> tuple[list[str | None], list[str | None]]:
+    # rename the transfer functions
+    new_srcs = [
+        None if nm is None else src.replace(nm, f"{nm}_{label}{i}")
+        for i, (nm, src) in enumerate(zip(names, srcs))
+    ]
+    new_names = [
+        None if nm is None else f"{nm}_{label}{i}" for i, nm in enumerate(names)
+    ]
+    return new_srcs, new_names
+
+
 def eval_transfer_func(
     xfer_names: list[str],
     xfer_srcs: list[str],
+    cond_names: list[str | None],
+    cond_srcs: list[str | None],
     concrete_op_expr: str,
     ref_xfer_names: list[str],
     ref_xfer_srcs: list[str],
+    ref_cond_names: list[str | None],
+    ref_cond_srcs: list[str | None],
     domain: AbstractDomain,
     bitwidth: int,
     helper_funcs: list[str] | None = None,
 ) -> list[CompareResult]:
-    func_to_eval_wrapper_name = "synth_function"
+    func_wrapper_name = "synth_function"
+    cond_wrapper_name = "synth_cond"
     ref_func_wrapper_name = "ref_function"
-    ref_func_suffix = "REF"
+    ref_cond_wrapper_name = "ref_cond"
+    ref_func_suffix = "BASE"
+    cond_suffix = "COND"
+    ref_cond_suffix = "BASE_COND"
+
+    if not cond_names:
+        cond_names = [None] * len(xfer_names)
+        cond_srcs = [None] * len(xfer_names)
+    if not ref_cond_names:
+        ref_cond_names = [None] * len(ref_xfer_names)
+        ref_cond_srcs = [None] * len(ref_xfer_names)
+
+    assert len(xfer_names) == len(xfer_srcs) == len(cond_names) == len(cond_srcs)
+    assert (
+        len(ref_xfer_names)
+        == len(ref_xfer_names)
+        == len(ref_cond_names)
+        == len(ref_cond_srcs)
+    )
 
     transfer_func_header = make_xfer_header(concrete_op_expr)
     transfer_func_header += f"\ntypedef {domain}<{bitwidth}> Domain;\n"
     transfer_func_header += f"\nunsigned int numFuncs = {len(xfer_names)};\n"
 
-    # rename the transfer functions
-    ref_xfer_srcs = [
-        src.replace(nm, f"{nm}_{ref_func_suffix}_{i}")
-        for i, (nm, src) in enumerate(zip(ref_xfer_names, ref_xfer_srcs))
-    ]
-    ref_xfer_names = [
-        f"{nm}_{ref_func_suffix}_{i}" for i, nm in enumerate(ref_xfer_names)
-    ]
-
-    # create the wrapper
+    ref_xfer_srcs, ref_xfer_names = rename(
+        ref_xfer_srcs, ref_xfer_names, ref_func_suffix
+    )
     ref_xfer_func_wrapper = make_xfer_wrapper(ref_xfer_names, ref_func_wrapper_name)
 
-    # rename the transfer functions
-    xfer_srcs = [
-        src.replace(nm, f"{nm}_{i}")
-        for i, (nm, src) in enumerate(zip(xfer_names, xfer_srcs))
-    ]
-    xfer_names = [f"{nm}_{i}" for i, nm in enumerate(xfer_names)]
+    ref_cond_srcs, ref_cond_names = rename(
+        ref_cond_srcs, ref_cond_names, ref_cond_suffix
+    )
+    ref_cond_wrapper = make_conds_wrapper(ref_cond_names, ref_cond_wrapper_name)
 
-    # create the wrapper
-    xfer_func_wrapper = make_xfer_wrapper(xfer_names, func_to_eval_wrapper_name)
+    xfer_srcs, xfer_names = rename(xfer_srcs, xfer_names)
+    xfer_func_wrapper = make_xfer_wrapper(xfer_names, func_wrapper_name)
 
-    all_xfer_src = "\n".join(xfer_srcs + ref_xfer_srcs)
+    cond_srcs, cond_names = rename(cond_srcs, cond_names, cond_suffix)
+    cond_wrapper = make_conds_wrapper(cond_names, cond_wrapper_name)
+
+    all_xfer_src = "\n".join(
+        xfer_srcs
+        + ref_xfer_srcs
+        + [s for s in cond_srcs if s is not None]
+        + [s for s in ref_cond_srcs if s is not None]
+    )
 
     all_helper_funcs_src = ""
     if helper_funcs:
@@ -182,7 +249,7 @@ def eval_transfer_func(
 
     with open(synth_code_path, "w") as f:
         f.write(
-            f"{transfer_func_header}\n{all_helper_funcs_src}\n{all_xfer_src}\n{xfer_func_wrapper}\n{ref_xfer_func_wrapper}"
+            f"{transfer_func_header}\n{all_helper_funcs_src}\n{all_xfer_src}\n{xfer_func_wrapper}\n{ref_xfer_func_wrapper}\n{cond_wrapper}\n{ref_cond_wrapper}\n"
         )
 
     try:
@@ -291,7 +358,8 @@ std::vector<APInt> cr_add(std::vector<APInt> arg0, std::vector<APInt> arg1) {
 
     for res in results:
         print(res)
-        print(f"cost:                  {res.get_cost():.04f}")
+        # commented this because the cost depends on both the compare result and the synthesis context
+        # print(f"cost:                  {res.get_cost():.04f}")
         print(f"sound prop:            {res.get_sound_prop():.04f}")
         print(f"exact prop:            {res.get_exact_prop():.04f}")
         print(f"edit dis avg:          {res.get_edit_dis_avg():.04f}")

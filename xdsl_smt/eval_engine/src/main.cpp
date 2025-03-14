@@ -53,11 +53,18 @@ template <typename Domain> const Results eval(unsigned int nFuncs) {
       if (best_abstract_res.isBottom())
         continue;
       std::vector<Domain> synth_kbs(synth_function_wrapper(lhs, rhs));
+      std::vector<bool> synth_conds(synth_cond_wrapper(lhs, rhs));
       std::vector<Domain> ref_kbs(ref_function_wrapper(lhs, rhs));
+      std::vector<bool> ref_conds(ref_cond_wrapper(lhs, rhs));
+
+      for (unsigned int i = 0; i < ref_kbs.size(); ++i)
+        ref_kbs[i] = ref_conds[i] ? ref_kbs[i] : Domain::top();
       Domain cur_kb = Domain::meetAll(ref_kbs);
+
       bool solved = cur_kb == best_abstract_res;
       for (unsigned int i = 0; i < synth_kbs.size(); ++i) {
-        Domain synth_after_meet = cur_kb.meet(synth_kbs[i]);
+        Domain synth_res = synth_conds[i] ? synth_kbs[i] : Domain::top();
+        Domain synth_after_meet = cur_kb.meet(synth_res);
         bool sound = synth_after_meet.isSuperset(best_abstract_res);
         bool exact = synth_after_meet == best_abstract_res;
         unsigned int dis = synth_after_meet.distance(best_abstract_res);
