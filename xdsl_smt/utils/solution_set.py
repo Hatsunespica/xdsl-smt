@@ -261,6 +261,7 @@ class UnsizedSolutionSet(SolutionSet):
         cur_most_e: float = 0
         candidates = self.solutions + new_candidates_sp + new_candidates_c
         self.logger.info(f"Size of new candidates: {len(new_candidates_sp)}")
+        self.logger.info(f"Size of new cond candidates: {len(new_candidates_c)}")
         self.logger.info(f"Size of solutions: {len(candidates)}")
         # for i, func in enumerate(new_candidates):
         #     cpp_code = self.lower_to_cpp(self.eliminate_dead_code(func))
@@ -316,9 +317,18 @@ class UnsizedSolutionSet(SolutionSet):
                     most_unsol_e = result[ith_result].unsolved_exacts
             if most_unsol_e == 0:
                 break
+
+            if candidates[index] in new_candidates_sp:
+                log_str = "Add a sound transformer"
+            elif candidates[index] in new_candidates_c:
+                log_str = "Add a cond transformer"
+            else:
+                log_str = "Add a existing solution"
+
             self.logger.info(
-                f"Add a transformer. Exact: {result[index].get_exact_prop() * 100:.2f}%, Precision: {result[index].get_bitwise_precision() * 100:.2f}%"
+                f"{log_str}. Exact: {result[index].get_exact_prop() * 100:.2f}%, Precision: {result[index].get_bitwise_precision() * 100:.2f}%"
             )
+
             self.solutions.append(candidates.pop(index))
 
         self.logger.info(f"Size of solutions after reseting: {len(self.solutions)}")

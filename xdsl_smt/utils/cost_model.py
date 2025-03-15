@@ -21,7 +21,7 @@ def precise_cost(res: CompareResult) -> float:
 
 def abduction_cost(res: CompareResult) -> float:
     a = 1
-    b = 4
+    b = 2
     sound = res.get_sound_prop()
     dis = res.get_unsolved_edit_dis_avg() / (res.bitwidth * 2)
     return (a * (1 - sound) + b * dis) / (a + b)
