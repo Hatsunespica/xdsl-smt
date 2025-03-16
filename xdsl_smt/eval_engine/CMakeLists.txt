@@ -4,6 +4,7 @@ project(EvalEngine LANGUAGES CXX C)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 
 add_compile_options(
     -Wall
@@ -16,6 +17,10 @@ add_compile_options(
     -Wold-style-cast
     -Wcast-qual
     -Wformat=2
+    -O3
+    -march=native
+    -flto
+    -DNDEBUG
 )
 
 # Find LLVM
