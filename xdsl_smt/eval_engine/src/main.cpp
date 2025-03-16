@@ -117,8 +117,6 @@ int main() {
   // TODO APInt namespacing is weird rn
   // TODO split stuff into seperate .h and .cpp
   // TODO print_cpp function in python
-  // TODO make sure I'm producing a -O3 build
-  // TODO speedtest CRTP against pure class impl
 
   std::string tmpStr;
   std::string domain;
