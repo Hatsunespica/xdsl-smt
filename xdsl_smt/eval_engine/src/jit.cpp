@@ -1,6 +1,4 @@
 #include <cstdio>
-#include <fstream>
-#include <iostream>
 #include <memory>
 
 #include <clang/Basic/Diagnostic.h>
@@ -9,16 +7,15 @@
 #include <clang/Frontend/TextDiagnosticPrinter.h>
 #include <clang/Lex/PreprocessorOptions.h>
 
-#include "llvm/ExecutionEngine/Orc/LLJIT.h"
-#include "llvm/IR/Function.h"
-#include "llvm/IR/Module.h"
-#include "llvm/Support/TargetSelect.h"
-#include "llvm/Support/raw_ostream.h"
 #include <llvm/ExecutionEngine/Orc/CompileUtils.h>
+#include <llvm/ExecutionEngine/Orc/LLJIT.h>
+#include <llvm/IR/Module.h>
 #include <llvm/Support/Error.h>
 #include <llvm/Support/TargetSelect.h>
+#include <llvm/Support/raw_ostream.h>
+#include <string>
 
-#include "APInt.cpp"
+#include <APInt_bin_string.h>
 
 // largely adopted from
 // https://blog.memzero.de/llvm-orc-jit/
@@ -72,30 +69,13 @@ public:
   }
 };
 
-std::string read_file(const std::string &filename) {
-  std::ifstream file(filename, std::ios::binary);
-
-  std::ostringstream buffer;
-  buffer << file.rdbuf();
-  return buffer.str();
-}
-
-extern "C" struct Ret {
-  A::APInt a;
-  A::APInt b;
-};
-
 std::unique_ptr<llvm::orc::LLJIT> getJit(const std::string &xferSrc) {
   llvm::InitializeNativeTarget();
   llvm::InitializeNativeTargetAsmPrinter();
-  std::string apintsrc = read_file("../src/APInt.cpp");
-  std::string retStructDef = R"cpp(
-extern "C" struct Ret {
-  A::APInt a;
-  A::APInt b;
-};)cpp";
+  std::string apintsrc = std::string(
+      reinterpret_cast<const char *>(___apint_src), ___apint_src_len);
 
-  std::string sourceCode = apintsrc + retStructDef + xferSrc;
+  std::string sourceCode = apintsrc + xferSrc;
   auto [context, module] = llvm::cantFail(Compiler().compile(sourceCode));
 
   std::unique_ptr<llvm::orc::LLJIT> jit =

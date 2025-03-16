@@ -1090,4 +1090,9 @@ APInt APInt::sfloordiv_ov(const APInt &RHS, bool &Overflow) const {
 
 } // namespace A
 
+extern "C" struct Ret {
+  A::APInt a;
+  A::APInt b;
+};
+
 #endif

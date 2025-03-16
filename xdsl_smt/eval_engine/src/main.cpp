@@ -114,13 +114,10 @@ std::vector<std::string> split_whitespace(const std::string &input) {
 }
 
 int main() {
-  // TODO get tester.py to work
   // TODO APInt namespacing is weird rn
   // TODO split stuff into seperate .h and .cpp
-  // TODO eval_engine.py
   // TODO print_cpp function in python
   // TODO make sure I'm producing a -O3 build
-  // TODO clean up how I'm including APInt.cpp and the Ret struct in the JIT
   // TODO speedtest CRTP against pure class impl
 
   std::string tmpStr;

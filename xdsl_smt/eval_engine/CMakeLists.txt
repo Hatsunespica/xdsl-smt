@@ -33,11 +33,25 @@ include_directories(${CLANG_INCLUDE_DIRS})
 llvm_map_components_to_libnames(LLVM_LIBS core)
 set(CLANG_LIBS clang-cpp)
 
-add_executable(eval_engine src/main.cpp)
+# Convert text file to a header file using xxd
+set(TEXT_FILE ${CMAKE_SOURCE_DIR}/src/APInt.cpp)
+set(GENERATED_HEADER ${CMAKE_BINARY_DIR}/APInt_bin_string.h)
 
-target_link_options(eval_engine PRIVATE
-    -Wl,--copy-dt-needed-entries
+add_custom_command(
+    OUTPUT ${GENERATED_HEADER}
+    COMMAND xxd -i -n ___apint_src ${TEXT_FILE} > ${GENERATED_HEADER}
+    COMMENT "Generating header file from text file"
 )
+
+# Add the generated file to the build
+add_executable(eval_engine src/main.cpp)
+target_include_directories(eval_engine PRIVATE ${CMAKE_BINARY_DIR})
+
+add_custom_target(generate_header DEPENDS ${GENERATED_HEADER})
+add_dependencies(eval_engine generate_header)
 
 # Link against LLVM and Clang
 target_link_libraries(eval_engine PRIVATE ${LLVM_LIBS} ${CLANG_LIBS})
+target_link_options(eval_engine PRIVATE
+    -Wl,--copy-dt-needed-entries
+)
