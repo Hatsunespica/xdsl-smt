@@ -93,7 +93,7 @@ extern "C" struct Ret cr_sub(const APInt *const arg0, const APInt *const arg1) {
 def test(input: TestInput) -> None:
     names, srcs = zip(*input.functions)
     results = eval_transfer_func(
-        list(names), list(srcs), input.concrete_op, [], [], input.domain, 4, None
+        list(names), list(srcs), [], [], [input.concrete_op], input.domain, 4
     )
 
     for n, r, e in zip(names, results, input.expected_outputs):

@@ -503,18 +503,22 @@ def solution_set_eval_func(
     bitwidth: int,
     helper_funcs: list[str] | None = None,
 ) -> Callable[[list[str], list[str], list[str], list[str]], list[CompareResult]]:
+    all_extra_src = (
+        [concrete_op_expr]
+        if helper_funcs is None
+        else helper_funcs + [concrete_op_expr]
+    )
     return lambda transfer_names=list[str], transfer_srcs=list[
         str
     ], base_transfer_names=list[str], base_transfer_srcs=list[str]: (
         eval_engine.eval_transfer_func(
             transfer_names,
             transfer_srcs,
-            concrete_op_expr,
             base_transfer_names,
             base_transfer_srcs,
+            all_extra_src,
             domain,
             bitwidth,
-            helper_funcs,
         )
     )
 
@@ -532,16 +536,20 @@ def main_eval_func(
     bitwidth: int,
     helper_funcs: list[str] | None = None,
 ) -> Callable[[list[str], list[str]], list[CompareResult]]:
+    all_extra_src = (
+        [concrete_op_expr]
+        if helper_funcs is None
+        else helper_funcs + [concrete_op_expr]
+    )
     return lambda transfer_names=list[str], transfer_srcs=list[str]: (
         eval_engine.eval_transfer_func(
             transfer_names,
             transfer_srcs,
-            concrete_op_expr,
             base_transfer_names,
             base_transfer_srcs,
+            all_extra_src,
             domain,
             bitwidth,
-            helper_funcs,
         )
     )
 
@@ -922,17 +930,17 @@ def main() -> None:
     cmp_results: list[CompareResult] = eval_engine.eval_transfer_func(
         ["solution"],
         [solution_str],
-        crt_func,
         [],
         [],
-        eval_engine.AbstractDomain.KnownBits,
-        bitwidth,
         [
+            crt_func,
             instance_constraint_func,
             domain_constraint_func,
             op_constraint_func,
             meet_func,
         ],
+        eval_engine.AbstractDomain.KnownBits,
+        bitwidth,
     )
     solution_result = cmp_results[0]
     print(

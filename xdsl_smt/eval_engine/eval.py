@@ -1,6 +1,7 @@
 from os import path
 from subprocess import run, PIPE
 from enum import Enum, auto
+import re
 
 from xdsl_smt.utils.compare_result import CompareResult
 
@@ -13,15 +14,51 @@ class AbstractDomain(Enum):
         return self.name
 
 
+# silly little formatting things
+def band_aid(code: str) -> str:
+    id_p = r"([a-zA-Z_][a-zA-Z0-9_]*)"
+
+    o_pre = re.escape("std::vector<APInt> ")
+    o_post = re.escape("(std::vector<APInt> arg0,std::vector<APInt> arg1)")
+
+    n_pre = 'extern "C" struct Ret '
+    n_post = "(const APInt *const arg0, const APInt *const arg1)"
+
+    p = rf"{o_pre}{id_p}{o_post}"
+    code = re.sub(p, rf"{n_pre}\1{n_post}", code)
+
+    middle = re.escape("=std::vector<APInt>{")
+    sep = re.escape(",")
+    end = re.escape("};")
+    ret = re.escape("return ")
+    semi = re.escape(";")
+
+    p = rf"{o_pre}{id_p}{middle}{id_p}{sep}{id_p}{end}\s*{ret}{id_p}{semi}"
+    code = re.sub(p, r"return {\2,\3};", code)
+
+    old = "int getInstanceConstraint(std::vector<APInt> arg0,APInt inst)"
+    new = "int getInstanceConstraint(const APInt *const arg0,APInt inst)"
+    code = code.replace(old, new)
+
+    old = "int getConstraint(std::vector<APInt> arg0)"
+    new = "int getConstraint(const APInt *const arg0)"
+    code = code.replace(old, new)
+
+    old = "APInt concrete_op"
+    new = 'extern "C" APInt concrete_op'
+    code = code.replace(old, new)
+
+    return code
+
+
 def eval_transfer_func(
     xfer_names: list[str],
     xfer_srcs: list[str],
-    conc_op_src: str,
     base_names: list[str],
     base_srcs: list[str],
+    helper_srcs: list[str],
     domain: AbstractDomain,
     bitwidth: int,
-    op_constraint_src: str | None,
 ) -> list[CompareResult]:
     base_dir = path.join("xdsl_smt", "eval_engine")
     engine_path = path.join(base_dir, "build", "eval_engine")
@@ -48,12 +85,9 @@ def eval_transfer_func(
     engine_params += f"{" ".join(xfer_names)}\n"
     engine_params += f"{" ".join(base_names)}\n"
     engine_params += "using A::APInt;\n"
-    engine_params += conc_op_src
-    if op_constraint_src:
-        engine_params += op_constraint_src
 
-    all_xfer_src = "\n".join(xfer_srcs + base_srcs)
-    engine_params += all_xfer_src
+    all_src = "\n".join(helper_srcs + xfer_srcs + base_srcs)
+    engine_params += band_aid(all_src)
 
     eval_output = run(
         [engine_path],
