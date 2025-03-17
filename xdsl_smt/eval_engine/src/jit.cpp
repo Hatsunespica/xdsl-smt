@@ -48,6 +48,7 @@ public:
     clang.getLangOpts().CPlusPlus11 = true;
     clang.getLangOpts().Bool = true;
     clang.createDiagnostics(dp.get(), false);
+    clang.getDiagnostics().setIgnoreAllWarnings(true);
     clang.getPreprocessorOpts().addRemappedFile(
         "<memory>", llvm::MemoryBuffer::getMemBuffer(code).release());
 

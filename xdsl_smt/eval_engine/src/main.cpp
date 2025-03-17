@@ -116,7 +116,6 @@ std::vector<std::string> split_whitespace(const std::string &input) {
 int main() {
   // TODO APInt namespacing is weird rn
   // TODO split stuff into seperate .h and .cpp
-  // TODO print_cpp function in python
 
   std::string tmpStr;
   std::string domain;
