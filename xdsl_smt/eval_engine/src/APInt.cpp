@@ -636,7 +636,7 @@ public:
   }
 
   bool operator[](unsigned bitPosition) const {
-    return maskBit(bitPosition) != 0;
+    return (maskBit(bitPosition) & VAL) != 0;
   }
 
   bool operator==(const APInt &RHS) const { return VAL == RHS.VAL; }
