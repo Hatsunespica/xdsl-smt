@@ -59,7 +59,7 @@ class MCMCSampler:
         init_cost: float,
         reset: bool = True,
         random_init_program: bool = True,
-        init_cmp_res: CompareResult = CompareResult(0, 0, 0, 0, 0, 0, 0, 0, 4),
+        init_cmp_res: CompareResult = CompareResult(0, 0, 0, 0, 0, 0, 0, 0, 0, 4),
     ):
         if reset:
             self.current = self.construct_init_program(func, length)
@@ -165,11 +165,15 @@ class MCMCSampler:
 
         # Part III: Main Body
         # tmp_bool_ssavalue = false_op.results[0]
-        for i in range(length // 2):
+        for i in range(length // 4):
             nop_bool = CmpOp(tmp_int_ssavalue, tmp_int_ssavalue, 0)
             nop_int1 = AndOp(tmp_int_ssavalue, tmp_int_ssavalue)
+            nop_int2 = AndOp(tmp_int_ssavalue, tmp_int_ssavalue)
+            nop_int3 = AndOp(tmp_int_ssavalue, tmp_int_ssavalue)
             block.add_op(nop_bool)
             block.add_op(nop_int1)
+            block.add_op(nop_int2)
+            block.add_op(nop_int3)
 
         last_int_op = block.last_op
 
