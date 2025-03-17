@@ -66,9 +66,10 @@ class MCMCSampler:
         init_cmp_res: CompareResult = CompareResult(0, 0, 0, 0, 0, 0, 0, 0, 0, 4),
     ):
         self.is_cond = is_cond
-        ft = func.function_type
         if is_cond:
-            cond_type = FunctionType.from_lists(func.function_type.inputs, [i1])
+            cond_type = FunctionType.from_lists(
+                func.function_type.inputs, [i1]
+            )  # pyright: ignore [reportArgumentType]
             func = FuncOp("cond", cond_type)
 
         if reset:

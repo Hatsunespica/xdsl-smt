@@ -166,8 +166,8 @@ def rename(
     """
     rename the transfer functions
     """
-    new_srcs = []
-    new_names = []
+    new_srcs: list[str | None] = []
+    new_names: list[str | None] = []
     for i, (nm, src) in enumerate(zip(names, srcs)):
         if src is None:
             new_srcs.append(None)
