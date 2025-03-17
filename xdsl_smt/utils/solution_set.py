@@ -358,6 +358,7 @@ class UnsizedSolutionSet(SolutionSet):
     """
     Set weights in context according to the frequencies of each DSL operation that appear in func in solution set
     """
+
     def learn_weights(self, context):
         freq_i1: dict[type(Operation), int] = {}
         freq_int: dict[type(Operation), int] = {}

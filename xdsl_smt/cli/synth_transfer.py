@@ -609,7 +609,6 @@ def main_eval_func(
     )
 
 
-
 def build_eval_list(
     mcmc_proposals: list[FuncOp],
     sp: range,
@@ -631,12 +630,16 @@ def build_eval_list(
     for i in p:
         lst.append(FuncWithCond(mcmc_proposals[i]))
     for i in c:
-        lst.append(FuncWithCond(prec_func_after_distribute[i - c.start], mcmc_proposals[i]))
+        lst.append(
+            FuncWithCond(prec_func_after_distribute[i - c.start], mcmc_proposals[i])
+        )
 
     return lst
 
 
-def mcmc_setup(solution_set: SolutionSet, num_abd_proc: int, num_programs: int) -> tuple[range, range, range, int, list[FuncOp]]:
+def mcmc_setup(
+    solution_set: SolutionSet, num_abd_proc: int, num_programs: int
+) -> tuple[range, range, range, int, list[FuncOp]]:
     """
     A mcmc sampler use one of 3 modes: sound & precise, precise, condition
     This function specify which mode should be used for each mcmc sampler
@@ -698,7 +701,9 @@ def synthesize_transfer_function(
 ) -> SolutionSet:
     mcmc_samplers: list[MCMCSampler] = []
 
-    sp_range, p_range, c_range, num_programs, prec_set_after_distribute = mcmc_setup(solution_set, num_abd_procs, num_programs)
+    sp_range, p_range, c_range, num_programs, prec_set_after_distribute = mcmc_setup(
+        solution_set, num_abd_procs, num_programs
+    )
     sp_size = sp_range.stop - sp_range.start
     p_size = p_range.stop - p_range.start
     c_size = c_range.stop - c_range.start
@@ -937,7 +942,6 @@ def main() -> None:
     num_iters = args.num_iters
     weighted_dsl = args.weighted_dsl
     num_abd_procs = args.num_abd_procs
-
 
     # Set up llvm_build_dir
     llvm_build_dir = args.llvm_build_dir
