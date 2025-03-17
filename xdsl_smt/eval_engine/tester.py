@@ -105,7 +105,11 @@ def test(input: TestInput) -> None:
     results = eval_transfer_func(
         list(names),
         list(srcs),
+        [],
+        [],
         f"{input.concrete_op}\n{constraint_func}",
+        [],
+        [],
         [],
         [],
         input.domain,
