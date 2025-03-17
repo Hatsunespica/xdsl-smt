@@ -105,12 +105,6 @@ def register_all_arguments(arg_parser: argparse.ArgumentParser):
         "-random_seed", type=int, nargs="?", help="specify the random seed"
     )
     arg_parser.add_argument(
-        "-llvm_build_dir",
-        type=str,
-        nargs="?",
-        help="Specify the build directory of LLVM",
-    )
-    arg_parser.add_argument(
         "-program_length",
         type=int,
         nargs="?",
@@ -774,13 +768,6 @@ def main() -> None:
     solution_size = args.solution_size
     num_iters = args.num_iters
 
-    # Set up llvm_build_dir
-    llvm_build_dir = args.llvm_build_dir
-    if llvm_build_dir is not None:
-        if not llvm_build_dir.endswith("/"):
-            llvm_build_dir += "/"
-        llvm_build_dir += "bin/"
-        eval_engine.llvm_bin_dir = llvm_build_dir
     if num_programs is None:
         num_programs = NUM_PROGRAMS
     if total_rounds is None:
