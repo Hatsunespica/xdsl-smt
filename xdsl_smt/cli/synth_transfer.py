@@ -78,8 +78,6 @@ from ..utils.cost_model import (
     abduction_cost,
 )
 from ..utils.func_with_cond import FuncWithCond
-
-# from ..utils.func_with_cpp import FuncWithCpp, to_names, to_srcs, to_cond_names, to_cond_srcs, to_mlirs
 from ..utils.log_utils import (
     setup_loggers,
     print_set_of_funcs_to_file,
@@ -159,7 +157,24 @@ def register_all_arguments(arg_parser: argparse.ArgumentParser):
         "-num_iters",
         type=int,
         nargs="?",
-        help="Specify the size of solution set",
+        help="Specify the number of iterations of the synthesizer needs to run",
+    )
+    arg_parser.add_argument(
+        "-weighted_dsl",
+        action="store_true",
+        help="Learn weights for each DSL operations from previous for future iterations.",
+    )
+    arg_parser.add_argument(
+        "-condition_length",
+        type=int,
+        nargs="?",
+        help="Specify the maximal length of synthesized abduction. 6 by default.",
+    )
+    arg_parser.add_argument(
+        "-num_abd_procs",
+        type=int,
+        nargs="?",
+        help="Specify the number of mcmc processes that used for abduction. It should be less than num_programs. 0 by default (which means abduction is disabled).",
     )
 
 
@@ -471,6 +486,7 @@ SYNTH_WIDTH = 4
 TEST_SET_SIZE = 1000
 CONCRETE_VAL_PER_TEST_CASE = 10
 PROGRAM_LENGTH = 40
+CONDITION_LENGTH = 6
 NUM_PROGRAMS = 100
 INIT_COST = 1
 TOTAL_ROUNDS = 10000
@@ -501,10 +517,6 @@ def is_ref_function(func: FuncOp) -> bool:
 
 
 def eval_transfer_func_helper(
-    # transfer_funcs: list[FuncOp],
-    # transfer_conds: list[FuncOp],
-    # base_funcs: list[FuncOp],
-    # base_conds: list[FuncOp],
     transfer: list[FuncWithCond],
     base: list[FuncWithCond],
     concrete_op_expr: str,
@@ -512,6 +524,9 @@ def eval_transfer_func_helper(
     bitwidth: int,
     helper_funcs: list[str] | None = None,
 ) -> list[CompareResult]:
+    """
+    This function is a helper of eval_transfer_func that prints the mlir func as cpp code
+    """
     transfer_func_names = [fc.func.sym_name.data for fc in transfer]
     transfer_func_srcs = [print_to_cpp(eliminate_dead_code(fc.func)) for fc in transfer]
     transfer_cond_names = [
@@ -594,22 +609,65 @@ def main_eval_func(
     )
 
 
+
 def build_eval_list(
-    mcmc_funcs: list[FuncOp],
+    mcmc_proposals: list[FuncOp],
     sp: range,
     p: range,
     c: range,
     prec_func_after_distribute: list[FuncOp],
 ) -> list[FuncWithCond]:
+    """
+    build the parameters of eval_transfer_func
+    input:
+    mcmc_proposals =  [ ..mcmc_sp.. , ..mcmc_p.. , ..mcmc_c.. ]
+    output:
+    funcs          =  [ ..mcmc_sp.. , ..mcmc_p.. ,..prec_set..]
+    conds          =  [  nothing    ,  nothing   , ..mcmc_c.. ]
+    """
     lst = []
     for i in sp:
-        lst.append(FuncWithCond(mcmc_funcs[i]))
+        lst.append(FuncWithCond(mcmc_proposals[i]))
     for i in p:
-        lst.append(FuncWithCond(mcmc_funcs[i]))
+        lst.append(FuncWithCond(mcmc_proposals[i]))
     for i in c:
-        lst.append(FuncWithCond(prec_func_after_distribute[i - c.start], mcmc_funcs[i]))
+        lst.append(FuncWithCond(prec_func_after_distribute[i - c.start], mcmc_proposals[i]))
 
     return lst
+
+
+def mcmc_setup(solution_set: SolutionSet, num_abd_proc: int, num_programs: int) -> tuple[range, range, range, int, list[FuncOp]]:
+    """
+    A mcmc sampler use one of 3 modes: sound & precise, precise, condition
+    This function specify which mode should be used for each mcmc sampler
+    For example, mcmc samplers with index in sp_range should use "sound&precise"
+    """
+    p_size = num_abd_proc // 2
+    c_size = num_abd_proc // 2
+    sp_size = num_programs - p_size - c_size
+
+    if len(solution_set.precise_set) == 0:
+        c_size = 0
+
+    sp_range = range(0, sp_size)
+    p_range = range(sp_size, sp_size + p_size)
+    c_range = range(sp_size + p_size, sp_size + p_size + c_size)
+
+    prec_set_after_distribute = []
+
+    if c_size > 0:
+        # Distribute the precise funcs into c_range
+        prec_set_size = len(solution_set.precise_set)
+        base_count = c_size // prec_set_size
+        remainder = c_size % prec_set_size
+        for i, item in enumerate(solution_set.precise_set):
+            prec_set_after_distribute.extend(
+                [item] * (base_count + (1 if i < remainder else 0))
+            )
+
+    num_programs = sp_size + p_size + c_size
+
+    return sp_range, p_range, c_range, num_programs, prec_set_after_distribute
 
 
 """
@@ -633,45 +691,17 @@ def synthesize_transfer_function(
     num_programs: int,
     program_length: int,
     cond_length: int,
+    num_abd_procs: int,
     total_rounds: int,
     solution_size: int,
     inv_temp: int,
 ) -> SolutionSet:
     mcmc_samplers: list[MCMCSampler] = []
 
-    if solution_size == 0:
-        # c, p, sp
-        proportion = [1, 1, 1]
-    else:
-        proportion = [0, 1, 0]
-
-    c_size, sp_size, p_size = [
-        round(num_programs * r / sum(proportion)) for r in proportion
-    ]
-    p_size = num_programs - sp_size - c_size
-
-    if len(solution_set.precise_set) == 0:
-        c_size = 0
-
-    sp_range = range(0, sp_size)
-    p_range = range(sp_size, sp_size + p_size)
-    c_range = range(sp_size + p_size, sp_size + p_size + c_size)
-
-    prec_set_after_distribute = []
-
-    if c_size > 0:
-        # Distribute the precise funcs into c_range
-        prec_set_size = len(solution_set.precise_set)
-        base_count = c_size // prec_set_size
-        remainder = c_size % prec_set_size
-        for i, item in enumerate(solution_set.precise_set):
-            prec_set_after_distribute.extend(
-                [item] * (base_count + (1 if i < remainder else 0))
-            )
-
-    num_programs = sp_size + p_size + c_size
-
-    print(sp_range, p_range, c_range, num_programs)
+    sp_range, p_range, c_range, num_programs, prec_set_after_distribute = mcmc_setup(solution_set, num_abd_procs, num_programs)
+    sp_size = sp_range.stop - sp_range.start
+    p_size = p_range.stop - p_range.start
+    c_size = c_range.stop - c_range.start
 
     for i in range(num_programs):
         if i in sp_range:
@@ -711,14 +741,14 @@ def synthesize_transfer_function(
     for i in range(num_programs):
         transfers.append(mcmc_samplers[i].get_current().clone())
         # print(transfers[i])
+    func_with_cond_lst = build_eval_list(
+        transfers, sp_range, p_range, c_range, prec_set_after_distribute
+    )
 
     if solution_size == 0:
-        func_with_cond_lst = build_eval_list(
-            transfers, sp_range, p_range, c_range, prec_set_after_distribute
-        )
         cmp_results: list[CompareResult] = solution_set.eval_improve(func_with_cond_lst)
     else:
-        cmp_results: list[CompareResult] = eval_func(transfers)
+        cmp_results: list[CompareResult] = eval_func(func_with_cond_lst)
     for i in range(num_programs):
         mcmc_samplers[i].current_cmp = cmp_results[i]
 
@@ -750,16 +780,17 @@ def synthesize_transfer_function(
             assert proposed_solution is not None
             transfers.append(proposed_solution)
 
+        func_with_cond_lst = build_eval_list(
+            transfers, sp_range, p_range, c_range, prec_set_after_distribute
+        )
+
         start = time.time()
         if solution_size == 0:
-            func_with_cond_lst = build_eval_list(
-                transfers, sp_range, p_range, c_range, prec_set_after_distribute
-            )
             cmp_results: list[CompareResult] = solution_set.eval_improve(
                 func_with_cond_lst
             )
         else:
-            cmp_results: list[CompareResult] = eval_func(transfers)
+            cmp_results: list[CompareResult] = eval_func(func_with_cond_lst)
         end = time.time()
         used_time = end - start
 
@@ -899,10 +930,14 @@ def main() -> None:
     num_programs = args.num_programs
     total_rounds = args.total_rounds
     program_length = args.program_length
+    condition_length = args.condition_length
     inv_temp = args.inv_temp
     bitwidth = args.bitwidth
     solution_size = args.solution_size
     num_iters = args.num_iters
+    weighted_dsl = args.weighted_dsl
+    num_abd_procs = args.num_abd_procs
+
 
     # Set up llvm_build_dir
     llvm_build_dir = args.llvm_build_dir
@@ -925,6 +960,10 @@ def main() -> None:
         solution_size = SOLUTION_SIZE
     if num_iters is None:
         num_iters = NUM_ITERS
+    if condition_length is None:
+        condition_length = CONDITION_LENGTH
+    if num_abd_procs is None:
+        num_abd_procs = 0
 
     assert isinstance(module, ModuleOp)
 
@@ -978,8 +1017,6 @@ def main() -> None:
         if isinstance(func, FuncOp) and is_ref_function(func):
             ref_funcs.append(func)
 
-    # We comment this out because ref functions could be empty
-    # assert len(ref_funcs) > 0
     base_transfers = [FuncWithCond(f) for f in ref_funcs]
 
     transfer_func = None
@@ -1043,10 +1080,9 @@ def main() -> None:
         # current_total_rounds += (total_rounds - current_total_rounds) // (
         #     num_iters - ith_iter
         # )
-        if solution_size == 0:
+        if weighted_dsl:
             assert isinstance(solution_set, UnsizedSolutionSet)
             solution_set.learn_weights(context_weighted)
-        cond_length = 6 # todo: make it a cmd line args
         solution_set = synthesize_transfer_function(
             ith_iter,
             transfer_func,
@@ -1059,7 +1095,8 @@ def main() -> None:
             eval_func,
             num_programs,
             program_length,
-            cond_length,
+            condition_length,
+            num_abd_procs,
             total_rounds,
             solution_size,
             inv_temp,
@@ -1074,33 +1111,36 @@ def main() -> None:
             exit(0)
         """
 
-    # todo: Xuanyu commented this. Will fix later
     # Eval last solution:
-    # if not solution_set.has_solution():
-    #     print("Found no solutions")
-    #     exit(0)
-    # _, solution_str = solution_set.generate_solution_and_cpp()
-    # with open("tmp.cpp", "w") as fout:
-    #     fout.write(solution_str)
-    # cmp_results: list[CompareResult] = eval_engine.eval_transfer_func(
-    #     ["solution"],
-    #     [solution_str],
-    #     crt_func,
-    #     [],
-    #     [],
-    #     eval_engine.AbstractDomain.KnownBits,
-    #     bitwidth,
-    #     [
-    #         instance_constraint_func,
-    #         domain_constraint_func,
-    #         op_constraint_func,
-    #         meet_func,
-    #     ],
-    # )
-    # solution_result = cmp_results[0]
-    # print(
-    #     f"last_solution\t{solution_result.get_sound_prop() * 100:.2f}%\t{solution_result.get_exact_prop() * 100:.2f}%\t{solution_result.get_unsolved_edit_dis_avg():.3f}"
-    # )
+    if not solution_set.has_solution():
+        print("Found no solutions")
+        exit(0)
+    _, solution_str = solution_set.generate_solution_and_cpp()
+    with open("tmp.cpp", "w") as fout:
+        fout.write(solution_str)
+    cmp_results: list[CompareResult] = eval_engine.eval_transfer_func(
+        ["solution"],
+        [solution_str],
+        [],
+        [],
+        crt_func,
+        [],
+        [],
+        [],
+        [],
+        eval_engine.AbstractDomain.KnownBits,
+        bitwidth,
+        [
+            instance_constraint_func,
+            domain_constraint_func,
+            op_constraint_func,
+            meet_func,
+        ],
+    )
+    solution_result = cmp_results[0]
+    print(
+        f"last_solution\t{solution_result.get_sound_prop() * 100:.2f}%\t{solution_result.get_exact_prop() * 100:.2f}%\t{solution_result.get_unsolved_edit_dis_avg():.3f}"
+    )
 
 
 if __name__ == "__main__":
