@@ -596,7 +596,7 @@ def main_eval_func(
     domain: eval_engine.AbstractDomain,
     bitwidth: int,
     helper_funcs: list[str] | None = None,
-) -> Callable[[list[FuncOp]], list[CompareResult]]:
+) -> Callable[[list[FuncWithCond]], list[CompareResult]]:
     return lambda transfers=list[FuncWithCond]: (
         eval_transfer_func_helper(
             transfers,
@@ -624,7 +624,7 @@ def build_eval_list(
     funcs          =  [ ..mcmc_sp.. , ..mcmc_p.. ,..prec_set..]
     conds          =  [  nothing    ,  nothing   , ..mcmc_c.. ]
     """
-    lst = []
+    lst: list[FuncWithCond] = []
     for i in sp:
         lst.append(FuncWithCond(mcmc_proposals[i]))
     for i in p:
@@ -656,7 +656,7 @@ def mcmc_setup(
     p_range = range(sp_size, sp_size + p_size)
     c_range = range(sp_size + p_size, sp_size + p_size + c_size)
 
-    prec_set_after_distribute = []
+    prec_set_after_distribute: list[FuncOp] = []
 
     if c_size > 0:
         # Distribute the precise funcs into c_range
@@ -689,7 +689,7 @@ def synthesize_transfer_function(
     solution_set: SolutionSet,
     logger: logging.Logger,
     # Evalate transfer functions
-    eval_func: Callable[[list[FuncOp]], list[CompareResult]],
+    eval_func: Callable[[list[FuncWithCond]], list[CompareResult]],
     # Global arguments
     num_programs: int,
     program_length: int,
@@ -706,7 +706,7 @@ def synthesize_transfer_function(
     )
     sp_size = sp_range.stop - sp_range.start
     p_size = p_range.stop - p_range.start
-    c_size = c_range.stop - c_range.start
+    # c_size = c_range.stop - c_range.start
 
     for i in range(num_programs):
         if i in sp_range:
