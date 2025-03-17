@@ -160,6 +160,8 @@ int main() {
     eval<KnownBits>(xferFns, baseFns, concOpAddr, opConstraint, bw).print();
   else if (domain == "ConstantRange")
     eval<ConstantRange>(xferFns, baseFns, concOpAddr, opConstraint, bw).print();
+  else if (domain == "IntegerModulo")
+    eval<IntegerModulo>(xferFns, baseFns, concOpAddr, opConstraint, bw).print();
   else
     std::cerr << "Unknown domain: " << domain << "\n";
 
