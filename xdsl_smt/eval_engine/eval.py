@@ -172,13 +172,14 @@ def rename(
         if src is None:
             new_srcs.append(None)
         else:
+            assert src is not None
             new_srcs.append(src.replace(nm, f"{nm}_{label}{i}"))
 
     for i, nm in enumerate(names):
         if nm is None:
             new_names.append(None)
         else:
-            new_names.append(nm)
+            new_names.append(f"{nm}_{label}{i}")
     return new_srcs, new_names
 
 
