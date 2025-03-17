@@ -18,7 +18,6 @@ class AbstractDomain(Enum):
 def band_aid(code: str) -> str:
     id_p = r"([a-zA-Z_][a-zA-Z0-9_]*)"
 
-
     n_pre = 'extern "C" struct Ret '
     n_post = "(const APInt *const arg0, const APInt *const arg1)"
 
