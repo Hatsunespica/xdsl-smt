@@ -163,14 +163,36 @@ def make_conds_wrapper(cond_names: list[str | None], wrapper_name: str) -> str:
 def rename(
     srcs: list[str | None], names: list[str | None], label: str = ""
 ) -> tuple[list[str | None], list[str | None]]:
-    # rename the transfer functions
+    """
+    rename the transfer functions
+    """
+    new_srcs = []
+    new_names = []
+    for i, (nm, src) in enumerate(zip(names, srcs)):
+        if src is None:
+            new_srcs.append(None)
+        else:
+            new_srcs.append(src.replace(nm, f"{nm}_{label}{i}"))
+
+    for i, nm in enumerate(names):
+        if nm is None:
+            new_names.append(None)
+        else:
+            new_names.append(nm)
+    return new_srcs, new_names
+
+
+def rename_no_none(
+    srcs: list[str], names: list[str], label: str = ""
+) -> tuple[list[str], list[str]]:
+    """
+    the version of rename that ensures no None values are in the lists
+    """
     new_srcs = [
-        None if nm is None else src.replace(nm, f"{nm}_{label}{i}")
+        src.replace(nm, f"{nm}_{label}{i}")
         for i, (nm, src) in enumerate(zip(names, srcs))
     ]
-    new_names = [
-        None if nm is None else f"{nm}_{label}{i}" for i, nm in enumerate(names)
-    ]
+    new_names = [f"{nm}_{label}{i}" for i, nm in enumerate(names)]
     return new_srcs, new_names
 
 
@@ -215,7 +237,7 @@ def eval_transfer_func(
     transfer_func_header += f"\ntypedef {domain}<{bitwidth}> Domain;\n"
     transfer_func_header += f"\nunsigned int numFuncs = {len(xfer_names)};\n"
 
-    ref_xfer_srcs, ref_xfer_names = rename(
+    ref_xfer_srcs, ref_xfer_names = rename_no_none(
         ref_xfer_srcs, ref_xfer_names, ref_func_suffix
     )
     ref_xfer_func_wrapper = make_xfer_wrapper(ref_xfer_names, ref_func_wrapper_name)
@@ -225,7 +247,7 @@ def eval_transfer_func(
     )
     ref_cond_wrapper = make_conds_wrapper(ref_cond_names, ref_cond_wrapper_name)
 
-    xfer_srcs, xfer_names = rename(xfer_srcs, xfer_names)
+    xfer_srcs, xfer_names = rename_no_none(xfer_srcs, xfer_names)
     xfer_func_wrapper = make_xfer_wrapper(xfer_names, func_wrapper_name)
 
     cond_srcs, cond_names = rename(cond_srcs, cond_names, cond_suffix)
