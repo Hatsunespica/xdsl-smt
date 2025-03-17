@@ -370,9 +370,13 @@ std::vector<APInt> cr_add(std::vector<APInt> arg0, std::vector<APInt> arg1) {
     results = eval_transfer_func(
         names,
         srcs,
+        [],
+        [],
         f"{concrete_op}\n{constraint_func}",
         ref_names,
         ref_srcs,
+        [],
+        [],
         AbstractDomain.ConstantRange,
         4,
     )
