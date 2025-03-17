@@ -18,12 +18,17 @@ class AbstractDomain(Enum):
 def band_aid(code: str) -> str:
     id_p = r"([a-zA-Z_][a-zA-Z0-9_]*)"
 
-    o_pre = re.escape("std::vector<APInt> ")
-    o_post = re.escape("(std::vector<APInt> arg0,std::vector<APInt> arg1)")
 
     n_pre = 'extern "C" struct Ret '
     n_post = "(const APInt *const arg0, const APInt *const arg1)"
 
+    o_pre = re.escape("std::vector<APInt> ")
+    o_post = re.escape("(std::vector<APInt> arg0,std::vector<APInt> arg1)")
+    p = rf"{o_pre}{id_p}{o_post}"
+    code = re.sub(p, rf"{n_pre}\1{n_post}", code)
+
+    o_post = re.escape("(std::vector<APInt> autogen0,std::vector<APInt> autogen1)")
+    n_post = "(const APInt *const autogen0, const APInt *const autogen1)"
     p = rf"{o_pre}{id_p}{o_post}"
     code = re.sub(p, rf"{n_pre}\1{n_post}", code)
 
@@ -47,6 +52,13 @@ def band_aid(code: str) -> str:
     old = "APInt concrete_op"
     new = 'extern "C" APInt concrete_op'
     code = code.replace(old, new)
+
+    old = "std::vector<APInt> solution(std::vector<APInt> autogen0,std::vector<APInt> autogen1)"
+    new = 'extern "C" struct Ret solution(const APInt *const  autogen0,const APInt *const  autogen1)'
+    code = code.replace(old, new)
+
+    p = rf"{o_pre}{id_p}{re.escape('=')}"
+    code = re.sub(p, r"struct Ret \1=", code)
 
     return code
 
