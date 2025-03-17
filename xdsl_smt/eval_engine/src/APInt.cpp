@@ -31,11 +31,6 @@ public:
   static constexpr unsigned APINT_WORD_SIZE = sizeof(unsigned long);
   static constexpr unsigned APINT_BITS_PER_WORD = APINT_WORD_SIZE * 8;
 
-  explicit APInt() {
-    VAL = 0;
-    BitWidth = 1;
-  }
-
   APInt(unsigned numBits, unsigned long val) : BitWidth(numBits), VAL(val) {
     clearUnusedBits();
   }
@@ -636,7 +631,7 @@ public:
   }
 
   bool operator[](unsigned bitPosition) const {
-    return maskBit(bitPosition) != 0;
+    return (maskBit(bitPosition) & VAL) != 0;
   }
 
   bool operator==(const APInt &RHS) const { return VAL == RHS.VAL; }
@@ -1049,7 +1044,7 @@ APInt APInt::rotr(unsigned rotateAmt) const {
 APInt APInt::multiplicativeInverse() const {
   // Use Newton's method.
   APInt Factor = *this;
-  APInt T;
+  APInt T(BitWidth, 0);
   while (!(T = *this * Factor).isOne())
     Factor *= 2 - T;
   return Factor;

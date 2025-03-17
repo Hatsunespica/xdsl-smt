@@ -24,7 +24,9 @@ public:
   // static ctors
   static const Domain bottom(unsigned int bw) { return Domain::bottom(bw); }
   static const Domain top(unsigned int bw) { return Domain::top(bw); }
-  static const std::vector<Domain> enumVals() { return Domain::enumVals(); }
+  static const std::vector<Domain> enumVals(unsigned int bw) {
+    return Domain::enumVals(bw);
+  }
 
   static const Domain fromConcrete(const A::APInt &x) {
     return Domain::fromConcrete(x);
@@ -103,7 +105,7 @@ public:
       ss << (one()[i - 1] ? '1' : zero()[i - 1] ? '0' : '?');
 
     if (isConstant())
-      ss << getConstant().getZExtValue();
+      ss << " const: " << getConstant().getZExtValue();
 
     if (KnownBits::isTop())
       ss << " (top)";
@@ -115,7 +117,7 @@ public:
 
   const A::APInt getConstant() const {
     assert(isConstant());
-    return zero();
+    return one();
   }
 
   const KnownBits meet(const KnownBits &rhs) const {
@@ -276,18 +278,15 @@ public:
 
 class IntegerModulo : public AbstVal<IntegerModulo> {
 private:
-  constexpr const static unsigned char n = 10;
-  constexpr const static std::array<unsigned char, n> primes = {
-      2, 3, 5, 7, 11, 13, 17, 19, 23, 29};
-  // constexpr const static unsigned long P =
-  //     std::accumulate(primes.begin(), primes.end(),
-  //                     static_cast<unsigned int>(1), std::multiplies<>{});
+  // okay as long as bw is less than 11
+  constexpr const static unsigned char n = 5;
+  constexpr const static std::array<unsigned char, n> primes = {2, 3, 5, 7, 11};
 
   const std::vector<A::APInt> residues() const { return v; }
 
-  static unsigned int modInv(unsigned int a, unsigned int b) {
-    unsigned int b0 = b, t, q;
-    unsigned int x0 = 0, x1 = 1;
+  static unsigned int modInv(int a, int b) {
+    int b0 = b, t, q;
+    int x0 = 0, x1 = 1;
     if (b == 1)
       return 1;
     while (a > 1) {
@@ -295,91 +294,168 @@ private:
       t = b, b = a % b, a = t;
       t = x0, x0 = x1 - q * x0, x1 = t;
     }
-    return (x1 < 0) ? x1 + b0 : x1;
+    return static_cast<unsigned int>((x1 < 0) ? x1 + b0 : x1);
   }
 
-  unsigned int chineseRemainder() {
+  const std::vector<unsigned int> chineseRemainder() const {
     unsigned int result = 0;
-    unsigned long long p = 1;
-    for (size_t i = 0; i < n; ++i) {
-      if (residues()[i] != primes[i]) {
+    unsigned int p = 1;
+
+    for (size_t i = 0; i < n; ++i)
+      if (residues()[i] != primes[i])
         p *= primes[i];
-      }
-    }
 
     for (size_t i = 0; i < n; ++i) {
       if (residues()[i] == primes[i])
         continue;
-      unsigned int pp = static_cast<unsigned int>(p / primes[i]);
-      result += residues()[i].getZExtValue() * modInv(pp, primes[i]) * pp;
+      unsigned int pp = p / primes[i];
+      result += static_cast<unsigned int>(residues()[i].getZExtValue()) *
+                modInv(static_cast<int>(pp), primes[i]) * pp;
     }
-    return result % p;
+
+    const unsigned int max =
+        static_cast<unsigned int>(A::APInt::getMaxValue(bw).getZExtValue());
+
+    std::vector<unsigned int> r;
+    for (result %= p; result <= max; result += p)
+      r.push_back(result);
+
+    return r;
   }
 
 public:
   explicit IntegerModulo(const std::vector<A::APInt> &vC, unsigned int bwC)
       : AbstVal<IntegerModulo>(vC, bwC) {}
 
-  const std::string display() const;
+  const std::string display() const {
+    if (IntegerModulo::isBottom()) {
+      return "(bottom)";
+    }
 
-  bool isConstant() const;
-  const A::APInt getConstant() const;
+    std::stringstream ss;
+
+    ss << "mods: ";
+    for (unsigned int i = 0; i < n; ++i)
+      if (residues()[i] == primes[i])
+        ss << "T ";
+      else
+        ss << residues()[i].getZExtValue() << " ";
+
+    ss << "vals: ";
+    auto a = chineseRemainder();
+    for (unsigned int i = 0; i < a.size(); ++i)
+      ss << a[i] << " ";
+
+    if (IntegerModulo::isTop())
+      ss << "(top)";
+
+    return ss.str();
+  }
+
+  bool isConstant() const {
+    for (unsigned int i = 0; i < n; ++i)
+      if (residues()[i] == primes[i])
+        return false;
+
+    if (chineseRemainder().size() != 1)
+      return false;
+
+    return true;
+  }
+
+  const A::APInt getConstant() const {
+    assert(isConstant());
+    return A::APInt(bw, chineseRemainder()[0]);
+  }
 
   const IntegerModulo meet(const IntegerModulo &rhs) const {
-    std::vector<A::APInt> r(n);
+    std::vector<A::APInt> r;
 
     for (unsigned int i = 0; i < n; ++i) {
       if (residues()[i] == rhs.residues()[i])
-        r[i] = residues()[i];
+        r.push_back(residues()[i]);
       else if (residues()[i] == primes[i])
-        r[i] = rhs.residues()[i];
+        r.push_back(rhs.residues()[i]);
       else if (rhs.residues()[i] == primes[i])
-        r[i] = residues()[i];
+        r.push_back(residues()[i]);
       else
-        r[i] = A::APInt(bw, primes[i] + 1);
+        return bottom(bw);
     }
 
     return IntegerModulo(r, bw);
   }
 
   const IntegerModulo join(const IntegerModulo &rhs) const {
-    std::vector<A::APInt> r(n);
+    std::vector<A::APInt> r;
 
-    for (unsigned int i = 0; i < n; ++i) {
+    for (unsigned int i = 0; i < n; ++i)
       if (residues()[i] == rhs.residues()[i])
-        r[i] = residues()[i];
+        r.push_back(residues()[i]);
       else
-        r[i] = A::APInt(bw, primes[i]);
-    }
+        r.push_back(A::APInt(bw, primes[i]));
 
     return IntegerModulo(r, bw);
   }
 
-  const std::vector<unsigned int> toConcrete() const;
+  const std::vector<unsigned int> toConcrete() const {
+    return chineseRemainder();
+  }
 
   static IntegerModulo fromConcrete(const A::APInt &x, unsigned int bw) {
     unsigned int xVal = static_cast<unsigned int>(x.getZExtValue());
-    std::vector<A::APInt> v(primes.size());
+    std::vector<A::APInt> v;
     std::transform(
-        primes.begin(), primes.end(), v.begin(),
+        primes.begin(), primes.end(), std::back_inserter(v),
         [xVal, bw](unsigned char pr) { return A::APInt(bw, xVal % pr); });
 
     return IntegerModulo(v, bw);
   }
 
   static IntegerModulo top(unsigned int bw) {
-    std::vector<A::APInt> r(n);
-    std::transform(primes.begin(), primes.end(), r.begin(),
+    std::vector<A::APInt> r;
+    std::transform(primes.begin(), primes.end(), std::back_inserter(r),
                    [bw](unsigned int x) { return A::APInt(bw, x); });
     return IntegerModulo(r, bw);
   }
 
   static IntegerModulo bottom(unsigned int bw) {
-    std::vector<A::APInt> r(n);
-    std::transform(primes.begin(), primes.end(), r.begin(),
+    std::vector<A::APInt> r;
+    std::transform(primes.begin(), primes.end(), std::back_inserter(r),
                    [bw](unsigned int x) { return A::APInt(bw, x + 1); });
     return IntegerModulo(r, bw);
   }
 
-  static std::vector<IntegerModulo> const enumVals();
+  static std::vector<IntegerModulo> const enumVals(unsigned int bw) {
+    std::vector<IntegerModulo> r;
+    IntegerModulo tmp(std::vector<A::APInt>(n, A::APInt(bw, 0)), bw);
+
+    while (true) {
+      bool noTs = true;
+      for (unsigned int i = 0; i < n; ++i)
+        if (tmp.residues()[i] == primes[i]) {
+          noTs = false;
+          break;
+        }
+
+      if (!(tmp.chineseRemainder().size() == 0) &&
+          (noTs || !(tmp.chineseRemainder().size() == 1)))
+        r.push_back(tmp);
+
+      if (tmp.isTop())
+        break;
+
+      for (unsigned int i = 0; i < n; ++i) {
+        if (tmp.residues()[i] != primes[i]) {
+          std::vector<A::APInt> v = tmp.residues();
+          for (unsigned int j = 0; j < i; ++j)
+            v[j] = 0;
+          v[i] += 1;
+          tmp = IntegerModulo(v, bw);
+          break;
+        }
+      }
+    }
+
+    return r;
+  }
 };
