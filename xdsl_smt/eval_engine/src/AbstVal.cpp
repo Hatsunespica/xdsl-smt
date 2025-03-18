@@ -1,8 +1,6 @@
 #pragma once
 
-#include <cassert>
-#include <cmath>
-#include <cstdio>
+#include <iostream>
 #include <numeric>
 #include <sstream>
 #include <string>
@@ -10,13 +8,14 @@
 
 #include "APInt.cpp"
 
-template <typename Domain> class AbstVal {
+template <typename Domain, unsigned int N> class AbstVal {
 protected:
-  explicit AbstVal(const std::vector<A::APInt> &x, unsigned int bitwidth)
-      : v(x), bw(bitwidth) {}
+  explicit AbstVal(const Vec<N> &x) : v(x), bw(x[0].getBitWidth()) {}
 
 public:
-  std::vector<A::APInt> v;
+  typedef Vec<N> (*XferFn)(Vec<N>, Vec<N>);
+
+  Vec<N> v;
   unsigned int bw;
 
   // static ctors
@@ -49,10 +48,7 @@ public:
   }
 
   bool operator==(const AbstVal &rhs) const {
-    if (v.size() != rhs.v.size())
-      return false;
-
-    for (unsigned long i = 0; i < v.size(); ++i)
+    for (unsigned int i = 0; i < N; ++i)
       if (v[i] != rhs.v[i])
         return false;
 
@@ -80,15 +76,14 @@ public:
   };
 };
 
-class KnownBits : public AbstVal<KnownBits> {
+class KnownBits : public AbstVal<KnownBits, 2> {
 private:
   A::APInt zero() const { return v[0]; }
   A::APInt one() const { return v[1]; }
   bool hasConflict() const { return zero().intersects(one()); }
 
 public:
-  explicit KnownBits(const std::vector<A::APInt> &vC, unsigned int bwC)
-      : AbstVal<KnownBits>(vC, bwC) {}
+  explicit KnownBits(const Vec<2> &vC) : AbstVal<KnownBits, 2>(vC) {}
 
   const std::string display() const {
     if (KnownBits::isBottom()) {
@@ -113,11 +108,11 @@ public:
   const A::APInt getConstant() const { return zero(); }
 
   const KnownBits meet(const KnownBits &rhs) const {
-    return KnownBits({zero() | rhs.zero(), one() | rhs.one()}, bw);
+    return KnownBits({zero() | rhs.zero(), one() | rhs.one()});
   }
 
   const KnownBits join(const KnownBits &rhs) const {
-    return KnownBits({zero() & rhs.zero(), one() & rhs.one()}, bw);
+    return KnownBits({zero() & rhs.zero(), one() & rhs.one()});
   }
 
   const std::vector<unsigned int> toConcrete() const {
@@ -136,18 +131,18 @@ public:
     return ret;
   }
 
-  static KnownBits fromConcrete(const A::APInt &x, unsigned int bw) {
-    return KnownBits({~x, x}, bw);
+  static KnownBits fromConcrete(const A::APInt &x) {
+    return KnownBits({~x, x});
   }
 
   static KnownBits bottom(unsigned int bw) {
     A::APInt max = A::APInt::getMaxValue(bw);
-    return KnownBits({max, max}, bw);
+    return KnownBits({max, max});
   }
 
   static KnownBits top(unsigned int bw) {
     A::APInt min = A::APInt::getMinValue(bw);
-    return KnownBits({min, min}, bw);
+    return KnownBits({min, min});
   }
 
   static std::vector<KnownBits> const enumVals(unsigned int bw) {
@@ -166,7 +161,7 @@ public:
 
         zero = i;
         one = j;
-        ret.push_back(KnownBits({zero, one}, bw));
+        ret.push_back(KnownBits({zero, one}));
       }
     }
 
@@ -174,14 +169,13 @@ public:
   }
 };
 
-class ConstantRange : public AbstVal<ConstantRange> {
+class ConstantRange : public AbstVal<ConstantRange, 2> {
 private:
-  A::APInt lower() const { return this->v[0]; }
-  A::APInt upper() const { return this->v[1]; }
+  A::APInt lower() const { return v[0]; }
+  A::APInt upper() const { return v[1]; }
 
 public:
-  explicit ConstantRange(const std::vector<A::APInt> &vC, unsigned int bwC)
-      : AbstVal<ConstantRange>(vC, bwC) {}
+  explicit ConstantRange(const Vec<2> &vC) : AbstVal<ConstantRange, 2>(vC) {}
 
   const std::string display() const {
     if (ConstantRange::isBottom()) {
@@ -206,13 +200,13 @@ public:
     A::APInt u = rhs.upper().ult(upper()) ? rhs.upper() : upper();
     if (l.ugt(u))
       return bottom(bw);
-    return ConstantRange({std::move(l), std::move(u)}, bw);
+    return ConstantRange({std::move(l), std::move(u)});
   }
 
   const ConstantRange join(const ConstantRange &rhs) const {
     const A::APInt l = rhs.lower().ult(lower()) ? rhs.lower() : lower();
     const A::APInt u = rhs.upper().ugt(upper()) ? rhs.upper() : upper();
-    return ConstantRange({std::move(l), std::move(u)}, bw);
+    return ConstantRange({std::move(l), std::move(u)});
   }
 
   const std::vector<unsigned int> toConcrete() const {
@@ -227,20 +221,20 @@ public:
     return ret;
   }
 
-  static ConstantRange fromConcrete(const A::APInt &x, unsigned int bw) {
-    return ConstantRange({x, x}, bw);
+  static ConstantRange fromConcrete(const A::APInt &x) {
+    return ConstantRange({x, x});
   }
 
   static ConstantRange bottom(unsigned int bw) {
     A::APInt min = A::APInt::getMinValue(bw);
     A::APInt max = A::APInt::getMaxValue(bw);
-    return ConstantRange({max, min}, bw);
+    return ConstantRange({max, min});
   }
 
   static ConstantRange top(unsigned int bw) {
     A::APInt min = A::APInt::getMinValue(bw);
     A::APInt max = A::APInt::getMaxValue(bw);
-    return ConstantRange({min, max}, bw);
+    return ConstantRange({min, max});
   }
 
   static std::vector<ConstantRange> const enumVals(unsigned int bw) {
@@ -256,7 +250,7 @@ public:
       for (unsigned int j = i; j <= max; ++j) {
         l = i;
         u = j;
-        ret.push_back(ConstantRange({l, u}, bw));
+        ret.push_back(ConstantRange({l, u}));
       }
     }
 

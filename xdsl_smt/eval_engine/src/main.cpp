@@ -1,11 +1,7 @@
 #include <algorithm>
-#include <cmath>
-#include <cstdio>
-#include <cstring>
 #include <functional>
 #include <iostream>
 #include <optional>
-#include <sstream>
 #include <string>
 #include <vector>
 
@@ -14,36 +10,31 @@
 #include "Results.cpp"
 #include "jit.cpp"
 
-typedef std::function<Ret(A::APInt *, A::APInt *)> XferFn;
 typedef std::function<A::APInt(A::APInt, A::APInt)> ConcOpFn;
 typedef std::function<bool(A::APInt, A::APInt)> OpConstraintFn;
 
 template <typename Domain>
-std::vector<Domain> synth_function_wrapper(const Domain &lhs, const Domain &rhs,
-                                           const std::vector<XferFn> &fs) {
+std::vector<Domain>
+synth_function_wrapper(const Domain &lhs, const Domain &rhs,
+                       const std::vector<typename Domain::XferFn> &fs) {
   std::vector<Domain> r;
-  A::APInt lhs_a[2] = {lhs.v[0], lhs.v[1]};
-  A::APInt rhs_a[2] = {rhs.v[0], rhs.v[1]};
-  unsigned int bw = lhs.bw;
   std::transform(fs.begin(), fs.end(), std::back_inserter(r),
-                 [&lhs_a, &rhs_a, bw](const XferFn &f) {
-                   const Ret res = f(lhs_a, rhs_a);
-                   return Domain({res.a, res.b}, bw);
+                 [&lhs, &rhs](const typename Domain::XferFn &f) {
+                   const Vec res = f(lhs.v, rhs.v);
+                   return Domain(res);
                  });
   return r;
 }
 
 template <typename Domain>
-std::vector<Domain> ref_function_wrapper(const Domain &lhs, const Domain &rhs,
-                                         const std::vector<XferFn> &fs) {
+std::vector<Domain>
+ref_function_wrapper(const Domain &lhs, const Domain &rhs,
+                     const std::vector<typename Domain::XferFn> &fs) {
   std::vector<Domain> r;
-  A::APInt lhs_a[2] = {lhs.v[0], lhs.v[1]};
-  A::APInt rhs_a[2] = {rhs.v[0], rhs.v[1]};
-  unsigned int bw = lhs.bw;
   std::transform(fs.begin(), fs.end(), std::back_inserter(r),
-                 [&lhs_a, &rhs_a, bw](const XferFn &f) {
-                   const Ret res = f(lhs_a, rhs_a);
-                   return Domain({res.a, res.b}, bw);
+                 [&lhs, &rhs](const typename Domain::XferFn &f) {
+                   const Vec res = f(lhs.v, rhs.v);
+                   return Domain(res);
                  });
   return r;
 }
@@ -60,7 +51,7 @@ const Domain toBestAbst(const Domain &lhs, const Domain &rhs,
       if (!opConstraintFn || opConstraintFn.value()(A::APInt(lhs.bw, lhs_v),
                                                     A::APInt(lhs.bw, rhs_v)))
         crtVals.push_back(Domain::fromConcrete(
-            concOp(A::APInt(lhs.bw, lhs_v), A::APInt(lhs.bw, rhs_v)), lhs.bw));
+            concOp(A::APInt(lhs.bw, lhs_v), A::APInt(rhs.bw, rhs_v))));
     }
   }
 
@@ -68,12 +59,27 @@ const Domain toBestAbst(const Domain &lhs, const Domain &rhs,
 }
 
 template <typename Domain>
-const Results eval(const std::vector<XferFn> &xferFns,
-                   const std::vector<XferFn> &baseFns, const ConcOpFn &concOp,
+const Results eval(const std::vector<llvm::orc::ExecutorAddr> &xferFnAddrs,
+                   const std::vector<llvm::orc::ExecutorAddr> &baseFnAddrs,
+                   const ConcOpFn &concOp,
                    const std::optional<OpConstraintFn> &opConstraintFn,
                    unsigned int bw) {
-  Results r{static_cast<unsigned int>(xferFns.size())};
+  Results r{static_cast<unsigned int>(xferFnAddrs.size())};
   const std::vector<Domain> fullLattice = Domain::enumVals(bw);
+
+  std::vector<typename Domain::XferFn> xferFns(xferFnAddrs.size());
+  std::transform(xferFnAddrs.begin(), xferFnAddrs.end(), xferFns.begin(),
+                 [](const llvm::orc::ExecutorAddr &x) {
+                   return x.toPtr<typename Domain::XferFn>();
+                 });
+
+  std::vector<typename Domain::XferFn> baseFns(baseFnAddrs.size());
+  std::transform(baseFnAddrs.begin(), baseFnAddrs.end(), baseFns.begin(),
+                 [](const llvm::orc::ExecutorAddr &x) {
+                   return x.toPtr<typename Domain::XferFn>();
+                 });
+
+  xferFnAddrs[0].toPtr<void *(void *, void *)>();
 
   for (Domain lhs : fullLattice) {
     for (Domain rhs : fullLattice) {
@@ -82,6 +88,7 @@ const Results eval(const std::vector<XferFn> &xferFns,
       // op_constraint
       if (best_abstract_res.isBottom())
         continue;
+
       std::vector<Domain> synth_kbs(
           synth_function_wrapper<Domain>(lhs, rhs, xferFns));
       std::vector<Domain> ref_kbs(ref_function_wrapper(lhs, rhs, baseFns));
@@ -131,19 +138,15 @@ int main() {
 
   std::unique_ptr<llvm::orc::LLJIT> jit = getJit(fnSrcCode);
 
-  std::vector<XferFn> xferFns(synthFnNames.size());
-  std::transform(synthFnNames.begin(), synthFnNames.end(), xferFns.begin(),
-                 [&jit](const std::string &x) {
-                   return llvm::cantFail(jit->lookup(x))
-                       .toPtr<Ret(A::APInt *, A::APInt *)>();
-                 });
+  std::vector<llvm::orc::ExecutorAddr> xferFns(synthFnNames.size());
+  std::transform(
+      synthFnNames.begin(), synthFnNames.end(), xferFns.begin(),
+      [&jit](const std::string &x) { return llvm::cantFail(jit->lookup(x)); });
 
-  std::vector<XferFn> baseFns(baseFnNames.size());
-  std::transform(baseFnNames.begin(), baseFnNames.end(), baseFns.begin(),
-                 [&jit](const std::string &x) {
-                   return llvm::cantFail(jit->lookup(x))
-                       .toPtr<Ret(A::APInt *, A::APInt *)>();
-                 });
+  std::vector<llvm::orc::ExecutorAddr> baseFns(baseFnNames.size());
+  std::transform(
+      baseFnNames.begin(), baseFnNames.end(), baseFns.begin(),
+      [&jit](const std::string &x) { return llvm::cantFail(jit->lookup(x)); });
 
   ConcOpFn concOpAddr = llvm::cantFail(jit->lookup("concrete_op"))
                             .toPtr<A::APInt(A::APInt, A::APInt)>();
