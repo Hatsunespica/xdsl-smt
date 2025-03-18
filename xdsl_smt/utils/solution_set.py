@@ -368,12 +368,12 @@ class UnsizedSolutionSet(SolutionSet):
     """
 
     def learn_weights(self, context: SynthesizerContext):
-        freq_i1: dict[type(Operation), int] = {}
-        freq_int: dict[type(Operation), int] = {}
+        freq_i1: dict[type[Operation], int] = {}
+        freq_int: dict[type[Operation], int] = {}
 
         def add_another_dict(dict1: dict, dict2: dict):
-            for key, value in dict2.items():
-                dict1[key] = dict1.get(key, 0) + value
+            for k, v in dict2.items():
+                dict1[k] = dict1.get(k, 0) + v
 
         for i in range(len(self.solutions)):
             cmp_results: list[CompareResult] = self.eval_func(

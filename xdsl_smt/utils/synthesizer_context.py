@@ -423,7 +423,7 @@ class SynthesizerContext:
             return SelectOp(cond, true_val, false_val)
         elif issubclass(result_type, UnaryOp):
             val = self.select_operand(int_vals, self.get_constraint(result_type))
-            return result_type(val)
+            return result_type(val)  # pyright: ignore [reportCallIssue]
         elif self.skip_trivial and result_type in optimize_complex_operands_selection:
             constraint1, constraint2 = optimize_complex_operands_selection[result_type]
             val1, val2 = self.select_two_operand(
@@ -503,9 +503,15 @@ class SynthesizerContext:
         if not self.skip_trivial:
             # NOTICE: consider not the same value?
             if isinstance(op.operands[ith].type, TransIntegerType):
-                op.operands[ith] = self.select_operand(int_vals, no_constraint)
+                val = self.select_operand(int_vals, no_constraint)
+                if val is None:
+                    return False
+                op.operands[ith] = val
             elif op.operands[ith].type == i1:
-                op.operands[ith] = self.select_operand(i1_vals, no_constraint)
+                val = self.select_operand(int_vals, no_constraint)
+                if val is None:
+                    return False
+                op.operands[ith] = val
             else:
                 raise ValueError(
                     "unknown type when replacing operand: " + str(op.operands[ith].type)
@@ -530,13 +536,19 @@ class SynthesizerContext:
                     constraint(val) and val != op.operands[1 - ith]
                 )
         if isinstance(op.operands[ith].type, TransIntegerType):
-            op.operands[ith] = self.select_operand(
+            val = self.select_operand(
                 int_vals, constraint if new_constraint is None else new_constraint
             )
+            if val is None:
+                return False
+            op.operands[ith] = val
         elif op.operands[ith].type == i1:
-            op.operands[ith] = self.select_operand(
+            val = self.select_operand(
                 i1_vals, constraint if new_constraint is None else new_constraint
             )
+            if val is None:
+                return False
+            op.operands[ith] = val
         else:
             raise ValueError(
                 "unknown type when replacing operand: " + str(op.operands[ith].type)
