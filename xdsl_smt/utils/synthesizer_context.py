@@ -423,6 +423,8 @@ class SynthesizerContext:
             return SelectOp(cond, true_val, false_val)
         elif issubclass(result_type, UnaryOp):
             val = self.select_operand(int_vals, self.get_constraint(result_type))
+            if val is None:
+                return None
             return result_type(val)  # pyright: ignore [reportCallIssue]
         elif self.skip_trivial and result_type in optimize_complex_operands_selection:
             constraint1, constraint2 = optimize_complex_operands_selection[result_type]
