@@ -558,7 +558,7 @@ class SynthesizerContext:
     @staticmethod
     def count_op_frequency(
         func: FuncOp,
-    ) -> (dict[type[Operation], int], dict[type[Operation], int]):
+    ) -> tuple[dict[type[Operation], int], dict[type[Operation], int]]:
         freq_int: dict[type[Operation], int] = {}
         freq_i1: dict[type[Operation], int] = {}
         for op in func.body.block.ops:
