@@ -96,9 +96,9 @@ class SolutionSet(ABC):
         result = FuncOp("solution", solutions[0].func.function_type)
         result_type = result.function_type.outputs.data
         part_result: list[CallOp] = []
-        for ith, func in enumerate(solutions):
+        for ith, func_with_cond in enumerate(solutions):
             cur_func_name = "partial_solution_" + str(ith)
-            func.sym_name = StringAttr("partial_solution_" + str(ith))
+            func_with_cond.func.sym_name = StringAttr("partial_solution_" + str(ith))
             part_result.append(CallOp(cur_func_name, result.args, result_type))
         if len(part_result) == 1:
             result.body.block.add_ops(part_result + [ReturnOp(part_result[-1])])
@@ -183,7 +183,7 @@ class SizedSolutionSet(SolutionSet):
         result = self.eval_func(candidates, ref_funcs)
         index = 0
         num_exacts = 0
-        cost = 2
+        # cost = 2
         for i in range(len(result)):
             if result[i].exacts > num_exacts:
                 index = i
@@ -200,7 +200,7 @@ class SizedSolutionSet(SolutionSet):
         for _ in range(1, self.size + 1):
             index = 0
             num_exacts = 0
-            cost = 2
+            # cost = 2
             result = self.eval_func(candidates, ref_funcs)
             for ith_result in range(len(result)):
                 if result[ith_result].unsolved_exacts > num_exacts:
@@ -261,7 +261,7 @@ class UnsizedSolutionSet(SolutionSet):
         cur_most_e: float = 0
         candidates = self.solutions + new_candidates_sp + new_candidates_c
         self.logger.info(f"Size of new candidates: {len(new_candidates_sp)}")
-        self.logger.info(f"Size of new cond candidates: {len(new_candidates_c)}")
+        self.logger.info(f"Size of new conditional candidates: {len(new_candidates_c)}")
         self.logger.info(f"Size of solutions: {len(candidates)}")
         # for i, func in enumerate(new_candidates):
         #     cpp_code = self.lower_to_cpp(self.eliminate_dead_code(func))
@@ -307,6 +307,7 @@ class UnsizedSolutionSet(SolutionSet):
 
         self.solutions = []
         self.logger.info("Reset solution set...")
+        num_cond_solutions = 0
         while len(candidates) > 0:
             index = 0
             most_unsol_e = 0
@@ -319,11 +320,16 @@ class UnsizedSolutionSet(SolutionSet):
                 break
 
             if candidates[index] in new_candidates_sp:
-                log_str = "Add a sound transformer"
+                log_str = "Add a new transformer"
             elif candidates[index] in new_candidates_c:
-                log_str = "Add a cond transformer"
+                log_str = "Add a new transformer (cond)"
+                num_cond_solutions += 1
             else:
-                log_str = "Add a existing solution"
+                if candidates[index].cond is None:
+                    log_str = "Add a existing transformer"
+                else:
+                    log_str = "Add a existing transformer (cond)"
+                    num_cond_solutions += 1
 
             self.logger.info(
                 f"{log_str}. Exact: {result[index].get_exact_prop() * 100:.2f}%, Precision: {result[index].get_bitwise_precision() * 100:.2f}%"
@@ -331,7 +337,10 @@ class UnsizedSolutionSet(SolutionSet):
 
             self.solutions.append(candidates.pop(index))
 
-        self.logger.info(f"Size of solutions after reseting: {len(self.solutions)}")
+        self.logger.info(
+            f"The number of solutions after reseting: {len(self.solutions)}"
+        )
+        self.logger.info(f"The number of conditional solutions: {num_cond_solutions}")
 
         precise_candidates = self.precise_set + new_candidates_p
         result = self.eval_improve([FuncWithCond(f) for f in precise_candidates])

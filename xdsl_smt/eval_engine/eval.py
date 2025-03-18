@@ -195,13 +195,13 @@ def rename(
 def eval_transfer_func(
     xfer_names: list[str],
     xfer_srcs: list[str],
-    cond_names: list[str | None],
-    cond_srcs: list[str | None],
+    _cond_names: list[str | None],
+    _cond_srcs: list[str | None],
     concrete_op_expr: str,
     ref_xfer_names: list[str],
     ref_xfer_srcs: list[str],
-    ref_cond_names: list[str | None],
-    ref_cond_srcs: list[str | None],
+    _ref_cond_names: list[str | None],
+    _ref_cond_srcs: list[str | None],
     domain: AbstractDomain,
     bitwidth: int,
     helper_funcs: list[str] | None = None,
@@ -214,17 +214,17 @@ def eval_transfer_func(
     cond_suffix = "COND"
     ref_cond_suffix = "BASE_COND"
 
-    if not cond_names:
-        cond_names = [""] * len(xfer_names)
-        cond_srcs = [""] * len(xfer_names)
-    if not ref_cond_names:
-        ref_cond_names = [""] * len(ref_xfer_names)
-        ref_cond_srcs = [""] * len(ref_xfer_names)
+    if not _cond_names:
+        _cond_names = [""] * len(xfer_names)
+        _cond_srcs = [""] * len(xfer_names)
+    if not _ref_cond_names:
+        _ref_cond_names = [""] * len(ref_xfer_names)
+        _ref_cond_srcs = [""] * len(ref_xfer_names)
 
-    cond_names = ["" if s is None else s for s in cond_names]
-    cond_srcs = ["" if s is None else s for s in cond_srcs]
-    ref_cond_names = ["" if s is None else s for s in ref_cond_names]
-    ref_cond_srcs = ["" if s is None else s for s in ref_cond_srcs]
+    cond_names: list[str] = ["" if s is None else s for s in _cond_names]
+    cond_srcs: list[str] = ["" if s is None else s for s in _cond_srcs]
+    ref_cond_names: list[str] = ["" if s is None else s for s in _ref_cond_names]
+    ref_cond_srcs: list[str] = ["" if s is None else s for s in _ref_cond_srcs]
 
     assert len(xfer_names) == len(xfer_srcs) == len(cond_names) == len(cond_srcs)
     assert (
