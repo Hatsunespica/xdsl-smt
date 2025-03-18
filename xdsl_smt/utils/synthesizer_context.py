@@ -464,7 +464,7 @@ class SynthesizerContext:
         self,
         int_vals: list[SSAValue],
         i1_vals: list[SSAValue],
-    ) -> Operation:
+    ) -> Operation | None:
         if self.weighted:
             result_type = self.int_ops.get_weighted_random_element(self.int_weights)
         else:
@@ -477,7 +477,7 @@ class SynthesizerContext:
         int_vals: list[SSAValue],
         i1_vals: list[SSAValue],
         except_op: Operation,
-    ) -> Operation:
+    ) -> Operation | None:
         result_type = self.i1_ops.get_random_element_if(
             lambda op_ty=type[Operation]: op_ty != type(except_op)
         )
@@ -489,7 +489,7 @@ class SynthesizerContext:
         int_vals: list[SSAValue],
         i1_vals: list[SSAValue],
         except_op: Operation,
-    ) -> Operation:
+    ) -> Operation | None:
         result_type = self.int_ops.get_random_element_if(
             lambda op_ty=type[Operation]: op_ty != type(except_op)
         )
@@ -546,9 +546,9 @@ class SynthesizerContext:
     @staticmethod
     def count_op_frequency(
         func: FuncOp,
-    ) -> (dict[type(Operation), int], dict[type(Operation), int]):
-        freq_int: dict[type(Operation), int] = {}
-        freq_i1: dict[type(Operation), int] = {}
+    ) -> (dict[type[Operation], int], dict[type[Operation], int]):
+        freq_int: dict[type[Operation], int] = {}
+        freq_i1: dict[type[Operation], int] = {}
         for op in func.body.block.ops:
             ty = type(op)
             if ty in full_int_ops:
