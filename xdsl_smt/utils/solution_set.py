@@ -371,7 +371,9 @@ class UnsizedSolutionSet(SolutionSet):
         freq_i1: dict[type[Operation], int] = {}
         freq_int: dict[type[Operation], int] = {}
 
-        def add_another_dict(dict1: dict[type[Operation], int], dict2: dict[type[Operation], int] ):
+        def add_another_dict(
+            dict1: dict[type[Operation], int], dict2: dict[type[Operation], int]
+        ):
             for k, v in dict2.items():
                 dict1[k] = dict1.get(k, 0) + v
 
