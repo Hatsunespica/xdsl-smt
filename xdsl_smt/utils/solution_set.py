@@ -177,10 +177,10 @@ class SizedSolutionSet(SolutionSet):
                 self.eval_func,
             )
         rename_functions([fc.func for fc in candidates], "part_solution_")
-        ref_funcs = []
+        ref_funcs: list[FuncWithCond] = []
 
         # First select a function with maximal precise
-        result = self.eval_func(candidates, ref_funcs)
+        result: list[CompareResult] = self.eval_func(candidates, ref_funcs)
         index = 0
         num_exacts = 0
         # cost = 2
@@ -201,7 +201,7 @@ class SizedSolutionSet(SolutionSet):
             index = 0
             num_exacts = 0
             # cost = 2
-            result = self.eval_func(candidates, ref_funcs)
+            result: list[CompareResult] = self.eval_func(candidates, ref_funcs)
             for ith_result in range(len(result)):
                 if result[ith_result].unsolved_exacts > num_exacts:
                     index = ith_result
@@ -258,12 +258,11 @@ class UnsizedSolutionSet(SolutionSet):
         new_candidates_p: list[FuncOp],
         new_candidates_c: list[FuncWithCond],
     ) -> SolutionSet:
-        cur_most_e: float = 0
         candidates = self.solutions + new_candidates_sp + new_candidates_c
         self.logger.info(f"Size of new candidates: {len(new_candidates_sp)}")
         self.logger.info(f"Size of new conditional candidates: {len(new_candidates_c)}")
         self.logger.info(f"Size of solutions: {len(candidates)}")
-        # for i, func in enumerate(new_candidates):
+        # cur_most_e: float = 0
         #     cpp_code = self.lower_to_cpp(self.eliminate_dead_code(func))
         #
         #     cmp_results: list[CompareResult] = self.eval_func(
@@ -369,8 +368,8 @@ class UnsizedSolutionSet(SolutionSet):
     """
 
     def learn_weights(self, context: SynthesizerContext):
-        freq_i1: dict[type(Operation), int] = {}
-        freq_int: dict[type(Operation), int] = {}
+        freq_i1: dict = {}
+        freq_int: dict = {}
 
         def add_another_dict(dict1: dict, dict2: dict):
             for key, value in dict2.items():
