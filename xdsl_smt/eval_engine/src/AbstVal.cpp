@@ -1,10 +1,8 @@
 #pragma once
 
 #include <algorithm>
-#include <array>
 #include <cassert>
-#include <cmath>
-#include <cstdio>
+#include <iostream>
 #include <numeric>
 #include <sstream>
 #include <string>
@@ -12,12 +10,16 @@
 
 #include "APInt.cpp"
 
-template <typename Domain> class AbstVal {
+template <typename Domain, unsigned int N> class AbstVal {
 protected:
-  explicit AbstVal(const std::vector<A::APInt> &x, unsigned int bitwidth)
-      : v(x), bw(bitwidth) {}
+  explicit AbstVal(const Vec<N> &x)
+      : v(x.v, x.v + x.getN()), bw(x[0].getBitWidth()) {}
+  explicit AbstVal(const std::vector<A::APInt> &x)
+      : v(x), bw(x[0].getBitWidth()) {}
 
 public:
+  typedef Vec<N> (*XferFn)(Vec<N>, Vec<N>);
+
   std::vector<A::APInt> v;
   unsigned int bw;
 
@@ -53,10 +55,7 @@ public:
   }
 
   bool operator==(const AbstVal &rhs) const {
-    if (v.size() != rhs.v.size())
-      return false;
-
-    for (unsigned long i = 0; i < v.size(); ++i)
+    for (unsigned int i = 0; i < N; ++i)
       if (v[i] != rhs.v[i])
         return false;
 
@@ -84,15 +83,14 @@ public:
   };
 };
 
-class KnownBits : public AbstVal<KnownBits> {
+class KnownBits : public AbstVal<KnownBits, 2> {
 private:
   A::APInt zero() const { return v[0]; }
   A::APInt one() const { return v[1]; }
   bool hasConflict() const { return zero().intersects(one()); }
 
 public:
-  explicit KnownBits(const std::vector<A::APInt> &vC, unsigned int bwC)
-      : AbstVal<KnownBits>(vC, bwC) {}
+  explicit KnownBits(const Vec<2> &vC) : AbstVal<KnownBits, 2>(vC) {}
 
   const std::string display() const {
     if (KnownBits::isBottom()) {
@@ -121,11 +119,11 @@ public:
   }
 
   const KnownBits meet(const KnownBits &rhs) const {
-    return KnownBits({zero() | rhs.zero(), one() | rhs.one()}, bw);
+    return KnownBits({zero() | rhs.zero(), one() | rhs.one()});
   }
 
   const KnownBits join(const KnownBits &rhs) const {
-    return KnownBits({zero() & rhs.zero(), one() & rhs.one()}, bw);
+    return KnownBits({zero() & rhs.zero(), one() & rhs.one()});
   }
 
   const std::vector<unsigned int> toConcrete() const {
@@ -144,18 +142,18 @@ public:
     return ret;
   }
 
-  static KnownBits fromConcrete(const A::APInt &x, unsigned int bw) {
-    return KnownBits({~x, x}, bw);
+  static KnownBits fromConcrete(const A::APInt &x) {
+    return KnownBits({~x, x});
   }
 
   static KnownBits bottom(unsigned int bw) {
     A::APInt max = A::APInt::getMaxValue(bw);
-    return KnownBits({max, max}, bw);
+    return KnownBits({max, max});
   }
 
   static KnownBits top(unsigned int bw) {
     A::APInt min = A::APInt::getMinValue(bw);
-    return KnownBits({min, min}, bw);
+    return KnownBits({min, min});
   }
 
   static std::vector<KnownBits> const enumVals(unsigned int bw) {
@@ -174,7 +172,7 @@ public:
 
         zero = i;
         one = j;
-        ret.push_back(KnownBits({zero, one}, bw));
+        ret.push_back(KnownBits({zero, one}));
       }
     }
 
@@ -182,14 +180,13 @@ public:
   }
 };
 
-class ConstantRange : public AbstVal<ConstantRange> {
+class ConstantRange : public AbstVal<ConstantRange, 2> {
 private:
   A::APInt lower() const { return v[0]; }
   A::APInt upper() const { return v[1]; }
 
 public:
-  explicit ConstantRange(const std::vector<A::APInt> &vC, unsigned int bwC)
-      : AbstVal<ConstantRange>(vC, bwC) {}
+  explicit ConstantRange(const Vec<2> &vC) : AbstVal<ConstantRange, 2>(vC) {}
 
   const std::string display() const {
     if (ConstantRange::isBottom()) {
@@ -218,13 +215,13 @@ public:
     A::APInt u = rhs.upper().ult(upper()) ? rhs.upper() : upper();
     if (l.ugt(u))
       return bottom(bw);
-    return ConstantRange({std::move(l), std::move(u)}, bw);
+    return ConstantRange({std::move(l), std::move(u)});
   }
 
   const ConstantRange join(const ConstantRange &rhs) const {
     const A::APInt l = rhs.lower().ult(lower()) ? rhs.lower() : lower();
     const A::APInt u = rhs.upper().ugt(upper()) ? rhs.upper() : upper();
-    return ConstantRange({std::move(l), std::move(u)}, bw);
+    return ConstantRange({std::move(l), std::move(u)});
   }
 
   const std::vector<unsigned int> toConcrete() const {
@@ -239,20 +236,20 @@ public:
     return ret;
   }
 
-  static ConstantRange fromConcrete(const A::APInt &x, unsigned int bw) {
-    return ConstantRange({x, x}, bw);
+  static ConstantRange fromConcrete(const A::APInt &x) {
+    return ConstantRange({x, x});
   }
 
   static ConstantRange bottom(unsigned int bw) {
     A::APInt min = A::APInt::getMinValue(bw);
     A::APInt max = A::APInt::getMaxValue(bw);
-    return ConstantRange({max, min}, bw);
+    return ConstantRange({max, min});
   }
 
   static ConstantRange top(unsigned int bw) {
     A::APInt min = A::APInt::getMinValue(bw);
     A::APInt max = A::APInt::getMaxValue(bw);
-    return ConstantRange({min, max}, bw);
+    return ConstantRange({min, max});
   }
 
   static std::vector<ConstantRange> const enumVals(unsigned int bw) {
@@ -268,7 +265,7 @@ public:
       for (unsigned int j = i; j <= max; ++j) {
         l = i;
         u = j;
-        ret.push_back(ConstantRange({l, u}, bw));
+        ret.push_back(ConstantRange({l, u}));
       }
     }
 
@@ -276,7 +273,10 @@ public:
   }
 };
 
-class IntegerModulo : public AbstVal<IntegerModulo> {
+// TODO
+// would like the 5 to be declared once somewhere not littered around everyweher
+// same for CR and KB's 2
+class IntegerModulo : public AbstVal<IntegerModulo, 5> {
 private:
   // okay as long as bw is less than 11
   constexpr const static unsigned char n = 5;
@@ -324,8 +324,9 @@ private:
   }
 
 public:
-  explicit IntegerModulo(const std::vector<A::APInt> &vC, unsigned int bwC)
-      : AbstVal<IntegerModulo>(vC, bwC) {}
+  explicit IntegerModulo(const Vec<5> &vC) : AbstVal<IntegerModulo, 5>(vC) {}
+  explicit IntegerModulo(const std::vector<A::APInt> &vC)
+      : AbstVal<IntegerModulo, 5>(vC) {}
 
   const std::string display() const {
     if (IntegerModulo::isBottom()) {
@@ -382,7 +383,7 @@ public:
         return bottom(bw);
     }
 
-    return IntegerModulo(r, bw);
+    return IntegerModulo(r);
   }
 
   const IntegerModulo join(const IntegerModulo &rhs) const {
@@ -394,40 +395,41 @@ public:
       else
         r.push_back(A::APInt(bw, primes[i]));
 
-    return IntegerModulo(r, bw);
+    return IntegerModulo(r);
   }
 
   const std::vector<unsigned int> toConcrete() const {
     return chineseRemainder();
   }
 
-  static IntegerModulo fromConcrete(const A::APInt &x, unsigned int bw) {
+  static IntegerModulo fromConcrete(const A::APInt &x) {
     unsigned int xVal = static_cast<unsigned int>(x.getZExtValue());
     std::vector<A::APInt> v;
-    std::transform(
-        primes.begin(), primes.end(), std::back_inserter(v),
-        [xVal, bw](unsigned char pr) { return A::APInt(bw, xVal % pr); });
+    std::transform(primes.begin(), primes.end(), std::back_inserter(v),
+                   [xVal, x](unsigned char pr) {
+                     return A::APInt(x.getBitWidth(), xVal % pr);
+                   });
 
-    return IntegerModulo(v, bw);
+    return IntegerModulo(v);
   }
 
   static IntegerModulo top(unsigned int bw) {
     std::vector<A::APInt> r;
     std::transform(primes.begin(), primes.end(), std::back_inserter(r),
                    [bw](unsigned int x) { return A::APInt(bw, x); });
-    return IntegerModulo(r, bw);
+    return IntegerModulo(r);
   }
 
   static IntegerModulo bottom(unsigned int bw) {
     std::vector<A::APInt> r;
     std::transform(primes.begin(), primes.end(), std::back_inserter(r),
                    [bw](unsigned int x) { return A::APInt(bw, x + 1); });
-    return IntegerModulo(r, bw);
+    return IntegerModulo(r);
   }
 
   static std::vector<IntegerModulo> const enumVals(unsigned int bw) {
     std::vector<IntegerModulo> r;
-    IntegerModulo tmp(std::vector<A::APInt>(n, A::APInt(bw, 0)), bw);
+    IntegerModulo tmp(std::vector<A::APInt>(n, A::APInt(bw, 0)));
 
     while (true) {
       bool noTs = true;
@@ -450,7 +452,7 @@ public:
           for (unsigned int j = 0; j < i; ++j)
             v[j] = 0;
           v[i] += 1;
-          tmp = IntegerModulo(v, bw);
+          tmp = IntegerModulo(v);
           break;
         }
       }
