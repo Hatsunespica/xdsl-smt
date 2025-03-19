@@ -27,7 +27,7 @@ cnc_umax = 'extern "C" APInt concrete_op(APInt a,APInt b) {return APIntOps::umax
 kb_and = (
     "kb_and",
     """
-extern "C" struct Ret kb_and(const APInt *const arg0, const APInt *const arg1) {
+extern "C" Vec<2> kb_and(const Vec<2> arg0, const Vec<2> arg1) {
   APInt res_0 = arg0[0] | arg1[0];
   APInt res_1 = arg0[1] & arg1[1];
   return {res_0, res_1};
@@ -38,7 +38,7 @@ extern "C" struct Ret kb_and(const APInt *const arg0, const APInt *const arg1) {
 kb_or = (
     "kb_or",
     """
-extern "C" struct Ret kb_or(const APInt *const arg0, const APInt *const arg1) {
+extern "C" Vec<2> kb_or(const Vec<2> arg0, const Vec<2> arg1) {
   APInt res_0 = arg0[0] & arg1[0];
   APInt res_1 = arg0[1] | arg1[1];
   return {res_0, res_1};
@@ -49,7 +49,7 @@ extern "C" struct Ret kb_or(const APInt *const arg0, const APInt *const arg1) {
 kb_xor = (
     "kb_xor",
     """
-extern "C" struct Ret kb_xor(const APInt *const arg0, const APInt *const arg1) {
+extern "C" Vec<2> kb_xor(const Vec<2> arg0, const Vec<2> arg1) {
   APInt res_0 = (arg0[0] & arg1[0]) | (arg0[1] & arg1[1]);
   APInt res_1 = (arg0[0] & arg1[1]) | (arg0[1] & arg1[0]);
   return {res_0, res_1};
@@ -60,7 +60,7 @@ extern "C" struct Ret kb_xor(const APInt *const arg0, const APInt *const arg1) {
 cr_add = (
     "cr_add",
     """
-extern "C" struct Ret cr_add(const APInt *const arg0, const APInt *const arg1) {
+extern "C" Vec<2> cr_add(const Vec<2> arg0, const Vec<2> arg1) {
   bool res0_ov;
   bool res1_ov;
   APInt res0 = arg0[0].uadd_ov(arg1[0], res0_ov);
@@ -76,7 +76,7 @@ extern "C" struct Ret cr_add(const APInt *const arg0, const APInt *const arg1) {
 cr_sub = (
     "cr_sub",
     """
-extern "C" struct Ret cr_sub(const APInt *const arg0, const APInt *const arg1) {
+extern "C" Vec<2> cr_sub(const Vec<2> arg0, const Vec<2> arg1) {
   bool res0_ov;
   bool res1_ov;
   APInt res0 = arg0[0].usub_ov(arg1[1], res0_ov);
