@@ -10,12 +10,12 @@
 
 template <typename Domain, unsigned int N> class AbstVal {
 protected:
-  explicit AbstVal(const Vec<N> &x) : v(x), bw(x[0].getBitWidth()) {}
+  explicit AbstVal(const Vec<N> &x) : v(x.v, x.v+x.getN()), bw(x[0].getBitWidth()) {}
 
 public:
   typedef Vec<N> (*XferFn)(Vec<N>, Vec<N>);
 
-  Vec<N> v;
+  std::vector<A::APInt> v;
   unsigned int bw;
 
   // static ctors

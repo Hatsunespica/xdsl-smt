@@ -1093,14 +1093,19 @@ APInt APInt::sfloordiv_ov(const APInt &RHS, bool &Overflow) const {
 template <unsigned int N> class Vec {
 public:
   A::APInt v[N];
+  unsigned int getN() const { return N; }
 
-  Vec(const A::APInt x[N]) : v(x) {}
   template <typename... Args> Vec(Args... args) {
     static_assert(sizeof...(args) == N, "Number of arguments must match N");
     A::APInt arr[] = {args...};
 
     for (unsigned int i = 0; i < N; ++i)
       v[i] = arr[i];
+  }
+
+  Vec(const A::APInt *x) {
+    for (unsigned int i = 0; i < N; ++i)
+      v[i] = x[i];
   }
 
   const A::APInt &operator[](unsigned int i) const { return v[i]; }
