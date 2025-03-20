@@ -30,7 +30,7 @@ private:
     std::vector<Domain> r;
     std::transform(xferFns.begin(), xferFns.end(), std::back_inserter(r),
                    [&lhs, &rhs](const typename Domain::XferFn &f) {
-                     const Vec res = f(lhs.v.data(), rhs.v.data());
+                     const Vec res = f(lhs.v, rhs.v);
                      return Domain(res);
                    });
     return r;
@@ -41,7 +41,7 @@ private:
     std::vector<Domain> r;
     std::transform(baseFns.begin(), baseFns.end(), std::back_inserter(r),
                    [&lhs, &rhs](const typename Domain::XferFn &f) {
-                     const Vec res = f(lhs.v.data(), rhs.v.data());
+                     const Vec res = f(lhs.v, rhs.v);
                      return Domain(res);
                    });
     return r;

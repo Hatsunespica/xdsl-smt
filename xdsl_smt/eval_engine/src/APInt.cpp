@@ -35,7 +35,6 @@ public:
     clearUnusedBits();
   }
 
-  /// Copy Constructor.
   APInt(const APInt &that) : BitWidth(that.BitWidth) { VAL = that.VAL; }
 
   static APInt getZero(unsigned numBits) { return APInt(numBits, 0); }
@@ -1085,25 +1084,45 @@ APInt APInt::sfloordiv_ov(const APInt &RHS, bool &Overflow) const {
 
 } // namespace A
 
+#ifndef _NEW
+#define _NEW
+void *operator new(unsigned long, void *p) noexcept { return p; }
+#endif
+
 template <unsigned int N> class Vec {
 public:
-  A::APInt v[N];
-  unsigned int getN() const { return N; }
+  union {
+    A::APInt v[N];
+  };
 
   template <typename... Args> Vec(Args... args) {
     static_assert(sizeof...(args) == N, "Number of arguments must match N");
     A::APInt arr[] = {args...};
 
     for (unsigned int i = 0; i < N; ++i)
-      v[i] = arr[i];
+      new (&v[i]) A::APInt(arr[i]);
   }
 
   Vec(const A::APInt *x) {
     for (unsigned int i = 0; i < N; ++i)
-      v[i] = x[i];
+      new (&v[i]) A::APInt(x[i]);
+  }
+
+  Vec(const Vec<N> &other) {
+    for (unsigned int i = 0; i < N; ++i)
+      new (&v[i]) A::APInt(other.v[i]);
+  }
+
+  Vec &operator=(const Vec<N> &other) {
+    if (this != &other)
+      for (unsigned int i = 0; i < N; ++i)
+        new (&v[i]) A::APInt(other.v[i]);
+
+    return *this;
   }
 
   const A::APInt &operator[](unsigned int i) const { return v[i]; }
+  A::APInt &operator[](unsigned int i) { return v[i]; }
 };
 
 #endif
