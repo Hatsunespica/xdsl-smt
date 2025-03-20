@@ -663,6 +663,7 @@ def mcmc_setup(
     sp_size = num_programs - p_size - c_size
 
     if len(solution_set.precise_set) == 0:
+        sp_size += c_size
         c_size = 0
 
     sp_range = range(0, sp_size)
@@ -886,7 +887,7 @@ def synthesize_transfer_function(
                 )
             if (
                 not most_exact_tfs[i][1].is_sound()
-                and most_exact_tfs[i][1].unsolved_exacts >= 0
+                and most_exact_tfs[i][1].unsolved_exacts > 0
             ):
                 candidates_p.append(most_exact_tfs[i][0].func.clone())
         for i in c_range:
