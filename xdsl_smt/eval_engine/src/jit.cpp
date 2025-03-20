@@ -2,6 +2,7 @@
 #include <memory>
 
 #include <clang/Basic/Diagnostic.h>
+#include <clang/Basic/FileManager.h>
 #include <clang/CodeGen/CodeGenAction.h>
 #include <clang/Frontend/CompilerInstance.h>
 #include <clang/Frontend/TextDiagnosticPrinter.h>
@@ -23,6 +24,8 @@ class Compiler {
 private:
   std::unique_ptr<clang::TextDiagnosticPrinter> dp;
   std::unique_ptr<clang::DiagnosticsEngine> de;
+  clang::FileSystemOptions fileOpts;
+  std::unique_ptr<clang::FileManager> fileManager;
 
   struct CompileResult {
     std::unique_ptr<llvm::LLVMContext> c;
@@ -37,6 +40,7 @@ public:
                                                         opts.get());
     de = std::make_unique<clang::DiagnosticsEngine>(nullptr, std::move(opts),
                                                     dp.get(), false);
+    fileManager = std::make_unique<clang::FileManager>(fileOpts);
   }
 
   llvm::Expected<CompileResult> compile(const std::string &code) {
@@ -47,7 +51,7 @@ public:
     clang.getLangOpts().CPlusPlus = true;
     clang.getLangOpts().CPlusPlus11 = true;
     clang.getLangOpts().Bool = true;
-    clang.createDiagnostics(dp.get(), false);
+    clang.createDiagnostics(fileManager->getVirtualFileSystem(), dp.get(), false);
     clang.getDiagnostics().setIgnoreAllWarnings(true);
     clang.getPreprocessorOpts().addRemappedFile(
         "<memory>", llvm::MemoryBuffer::getMemBuffer(code).release());
