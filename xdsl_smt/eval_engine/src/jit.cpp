@@ -74,7 +74,7 @@ std::unique_ptr<llvm::orc::LLJIT> getJit(const std::string &xferSrc) {
   llvm::InitializeNativeTarget();
   llvm::InitializeNativeTargetAsmPrinter();
   std::string apintsrc = std::string(
-      reinterpret_cast<const char *>(___apint_src), ___apint_src_len);
+      reinterpret_cast<const char *>(___src_APInt_cpp), ___src_APInt_cpp_len);
 
   std::string sourceCode = apintsrc + xferSrc;
   auto [context, module] = llvm::cantFail(Compiler().compile(sourceCode));

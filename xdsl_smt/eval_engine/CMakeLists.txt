@@ -39,12 +39,11 @@ llvm_map_components_to_libnames(LLVM_LIBS core)
 set(CLANG_LIBS clang-cpp)
 
 # Convert text file to a header file using xxd
-set(TEXT_FILE ${CMAKE_SOURCE_DIR}/src/APInt.cpp)
 set(GENERATED_HEADER ${CMAKE_BINARY_DIR}/APInt_bin_string.h)
 
 add_custom_command(
     OUTPUT ${GENERATED_HEADER}
-    COMMAND xxd -i -n ___apint_src ${TEXT_FILE} > ${GENERATED_HEADER}
+    COMMAND xxd -i ../src/APInt.cpp > ${GENERATED_HEADER}
     COMMENT "Generating header file from text file"
 )
 
