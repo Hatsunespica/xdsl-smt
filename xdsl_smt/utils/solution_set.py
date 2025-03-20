@@ -9,7 +9,7 @@ from xdsl_smt.utils.compare_result import CompareResult
 from abc import ABC, abstractmethod
 import logging
 
-from xdsl_smt.utils.func_with_cond import FuncWithCond
+from xdsl_smt.utils.function_with_condition import FunctionWithCondition
 from xdsl_smt.utils.synthesizer_context import SynthesizerContext
 
 
@@ -29,7 +29,7 @@ It supports to generate the meet of solutions
 
 class SolutionSet(ABC):
     solutions_size: int
-    solutions: list[FuncWithCond]
+    solutions: list[FunctionWithCondition]
     precise_set: list[FuncOp]
     lower_to_cpp: Callable[[FuncOp], str]
     eliminate_dead_code: Callable[[FuncOp], FuncOp]
@@ -40,17 +40,19 @@ class SolutionSet(ABC):
     list of name of base functions
     list of base functions
     """
-    eval_func: Callable[[list[FuncWithCond], list[FuncWithCond]], list[CompareResult]]
+    eval_func: Callable[
+        [list[FunctionWithCondition], list[FunctionWithCondition]], list[CompareResult]
+    ]
 
     def __init__(
         self,
-        initial_solutions: list[FuncWithCond],
+        initial_solutions: list[FunctionWithCondition],
         lower_to_cpp: Callable[[FuncOp], str],
         eliminate_dead_code: Callable[[FuncOp], FuncOp],
         eval_func: Callable[
             [
-                list[FuncWithCond],
-                list[FuncWithCond],
+                list[FunctionWithCondition],
+                list[FunctionWithCondition],
             ],
             list[CompareResult],
         ],
@@ -72,7 +74,9 @@ class SolutionSet(ABC):
         #     )
         # )
 
-    def eval_improve(self, transfers: list[FuncWithCond]) -> list[CompareResult]:
+    def eval_improve(
+        self, transfers: list[FunctionWithCondition]
+    ) -> list[CompareResult]:
         return self.eval_func(transfers, self.solutions)
 
     # def eval_improve(self, transfers: list[FuncOp]) -> list[CompareResult]:
@@ -81,9 +85,9 @@ class SolutionSet(ABC):
     @abstractmethod
     def construct_new_solution_set(
         self,
-        new_candidates_sp: list[FuncWithCond],
+        new_candidates_sp: list[FunctionWithCondition],
         new_candidates_p: list[FuncOp],
-        new_candidates_c: list[FuncWithCond],
+        new_candidates_c: list[FunctionWithCondition],
     ) -> SolutionSet:
         ...
 
@@ -145,13 +149,13 @@ class SizedSolutionSet(SolutionSet):
     def __init__(
         self,
         size: int,
-        initial_solutions: list[FuncWithCond],
+        initial_solutions: list[FunctionWithCondition],
         lower_to_cpp: Callable[[FuncOp], str],
         eliminate_dead_code: Callable[[FuncOp], FuncOp],
         eval_func_with_cond: Callable[
             [
-                list[FuncWithCond],
-                list[FuncWithCond],
+                list[FunctionWithCondition],
+                list[FunctionWithCondition],
             ],
             list[CompareResult],
         ],
@@ -163,9 +167,9 @@ class SizedSolutionSet(SolutionSet):
 
     def construct_new_solution_set(
         self,
-        new_candidates_sp: list[FuncWithCond],
+        new_candidates_sp: list[FunctionWithCondition],
         new_candidates_p: list[FuncOp],
-        new_candidates_c: list[FuncWithCond],
+        new_candidates_c: list[FunctionWithCondition],
     ) -> SolutionSet:
         candidates = self.solutions + new_candidates_sp
         if len(candidates) <= self.size:
@@ -177,7 +181,7 @@ class SizedSolutionSet(SolutionSet):
                 self.eval_func,
             )
         rename_functions([fc.func for fc in candidates], "part_solution_")
-        ref_funcs: list[FuncWithCond] = []
+        ref_funcs: list[FunctionWithCondition] = []
 
         # First select a function with maximal precise
         result: list[CompareResult] = self.eval_func(candidates, ref_funcs)
@@ -235,12 +239,12 @@ class UnsizedSolutionSet(SolutionSet):
 
     def __init__(
         self,
-        initial_solutions: list[FuncWithCond],
+        initial_solutions: list[FunctionWithCondition],
         lower_to_cpp: Callable[[FuncOp], str],
         eval_func_with_cond: Callable[
             [
-                list[FuncWithCond],
-                list[FuncWithCond],
+                list[FunctionWithCondition],
+                list[FunctionWithCondition],
             ],
             list[CompareResult],
         ],
@@ -254,9 +258,9 @@ class UnsizedSolutionSet(SolutionSet):
 
     def construct_new_solution_set(
         self,
-        new_candidates_sp: list[FuncWithCond],
+        new_candidates_sp: list[FunctionWithCondition],
         new_candidates_p: list[FuncOp],
-        new_candidates_c: list[FuncWithCond],
+        new_candidates_c: list[FunctionWithCondition],
     ) -> SolutionSet:
         candidates = self.solutions + new_candidates_sp + new_candidates_c
         self.logger.info(f"Size of new candidates: {len(new_candidates_sp)}")
@@ -342,7 +346,9 @@ class UnsizedSolutionSet(SolutionSet):
         self.logger.info(f"The number of conditional solutions: {num_cond_solutions}")
 
         precise_candidates = self.precise_set + new_candidates_p
-        result = self.eval_improve([FuncWithCond(f) for f in precise_candidates])
+        result = self.eval_improve(
+            [FunctionWithCondition(f) for f in precise_candidates]
+        )
 
         sorted_pairs = sorted(
             zip(precise_candidates, result),

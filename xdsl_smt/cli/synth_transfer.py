@@ -77,7 +77,7 @@ from ..utils.cost_model import (
     precise_cost,
     abduction_cost,
 )
-from ..utils.func_with_cond import FuncWithCond
+from ..utils.function_with_condition import FunctionWithCondition
 from ..utils.log_utils import (
     setup_loggers,
     print_set_of_funcs_to_file,
@@ -517,8 +517,8 @@ def is_ref_function(func: FuncOp) -> bool:
 
 
 def eval_transfer_func_helper(
-    transfer: list[FuncWithCond],
-    base: list[FuncWithCond],
+    transfer: list[FunctionWithCondition],
+    base: list[FunctionWithCondition],
     concrete_op_expr: str,
     domain: eval_engine.AbstractDomain,
     bitwidth: int,
@@ -572,8 +572,16 @@ def solution_set_eval_func(
     domain: eval_engine.AbstractDomain,
     bitwidth: int,
     helper_funcs: list[str] | None = None,
-) -> Callable[[list[FuncWithCond], list[FuncWithCond],], list[CompareResult],]:
-    return lambda transfer=list[FuncWithCond], base=list[FuncWithCond]: (
+) -> Callable[
+    [
+        list[FunctionWithCondition],
+        list[FunctionWithCondition],
+    ],
+    list[CompareResult],
+]:
+    return lambda transfer=list[FunctionWithCondition], base=list[
+        FunctionWithCondition
+    ]: (
         eval_transfer_func_helper(
             transfer,
             base,
@@ -592,12 +600,12 @@ This function returns a simplified eval_func only receiving transfer names and s
 
 def main_eval_func(
     concrete_op_expr: str,
-    base_transfers: list[FuncWithCond],
+    base_transfers: list[FunctionWithCondition],
     domain: eval_engine.AbstractDomain,
     bitwidth: int,
     helper_funcs: list[str] | None = None,
-) -> Callable[[list[FuncWithCond]], list[CompareResult]]:
-    return lambda transfers=list[FuncWithCond]: (
+) -> Callable[[list[FunctionWithCondition]], list[CompareResult]]:
+    return lambda transfers=list[FunctionWithCondition]: (
         eval_transfer_func_helper(
             transfers,
             base_transfers,
@@ -615,7 +623,7 @@ def build_eval_list(
     p: range,
     c: range,
     prec_func_after_distribute: list[FuncOp],
-) -> list[FuncWithCond]:
+) -> list[FunctionWithCondition]:
     """
     build the parameters of eval_transfer_func
     input:
@@ -624,14 +632,16 @@ def build_eval_list(
     funcs          =  [ ..mcmc_sp.. , ..mcmc_p.. ,..prec_set..]
     conds          =  [  nothing    ,  nothing   , ..mcmc_c.. ]
     """
-    lst: list[FuncWithCond] = []
+    lst: list[FunctionWithCondition] = []
     for i in sp:
-        lst.append(FuncWithCond(mcmc_proposals[i]))
+        lst.append(FunctionWithCondition(mcmc_proposals[i]))
     for i in p:
-        lst.append(FuncWithCond(mcmc_proposals[i]))
+        lst.append(FunctionWithCondition(mcmc_proposals[i]))
     for i in c:
         lst.append(
-            FuncWithCond(prec_func_after_distribute[i - c.start], mcmc_proposals[i])
+            FunctionWithCondition(
+                prec_func_after_distribute[i - c.start], mcmc_proposals[i]
+            )
         )
 
     return lst
@@ -692,7 +702,7 @@ def synthesize_transfer_function(
     solution_set: SolutionSet,
     logger: logging.Logger,
     # Evalate transfer functions
-    eval_func: Callable[[list[FuncWithCond]], list[CompareResult]],
+    eval_func: Callable[[list[FunctionWithCondition]], list[CompareResult]],
     # Global arguments
     num_programs: int,
     program_length: int,
@@ -862,9 +872,9 @@ def synthesize_transfer_function(
             for i in range(num_programs):
                 logger.debug(f"{i}_{lowest_cost_tfs[i][2]}\t{lowest_cost_tfs[i][1]}")
 
-    candidates_sp: list[FuncWithCond] = []
+    candidates_sp: list[FunctionWithCondition] = []
     candidates_p: list[FuncOp] = []
-    candidates_c: list[FuncWithCond] = []
+    candidates_c: list[FunctionWithCondition] = []
     if solution_size == 0:
         for i in list(sp_range) + list(p_range):
             if (
@@ -872,7 +882,7 @@ def synthesize_transfer_function(
                 and sound_most_exact_tfs[i][1].unsolved_exacts > 0
             ):
                 candidates_sp.append(
-                    FuncWithCond(sound_most_exact_tfs[i][0].func.clone())
+                    FunctionWithCondition(sound_most_exact_tfs[i][0].func.clone())
                 )
             if (
                 not most_exact_tfs[i][1].is_sound()
@@ -885,7 +895,7 @@ def synthesize_transfer_function(
                 and sound_most_exact_tfs[i][1].unsolved_exacts > 0
             ):
                 candidates_c.append(
-                    FuncWithCond(
+                    FunctionWithCondition(
                         prec_set_after_distribute[i - sp_size - p_size],
                         sound_most_exact_tfs[i][0].func.clone(),
                     )
@@ -894,10 +904,12 @@ def synthesize_transfer_function(
         for i in range(num_programs):
             if sound_most_exact_tfs[i][1].is_sound():
                 candidates_sp.append(
-                    FuncWithCond(sound_most_exact_tfs[i][0].func.clone())
+                    FunctionWithCondition(sound_most_exact_tfs[i][0].func.clone())
                 )
             if lowest_cost_tfs[i][1].is_sound():
-                candidates_sp.append(FuncWithCond(lowest_cost_tfs[i][0].func.clone()))
+                candidates_sp.append(
+                    FunctionWithCondition(lowest_cost_tfs[i][0].func.clone())
+                )
 
     new_solution_set: SolutionSet = solution_set.construct_new_solution_set(
         candidates_sp, candidates_p, candidates_c
@@ -1024,7 +1036,7 @@ def main() -> None:
         if isinstance(func, FuncOp) and is_ref_function(func):
             ref_funcs.append(func)
 
-    base_transfers = [FuncWithCond(f) for f in ref_funcs]
+    base_transfers = [FunctionWithCondition(f) for f in ref_funcs]
 
     transfer_func = None
     crt_func = ""

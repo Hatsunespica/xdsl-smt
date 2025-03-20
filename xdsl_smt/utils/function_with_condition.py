@@ -1,15 +1,17 @@
+from dataclasses import dataclass
 from typing import Callable
 
 from xdsl.dialects.func import FuncOp
 
 
-class FuncWithCond:
-    func: FuncOp
-    cond: FuncOp | None
+@dataclass
+class FunctionWithCondition:
+    """
+    Class for a transfer function f in the form of "f(a) := if (cond) then func(a) else Top"
+    """
 
-    def __init__(self, func: FuncOp, cond: FuncOp | None = None):
-        self.func = func
-        self.cond = cond
+    func: FuncOp
+    cond: FuncOp | None = None
 
     def to_str(self, eliminate_dead_code: Callable[[FuncOp], FuncOp]):
         cond_str = (
