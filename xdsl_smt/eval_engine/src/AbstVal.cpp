@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <cassert>
-#include <iostream>
 #include <numeric>
 #include <sstream>
 #include <string>
@@ -11,14 +10,16 @@
 #include "APInt.cpp"
 
 template <typename Domain, unsigned int N> class AbstVal {
+public:
+  typedef Vec<N> vec;
+  static const constexpr unsigned int n = N;
+  typedef vec (*XferFn)(vec, vec);
+  vec v;
+
 protected:
-  explicit AbstVal(const Vec<N> &x) : v(x) {}
+  explicit AbstVal(const vec &x) : v(x) {}
 
 public:
-  typedef Vec<N> (*XferFn)(Vec<N>, Vec<N>);
-
-  Vec<N> v;
-
   // static ctors
   static const Domain bottom(unsigned int bw) { return Domain::bottom(bw); }
   static const Domain top(unsigned int bw) { return Domain::top(bw); }
@@ -87,7 +88,7 @@ private:
   bool hasConflict() const { return zero().intersects(one()); }
 
 public:
-  explicit KnownBits(const Vec<2> &vC) : AbstVal<KnownBits, 2>(vC) {}
+  explicit KnownBits(const vec &vC) : AbstVal<KnownBits, n>(vC) {}
 
   const std::string display() const {
     if (KnownBits::isBottom()) {
@@ -185,7 +186,7 @@ private:
   A::APInt upper() const { return v[1]; }
 
 public:
-  explicit ConstantRange(const Vec<2> &vC) : AbstVal<ConstantRange, 2>(vC) {}
+  explicit ConstantRange(const vec &vC) : AbstVal<ConstantRange, n>(vC) {}
 
   const std::string display() const {
     if (ConstantRange::isBottom()) {
@@ -272,17 +273,13 @@ public:
   }
 };
 
-// TODO
-// would like the 5 to be declared once somewhere not littered around everyweher
-// same for CR and KB's 2
 class IntegerModulo : public AbstVal<IntegerModulo, 5> {
 private:
   // okay as long as bw is less than 11
-  constexpr const static unsigned char n = 5;
   constexpr const static std::array<unsigned char, n> primes = {2, 3, 5, 7, 11};
 
-  const Vec<n> residues() const { return v; }
-  Vec<n> residues() { return v; }
+  const vec residues() const { return v; }
+  vec residues() { return v; }
 
   static unsigned int modInv(int a, int b) {
     int b0 = b, t, q;
@@ -324,7 +321,7 @@ private:
   }
 
 public:
-  explicit IntegerModulo(const Vec<n> &vC) : AbstVal<IntegerModulo, n>(vC) {}
+  explicit IntegerModulo(const vec &vC) : AbstVal<IntegerModulo, n>(vC) {}
 
   const std::string display() const {
     if (IntegerModulo::isBottom()) {
@@ -368,7 +365,7 @@ public:
   }
 
   const IntegerModulo meet(const IntegerModulo &rhs) const {
-    Vec<n> r = bottom(bw()).v;
+    vec r = bottom(bw()).v;
 
     for (unsigned int i = 0; i < n; ++i) {
       if (residues()[i] == rhs.residues()[i])
@@ -385,7 +382,7 @@ public:
   }
 
   const IntegerModulo join(const IntegerModulo &rhs) const {
-    Vec<n> r = top(bw()).v;
+    vec r = top(bw()).v;
 
     for (unsigned int i = 0; i < n; ++i)
       if (residues()[i] == rhs.residues()[i])
@@ -400,7 +397,7 @@ public:
 
   static IntegerModulo fromConcrete(const A::APInt &x) {
     unsigned int xVal = static_cast<unsigned int>(x.getZExtValue());
-    Vec<n> r = top(x.getBitWidth()).v;
+    vec r = top(x.getBitWidth()).v;
 
     for (unsigned int i = 0; i < n; ++i)
       r[i] = A::APInt(x.getBitWidth(), xVal % primes[i]);

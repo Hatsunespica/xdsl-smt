@@ -1,11 +1,10 @@
 #include <algorithm>
 #include <functional>
-#include <iterator>
-#include <llvm/ExecutionEngine/Orc/LLJIT.h>
-#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
+
+#include <llvm/ExecutionEngine/Orc/LLJIT.h>
 
 #include "APInt.cpp"
 #include "Results.cpp"
@@ -21,7 +20,7 @@ private:
   unsigned int bw;
   std::vector<typename Domain::XferFn> xferFns;
   std::vector<typename Domain::XferFn> baseFns;
-  std::optional<OpConstraintFn> opConstraint;
+  std::optional<OpConstraintFn> opCon;
   ConcOpFn concOp;
 
   // methods
@@ -30,8 +29,7 @@ private:
     std::vector<Domain> r;
     std::transform(xferFns.begin(), xferFns.end(), std::back_inserter(r),
                    [&lhs, &rhs](const typename Domain::XferFn &f) {
-                     const Vec res = f(lhs.v, rhs.v);
-                     return Domain(res);
+                     return Domain(f(lhs.v, rhs.v));
                    });
     return r;
   }
@@ -41,8 +39,7 @@ private:
     std::vector<Domain> r;
     std::transform(baseFns.begin(), baseFns.end(), std::back_inserter(r),
                    [&lhs, &rhs](const typename Domain::XferFn &f) {
-                     const Vec res = f(lhs.v, rhs.v);
-                     return Domain(res);
+                     return Domain(f(lhs.v, rhs.v));
                    });
     return r;
   }
@@ -53,8 +50,7 @@ private:
 
     for (unsigned int lhs_v : lhs.toConcrete()) {
       for (unsigned int rhs_v : rhss) {
-        if (!opConstraint ||
-            opConstraint.value()(A::APInt(bw, lhs_v), A::APInt(bw, rhs_v)))
+        if (!opCon || opCon.value()(A::APInt(bw, lhs_v), A::APInt(bw, rhs_v)))
           crtVals.push_back(Domain::fromConcrete(
               concOp(A::APInt(bw, lhs_v), A::APInt(bw, rhs_v))));
       }
@@ -88,7 +84,7 @@ public:
 
     llvm::Expected<llvm::orc::ExecutorAddr> mOpCons =
         jit->lookup("op_constraint");
-    opConstraint =
+    opCon =
         mOpCons.takeError()
             ? std::nullopt
             : std::optional(mOpCons.get().toPtr<bool(A::APInt, A::APInt)>());
