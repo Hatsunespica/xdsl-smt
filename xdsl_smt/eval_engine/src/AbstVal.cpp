@@ -10,16 +10,14 @@
 
 #include "APInt.cpp"
 
-// TODO just rm bw
 template <typename Domain, unsigned int N> class AbstVal {
 protected:
-  explicit AbstVal(const Vec<N> &x) : v(x), bw(x[0].getBitWidth()) {}
+  explicit AbstVal(const Vec<N> &x) : v(x) {}
 
 public:
   typedef Vec<N> (*XferFn)(Vec<N>, Vec<N>);
 
   Vec<N> v;
-  unsigned int bw;
 
   // static ctors
   static const Domain bottom(unsigned int bw) { return Domain::bottom(bw); }
@@ -45,8 +43,9 @@ public:
   }
 
   // normal methods
-  bool isTop() const { return *this == top(bw); }
-  bool isBottom() const { return *this == bottom(bw); }
+  unsigned int bw() const { return v[0].getBitWidth(); }
+  bool isTop() const { return *this == top(bw()); }
+  bool isBottom() const { return *this == bottom(bw()); }
   bool isSuperset(const Domain &rhs) const { return meet(rhs) == rhs; }
   unsigned int distance(const Domain &rhs) const {
     return (v[0] ^ rhs.v[0]).popcount() + (v[1] ^ rhs.v[1]).popcount();
@@ -97,7 +96,7 @@ public:
 
     std::stringstream ss;
 
-    for (unsigned int i = bw; i > 0; --i)
+    for (unsigned int i = bw(); i > 0; --i)
       ss << (one()[i - 1] ? '1' : zero()[i - 1] ? '0' : '?');
 
     if (isConstant())
@@ -109,7 +108,9 @@ public:
     return ss.str();
   }
 
-  bool isConstant() const { return zero().popcount() + one().popcount() == bw; }
+  bool isConstant() const {
+    return zero().popcount() + one().popcount() == bw();
+  }
 
   const A::APInt getConstant() const {
     assert(isConstant());
@@ -129,9 +130,9 @@ public:
     const unsigned int z = static_cast<unsigned int>(zero().getZExtValue());
     const unsigned int o = static_cast<unsigned int>(one().getZExtValue());
     const unsigned int min =
-        static_cast<unsigned int>(A::APInt::getZero(bw).getZExtValue());
+        static_cast<unsigned int>(A::APInt::getZero(bw()).getZExtValue());
     const unsigned int max =
-        static_cast<unsigned int>(A::APInt::getMaxValue(bw).getZExtValue());
+        static_cast<unsigned int>(A::APInt::getMaxValue(bw()).getZExtValue());
 
     for (unsigned int i = min; i <= max; ++i)
       if ((z & i) == 0 && (o & ~i) == 0)
@@ -212,7 +213,7 @@ public:
     A::APInt l = rhs.lower().ugt(lower()) ? rhs.lower() : lower();
     A::APInt u = rhs.upper().ult(upper()) ? rhs.upper() : upper();
     if (l.ugt(u))
-      return bottom(bw);
+      return bottom(bw());
     return ConstantRange({std::move(l), std::move(u)});
   }
 
@@ -313,7 +314,7 @@ private:
     }
 
     const unsigned int max =
-        static_cast<unsigned int>(A::APInt::getMaxValue(bw).getZExtValue());
+        static_cast<unsigned int>(A::APInt::getMaxValue(bw()).getZExtValue());
 
     std::vector<unsigned int> r;
     for (result %= p; result <= max; result += p)
@@ -363,11 +364,11 @@ public:
 
   const A::APInt getConstant() const {
     assert(isConstant());
-    return A::APInt(bw, chineseRemainder()[0]);
+    return A::APInt(bw(), chineseRemainder()[0]);
   }
 
   const IntegerModulo meet(const IntegerModulo &rhs) const {
-    Vec<n> r = bottom(bw).v;
+    Vec<n> r = bottom(bw()).v;
 
     for (unsigned int i = 0; i < n; ++i) {
       if (residues()[i] == rhs.residues()[i])
@@ -377,14 +378,14 @@ public:
       else if (rhs.residues()[i] == primes[i])
         r[i] = residues()[i];
       else
-        return bottom(bw);
+        return bottom(bw());
     }
 
     return IntegerModulo(r);
   }
 
   const IntegerModulo join(const IntegerModulo &rhs) const {
-    Vec<n> r = top(bw).v;
+    Vec<n> r = top(bw()).v;
 
     for (unsigned int i = 0; i < n; ++i)
       if (residues()[i] == rhs.residues()[i])
