@@ -1121,6 +1121,14 @@ public:
     return *this;
   }
 
+  bool operator==(const Vec<N> &other) const {
+    for (unsigned int i = 0; i < N; ++i)
+      if (!(v[i] == other.v[i]))
+        return false;
+
+    return true;
+  }
+
   const A::APInt &operator[](unsigned int i) const { return v[i]; }
   A::APInt &operator[](unsigned int i) { return v[i]; }
 };

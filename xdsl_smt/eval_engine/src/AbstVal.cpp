@@ -1,8 +1,13 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
 #include <cassert>
+#include <cmath>
+#include <cstdio>
+#include <iostream>
 #include <numeric>
+#include <ostream>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -44,20 +49,13 @@ public:
   }
 
   // normal methods
+  bool operator==(const AbstVal &rhs) const { return v == rhs.v; }
   unsigned int bw() const { return v[0].getBitWidth(); }
   bool isTop() const { return *this == top(bw()); }
   bool isBottom() const { return *this == bottom(bw()); }
   bool isSuperset(const Domain &rhs) const { return meet(rhs) == rhs; }
   unsigned int distance(const Domain &rhs) const {
     return (v[0] ^ rhs.v[0]).popcount() + (v[1] ^ rhs.v[1]).popcount();
-  }
-
-  bool operator==(const AbstVal &rhs) const {
-    for (unsigned int i = 0; i < N; ++i)
-      if (v[i] != rhs.v[i])
-        return false;
-
-    return true;
   }
 
   // methods delegated to derived class
@@ -273,13 +271,13 @@ public:
   }
 };
 
-class IntegerModulo : public AbstVal<IntegerModulo, 5> {
+class IntegerModulo : public AbstVal<IntegerModulo, 3> {
 private:
   // okay as long as bw is less than 11
-  constexpr const static std::array<unsigned char, n> primes = {2, 3, 5, 7, 11};
+  // constexpr const static std::array<unsigned char, n> primes = {2,3,5,7,11};
+  constexpr const static std::array<unsigned char, n> primes = {2, 3, 5};
 
   const vec residues() const { return v; }
-  vec residues() { return v; }
 
   static unsigned int modInv(int a, int b) {
     int b0 = b, t, q;
@@ -387,6 +385,10 @@ public:
     for (unsigned int i = 0; i < n; ++i)
       if (residues()[i] == rhs.residues()[i])
         r[i] = residues()[i];
+      else if (residues()[i] == primes[i] + 1)
+        r[i] = rhs.residues()[i];
+      else if (rhs.residues()[i] == primes[i] + 1)
+        r[i] = residues()[i];
 
     return IntegerModulo(r);
   }
@@ -442,8 +444,9 @@ public:
       for (unsigned int i = 0; i < n; ++i) {
         if (tmp.residues()[i] != primes[i]) {
           for (unsigned int j = 0; j < i; ++j)
-            tmp.residues()[j] = 0;
-          tmp.residues()[i] += 1;
+            tmp.v[j] = 0;
+
+          tmp.v[i] += 1;
           break;
         }
       }
