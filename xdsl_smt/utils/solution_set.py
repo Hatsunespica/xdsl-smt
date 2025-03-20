@@ -349,7 +349,7 @@ class UnsizedSolutionSet(SolutionSet):
             reverse=True,
             key=lambda pair: pair[1].unsolved_exacts,
         )
-        K = 5
+        K = 15
         top_k = sorted_pairs[:K]
         self.logger.info(f"Top {K} Precise candidates:")
         self.precise_set = []
@@ -384,7 +384,7 @@ class UnsizedSolutionSet(SolutionSet):
             )
             res = cmp_results[0]
             self.logger.info(
-                f"func {i}: #exact {res.exacts - res.unsolved_exacts} -> {res.exacts}, new exact%: {res.get_new_exact_prop()}, prec: {res.base_edit_dis} -> {res.edit_dis}, prec improve%: {res.get_prec_improve_avg()}"
+                f"func {i}: #exact {res.exacts - res.unsolved_exacts} -> {res.exacts}, new exact%: {res.get_new_exact_prop()}, prec: {res.base_edit_dis} -> {res.edit_dis}, prec improve%: {res.get_prec_improve_avg()}, cond?: {self.solutions[i].cond is not None}"
             )
             if res.get_new_exact_prop() > 0.005:
                 d_int, d_i1 = SynthesizerContext.count_op_frequency(

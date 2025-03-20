@@ -645,8 +645,11 @@ def mcmc_setup(
     This function specify which mode should be used for each mcmc sampler
     For example, mcmc samplers with index in sp_range should use "sound&precise"
     """
-    p_size = num_abd_proc // 2
-    c_size = num_abd_proc // 2
+
+    # p_size = num_abd_proc // 2
+    # c_size = num_abd_proc // 2
+    p_size = 0
+    c_size = num_abd_proc
     sp_size = num_programs - p_size - c_size
 
     if len(solution_set.precise_set) == 0:
