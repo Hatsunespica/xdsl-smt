@@ -38,7 +38,7 @@ find_package(Clang REQUIRED CONFIG)
 include_directories(${CLANG_INCLUDE_DIRS})
 
 # Set LLVM and Clang components
-llvm_map_components_to_libnames(LLVM_LIBS core target)
+llvm_map_components_to_libnames(LLVM_LIBS core target x86TargetMCA x86Disassembler x86AsmParser x86CodeGen x86Desc x86Info)
 set(CLANG_LIBS clang-cpp)
 
 # Convert text file to a header file using xxd
