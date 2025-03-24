@@ -1,3 +1,6 @@
+#ifndef Eval_H
+#define Eval_H
+
 #include <algorithm>
 #include <functional>
 #include <iterator>
@@ -6,11 +9,14 @@
 #include <string>
 #include <vector>
 
+#include "APInt.h"
+#include "Results.h"
+#include "warning_suppresor.h"
+
+SUPPRESS_WARNINGS_BEGIN
 #include <llvm/ExecutionEngine/Orc/LLJIT.h>
 #include <llvm/Support/Error.h>
-
-#include "APInt.cpp"
-#include "Results.cpp"
+SUPPRESS_WARNINGS_END
 
 template <typename Domain> class Eval {
 private:
@@ -131,3 +137,5 @@ public:
     return r;
   }
 };
+
+#endif

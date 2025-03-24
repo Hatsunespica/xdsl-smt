@@ -1,13 +1,46 @@
-cmake_minimum_required(VERSION 3.23)
+cmake_minimum_required(VERSION 3.20)
 project(EvalEngine LANGUAGES CXX C)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
-set(CMAKE_CXX_FLAGS "-Wall -Werror -fPIC -fstrict-enums ${CMAKE_CXX_FLAGS}")
 
-add_compile_options(
+# Find LLVM and Clang
+find_package(LLVM REQUIRED CONFIG)
+find_package(Clang REQUIRED CONFIG)
+message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
+message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
+
+# Set LLVM and Clang components
+llvm_map_components_to_libnames(LLVM_LIBS core)
+set(CLANG_LIBS clang-cpp)
+
+set(GENERATED_HEADER ${CMAKE_BINARY_DIR}/APInt_bin_string.h)
+add_custom_command(
+    OUTPUT ${GENERATED_HEADER}
+    DEPENDS src/APInt.h
+    COMMAND xxd -i ../src/APInt.h > ${GENERATED_HEADER}
+    COMMENT "Generating header file from text file"
+)
+
+add_executable(eval_engine
+  src/main.cpp
+  src/jit.h
+  src/AbstVal.h
+  src/Results.h
+  src/Eval.h
+  src/APInt.h
+  src/warning_suppresor.h
+)
+
+target_include_directories(eval_engine PRIVATE
+  ${CMAKE_BINARY_DIR}
+  ${LLVM_INCLUDE_DIRS}
+  ${CLANG_INCLUDE_DIRS}
+)
+
+target_compile_options(eval_engine PRIVATE
     -Wall
     -Wextra
     -Wpedantic
@@ -22,37 +55,9 @@ add_compile_options(
     -march=native
     -flto
     -DNDEBUG
+    -fstrict-enums
+    -Wno-unused-command-line-argument
 )
-
-# Find LLVM
-find_package(LLVM REQUIRED CONFIG)
-message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
-message(STATUS "CMAKE_PREFIX_PATH: ${CMAKE_PREFIX_PATH}")
-message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
-include_directories(${LLVM_INCLUDE_DIRS})
-add_definitions(${LLVM_DEFINITIONS})
-link_directories(${LLVM_LIBRARY_DIRS})
-
-# Find Clang
-find_package(Clang REQUIRED CONFIG)
-include_directories(${CLANG_INCLUDE_DIRS})
-
-# Set LLVM and Clang components
-llvm_map_components_to_libnames(LLVM_LIBS core target x86TargetMCA x86Disassembler x86AsmParser x86CodeGen x86Desc x86Info)
-set(CLANG_LIBS clang-cpp)
-
-# Convert text file to a header file using xxd
-set(GENERATED_HEADER ${CMAKE_BINARY_DIR}/APInt_bin_string.h)
-
-add_custom_command(
-    OUTPUT ${GENERATED_HEADER}
-    COMMAND xxd -i ../src/APInt.cpp > ${GENERATED_HEADER}
-    COMMENT "Generating header file from text file"
-)
-
-# Add the generated file to the build
-add_executable(eval_engine src/main.cpp)
-target_include_directories(eval_engine PRIVATE ${CMAKE_BINARY_DIR})
 
 add_custom_target(generate_header DEPENDS ${GENERATED_HEADER})
 add_dependencies(eval_engine generate_header)

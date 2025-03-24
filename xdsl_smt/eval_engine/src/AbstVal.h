@@ -1,4 +1,5 @@
-#pragma once
+#ifndef AbstVal_H
+#define AbstVal_H
 
 #include <iostream>
 #include <numeric>
@@ -6,11 +7,12 @@
 #include <string>
 #include <vector>
 
-#include "APInt.cpp"
+#include "APInt.h"
 
 template <typename Domain, unsigned int N> class AbstVal {
 protected:
-  explicit AbstVal(const Vec<N> &x) : v(x.v, x.v+x.getN()), bw(x[0].getBitWidth()) {}
+  explicit AbstVal(const Vec<N> &x)
+      : v(x.v, x.v + x.getN()), bw(x[0].getBitWidth()) {}
 
 public:
   typedef Vec<N> (*XferFn)(Vec<N>, Vec<N>);
@@ -257,3 +259,5 @@ public:
     return ret;
   }
 };
+
+#endif

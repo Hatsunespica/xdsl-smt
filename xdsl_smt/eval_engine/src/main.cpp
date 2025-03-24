@@ -3,9 +3,9 @@
 #include <string>
 #include <vector>
 
-#include "AbstVal.cpp"
-#include "Eval.cpp"
-#include "jit.cpp"
+#include "AbstVal.h"
+#include "Eval.h"
+#include "jit.h"
 
 std::vector<std::string> split_whitespace(const std::string &input) {
   std::vector<std::string> result;
@@ -18,9 +18,6 @@ std::vector<std::string> split_whitespace(const std::string &input) {
 }
 
 int main() {
-  // TODO APInt namespacing is weird rn
-  // TODO split stuff into seperate .h and .cpp
-
   std::string tmpStr;
   std::string domain;
   std::getline(std::cin, domain);
