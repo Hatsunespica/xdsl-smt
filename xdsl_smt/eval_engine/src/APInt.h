@@ -996,22 +996,22 @@ inline const APInt abdu(const APInt &A, const APInt &B) {
   return A.uge(B) ? (A - B) : (B - A);
 }
 
-APInt avgFloorS(const APInt &C1, const APInt &C2) {
+inline APInt avgFloorS(const APInt &C1, const APInt &C2) {
   // Return floor((C1 + C2) / 2)
   return (C1 & C2) + (C1 ^ C2).ashr(1);
 }
 
-APInt avgFloorU(const APInt &C1, const APInt &C2) {
+inline APInt avgFloorU(const APInt &C1, const APInt &C2) {
   // Return floor((C1 + C2) / 2)
   return (C1 & C2) + (C1 ^ C2).lshr(1);
 }
 
-APInt avgCeilS(const APInt &C1, const APInt &C2) {
+inline APInt avgCeilS(const APInt &C1, const APInt &C2) {
   // Return ceil((C1 + C2) / 2)
   return (C1 | C2) - (C1 ^ C2).ashr(1);
 }
 
-APInt avgCeilU(const APInt &C1, const APInt &C2) {
+inline APInt avgCeilU(const APInt &C1, const APInt &C2) {
   // Return ceil((C1 + C2) / 2)
   return (C1 | C2) - (C1 ^ C2).lshr(1);
 }
@@ -1021,7 +1021,7 @@ APInt avgCeilU(const APInt &C1, const APInt &C2) {
 ///////////////////////////////////////////////////
 /// APInt.cpp
 
-APInt APInt::rotl(unsigned rotateAmt) const {
+inline APInt APInt::rotl(unsigned rotateAmt) const {
   if (BitWidth == 0)
     return *this;
   rotateAmt %= BitWidth;
@@ -1030,7 +1030,7 @@ APInt APInt::rotl(unsigned rotateAmt) const {
   return shl(rotateAmt) | lshr(BitWidth - rotateAmt);
 }
 
-APInt APInt::rotr(unsigned rotateAmt) const {
+inline APInt APInt::rotr(unsigned rotateAmt) const {
   if (BitWidth == 0)
     return *this;
   rotateAmt %= BitWidth;
@@ -1039,8 +1039,8 @@ APInt APInt::rotr(unsigned rotateAmt) const {
   return lshr(rotateAmt) | shl(BitWidth - rotateAmt);
 }
 
-/// \returns the multiplicative inverse of an odd APInt modulo 2^BitWidth.
-APInt APInt::multiplicativeInverse() const {
+/// returns the multiplicative inverse of an odd APInt modulo 2^BitWidth.
+inline APInt APInt::multiplicativeInverse() const {
   // Use Newton's method.
   APInt Factor = *this;
   APInt T(BitWidth, 0);
@@ -1049,33 +1049,33 @@ APInt APInt::multiplicativeInverse() const {
   return Factor;
 }
 
-APInt APInt::sadd_ov(const APInt &RHS, bool &Overflow) const {
+inline APInt APInt::sadd_ov(const APInt &RHS, bool &Overflow) const {
   APInt Res = *this + RHS;
   Overflow = isNonNegative() == RHS.isNonNegative() &&
              Res.isNonNegative() != isNonNegative();
   return Res;
 }
 
-APInt APInt::uadd_ov(const APInt &RHS, bool &Overflow) const {
+inline APInt APInt::uadd_ov(const APInt &RHS, bool &Overflow) const {
   APInt Res = *this + RHS;
   Overflow = Res.ult(RHS);
   return Res;
 }
 
-APInt APInt::ssub_ov(const APInt &RHS, bool &Overflow) const {
+inline APInt APInt::ssub_ov(const APInt &RHS, bool &Overflow) const {
   APInt Res = *this - RHS;
   Overflow = isNonNegative() != RHS.isNonNegative() &&
              Res.isNonNegative() != isNonNegative();
   return Res;
 }
 
-APInt APInt::usub_ov(const APInt &RHS, bool &Overflow) const {
+inline APInt APInt::usub_ov(const APInt &RHS, bool &Overflow) const {
   APInt Res = *this - RHS;
   Overflow = Res.ugt(*this);
   return Res;
 }
 
-APInt APInt::sfloordiv_ov(const APInt &RHS, bool &Overflow) const {
+inline APInt APInt::sfloordiv_ov(const APInt &RHS, bool &Overflow) const {
   APInt quotient = sdiv_ov(RHS, Overflow);
   if ((quotient * RHS != *this) && (isNegative() != RHS.isNegative()))
     return quotient - 1;

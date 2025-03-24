@@ -1,4 +1,5 @@
-#pragma once
+#ifndef Results_H
+#define Results_H
 
 #include <cstdio>
 #include <functional>
@@ -89,3 +90,5 @@ public:
     basePrecise += dis;
   }
 };
+
+#endif

@@ -1,13 +1,22 @@
+#ifndef Eval_H
+#define Eval_H
+
 #include <algorithm>
 #include <functional>
+#include <iterator>
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
 
-#include <llvm/ExecutionEngine/Orc/LLJIT.h>
+#include "APInt.h"
+#include "Results.h"
+#include "warning_suppresor.h"
 
-#include "APInt.cpp"
-#include "Results.cpp"
+SUPPRESS_WARNINGS_BEGIN
+#include <llvm/ExecutionEngine/Orc/LLJIT.h>
+#include <llvm/Support/Error.h>
+SUPPRESS_WARNINGS_END
 
 template <typename Domain> class Eval {
 private:
@@ -84,10 +93,13 @@ public:
 
     llvm::Expected<llvm::orc::ExecutorAddr> mOpCons =
         jit->lookup("op_constraint");
+
     opCon =
-        mOpCons.takeError()
+        !mOpCons
             ? std::nullopt
             : std::optional(mOpCons.get().toPtr<bool(A::APInt, A::APInt)>());
+
+    llvm::consumeError(mOpCons.takeError());
   }
 
   const Results eval() {
@@ -122,3 +134,5 @@ public:
     return r;
   }
 };
+
+#endif

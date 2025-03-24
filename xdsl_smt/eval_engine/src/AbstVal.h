@@ -1,4 +1,5 @@
-#pragma once
+#ifndef AbstVal_H
+#define AbstVal_H
 
 #include <algorithm>
 #include <array>
@@ -12,17 +13,16 @@
 #include <string>
 #include <vector>
 
-#include "APInt.cpp"
+#include "APInt.h"
 
 template <typename Domain, unsigned int N> class AbstVal {
 public:
-  typedef Vec<N> vec;
   static const constexpr unsigned int n = N;
-  typedef vec (*XferFn)(vec, vec);
-  vec v;
+  typedef Vec<N> (*XferFn)(Vec<N>, Vec<N>);
+  Vec<N> v;
 
 protected:
-  explicit AbstVal(const vec &x) : v(x) {}
+  explicit AbstVal(const Vec<N> &x) : v(x) {}
 
 public:
   // static ctors
@@ -86,7 +86,7 @@ private:
   bool hasConflict() const { return zero().intersects(one()); }
 
 public:
-  explicit KnownBits(const vec &vC) : AbstVal<KnownBits, n>(vC) {}
+  explicit KnownBits(const Vec<n> &vC) : AbstVal<KnownBits, n>(vC) {}
 
   const std::string display() const {
     if (KnownBits::isBottom()) {
@@ -184,7 +184,7 @@ private:
   A::APInt upper() const { return v[1]; }
 
 public:
-  explicit ConstantRange(const vec &vC) : AbstVal<ConstantRange, n>(vC) {}
+  explicit ConstantRange(const Vec<n> &vC) : AbstVal<ConstantRange, n>(vC) {}
 
   const std::string display() const {
     if (ConstantRange::isBottom()) {
@@ -277,7 +277,7 @@ private:
   // constexpr const static std::array<unsigned char, n> primes = {2,3,5,7,11};
   constexpr const static std::array<unsigned char, n> primes = {2, 3, 5};
 
-  const vec residues() const { return v; }
+  const Vec<n> residues() const { return v; }
 
   static unsigned int modInv(int a, int b) {
     int b0 = b, t, q;
@@ -319,7 +319,7 @@ private:
   }
 
 public:
-  explicit IntegerModulo(const vec &vC) : AbstVal<IntegerModulo, n>(vC) {}
+  explicit IntegerModulo(const Vec<n> &vC) : AbstVal<IntegerModulo, n>(vC) {}
 
   const std::string display() const {
     if (IntegerModulo::isBottom()) {
@@ -363,7 +363,7 @@ public:
   }
 
   const IntegerModulo meet(const IntegerModulo &rhs) const {
-    vec r = bottom(bw()).v;
+    Vec<n> r = bottom(bw()).v;
 
     for (unsigned int i = 0; i < n; ++i) {
       if (residues()[i] == rhs.residues()[i])
@@ -380,7 +380,7 @@ public:
   }
 
   const IntegerModulo join(const IntegerModulo &rhs) const {
-    vec r = top(bw()).v;
+    Vec<n> r = top(bw()).v;
 
     for (unsigned int i = 0; i < n; ++i)
       if (residues()[i] == rhs.residues()[i])
@@ -399,7 +399,7 @@ public:
 
   static IntegerModulo fromConcrete(const A::APInt &x) {
     unsigned int xVal = static_cast<unsigned int>(x.getZExtValue());
-    vec r = top(x.getBitWidth()).v;
+    Vec<n> r = top(x.getBitWidth()).v;
 
     for (unsigned int i = 0; i < n; ++i)
       r[i] = A::APInt(x.getBitWidth(), xVal % primes[i]);
@@ -455,3 +455,5 @@ public:
     return r;
   }
 };
+
+#endif
