@@ -54,6 +54,7 @@ public:
   bool isTop() const { return *this == top(bw()); }
   bool isBottom() const { return *this == bottom(bw()); }
   bool isSuperset(const Domain &rhs) const { return meet(rhs) == rhs; }
+  // TODO this should be for every val in v
   unsigned int distance(const Domain &rhs) const {
     return (v[0] ^ rhs.v[0]).popcount() + (v[1] ^ rhs.v[1]).popcount();
   }
@@ -363,34 +364,36 @@ public:
   }
 
   const IntegerModulo meet(const IntegerModulo &rhs) const {
-    Vec<n> r = bottom(bw()).v;
+    std::vector<A::APInt> r;
 
     for (unsigned int i = 0; i < n; ++i) {
       if (residues()[i] == rhs.residues()[i])
-        r[i] = residues()[i];
+        r.push_back(residues()[i]);
       else if (residues()[i] == primes[i])
-        r[i] = rhs.residues()[i];
+        r.push_back(rhs.residues()[i]);
       else if (rhs.residues()[i] == primes[i])
-        r[i] = residues()[i];
+        r.push_back(residues()[i]);
       else
         return bottom(bw());
     }
 
-    return IntegerModulo(r);
+    return IntegerModulo(r.data());
   }
 
   const IntegerModulo join(const IntegerModulo &rhs) const {
-    Vec<n> r = top(bw()).v;
+    std::vector<A::APInt> r;
 
     for (unsigned int i = 0; i < n; ++i)
       if (residues()[i] == rhs.residues()[i])
-        r[i] = residues()[i];
+        r.push_back(residues()[i]);
       else if (residues()[i] == primes[i] + 1)
-        r[i] = rhs.residues()[i];
+        r.push_back(rhs.residues()[i]);
       else if (rhs.residues()[i] == primes[i] + 1)
-        r[i] = residues()[i];
+        r.push_back(residues()[i]);
+      else
+        r.push_back(A::APInt(bw(), primes[i]));
 
-    return IntegerModulo(r);
+    return IntegerModulo(r.data());
   }
 
   const std::vector<unsigned int> toConcrete() const {
@@ -399,54 +402,55 @@ public:
 
   static IntegerModulo fromConcrete(const A::APInt &x) {
     unsigned int xVal = static_cast<unsigned int>(x.getZExtValue());
-    Vec<n> r = top(x.getBitWidth()).v;
+    std::vector<A::APInt> r;
 
     for (unsigned int i = 0; i < n; ++i)
-      r[i] = A::APInt(x.getBitWidth(), xVal % primes[i]);
+      r.push_back(A::APInt(x.getBitWidth(), xVal % primes[i]));
 
-    return IntegerModulo(r);
+    return IntegerModulo(r.data());
   }
 
   static IntegerModulo top(unsigned int bw) {
     std::vector<A::APInt> r;
     std::transform(primes.begin(), primes.end(), std::back_inserter(r),
                    [bw](unsigned int x) { return A::APInt(bw, x); });
-    return IntegerModulo(const_cast<const A::APInt *>(r.data()));
+    return IntegerModulo(r.data());
   }
 
   static IntegerModulo bottom(unsigned int bw) {
     std::vector<A::APInt> r;
     std::transform(primes.begin(), primes.end(), std::back_inserter(r),
                    [bw](unsigned int x) { return A::APInt(bw, x + 1); });
-    return IntegerModulo(const_cast<const A::APInt *>(r.data()));
+    return IntegerModulo(r.data());
   }
 
   static std::vector<IntegerModulo> const enumVals(unsigned int bw) {
     std::vector<IntegerModulo> r;
-    IntegerModulo tmp(const_cast<const A::APInt *>(
-        std::vector<A::APInt>(n, A::APInt(bw, 0)).data()));
+    // IntegerModulo tmp();
+    std::vector<A::APInt> tmp(n, A::APInt(bw, 0));
 
     while (true) {
       bool noTs = true;
       for (unsigned int i = 0; i < n; ++i)
-        if (tmp.residues()[i] == primes[i]) {
+        if (tmp[i] == primes[i]) {
           noTs = false;
           break;
         }
 
-      if (!(tmp.chineseRemainder().size() == 0) &&
-          (noTs || !(tmp.chineseRemainder().size() == 1)))
-        r.push_back(tmp);
+      IntegerModulo tmp_i(tmp.data());
+      if (!(tmp_i.chineseRemainder().size() == 0) &&
+          (noTs || !(tmp_i.chineseRemainder().size() == 1)))
+        r.push_back(tmp_i);
 
-      if (tmp.isTop())
+      if (tmp_i.isTop())
         break;
 
       for (unsigned int i = 0; i < n; ++i) {
-        if (tmp.residues()[i] != primes[i]) {
+        if (tmp[i] != primes[i]) {
           for (unsigned int j = 0; j < i; ++j)
-            tmp.v[j] = 0;
+            tmp[j] = 0;
 
-          tmp.v[i] += 1;
+          tmp[i] += 1;
           break;
         }
       }
