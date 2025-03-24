@@ -9,11 +9,12 @@ set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 # Find LLVM and Clang
 find_package(LLVM REQUIRED CONFIG)
 find_package(Clang REQUIRED CONFIG)
+message(STATUS "CMAKE_PREFIX_PATH: ${CMAKE_PREFIX_PATH}")
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 
 # Set LLVM and Clang components
-llvm_map_components_to_libnames(LLVM_LIBS core)
+llvm_map_components_to_libnames(LLVM_LIBS core target x86TargetMCA x86Disassembler x86AsmParser x86CodeGen x86Desc x86Info)
 set(CLANG_LIBS clang-cpp)
 
 set(GENERATED_HEADER ${CMAKE_BINARY_DIR}/APInt_bin_string.h)
