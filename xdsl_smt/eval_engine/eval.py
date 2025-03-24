@@ -1,7 +1,6 @@
 from os import path
 from subprocess import run, PIPE
 from enum import Enum, auto
-import re
 
 from xdsl_smt.utils.compare_result import CompareResult
 
