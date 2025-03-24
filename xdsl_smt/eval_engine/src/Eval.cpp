@@ -1,11 +1,13 @@
 #include <algorithm>
 #include <functional>
 #include <iterator>
-#include <llvm/ExecutionEngine/Orc/LLJIT.h>
 #include <memory>
 #include <optional>
 #include <string>
 #include <vector>
+
+#include <llvm/ExecutionEngine/Orc/LLJIT.h>
+#include <llvm/Support/Error.h>
 
 #include "APInt.cpp"
 #include "Results.cpp"
@@ -88,10 +90,13 @@ public:
 
     llvm::Expected<llvm::orc::ExecutorAddr> mOpCons =
         jit->lookup("op_constraint");
+
     opConstraint =
-        mOpCons.takeError()
+        !mOpCons
             ? std::nullopt
             : std::optional(mOpCons.get().toPtr<bool(A::APInt, A::APInt)>());
+
+    llvm::consumeError(mOpCons.takeError());
   }
 
   const Results eval() {
