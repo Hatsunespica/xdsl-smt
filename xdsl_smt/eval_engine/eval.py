@@ -47,7 +47,6 @@ def eval_transfer_func(
     engine_params += f"{bitwidth}\n"
     engine_params += f"{' '.join(xfer_names)}\n"
     engine_params += f"{' '.join(base_names)}\n"
-    engine_params += f"typedef Vec<2> vec;\n"
     engine_params += "using A::APInt;\n"
 
     all_src = "\n".join(helper_srcs + xfer_srcs + base_srcs)

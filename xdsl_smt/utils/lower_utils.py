@@ -183,7 +183,9 @@ def lowerType(typ, specialOp=None):
         typeName = lowerType(fields[0])
         for i in range(1, len(fields)):
             assert lowerType(fields[i]) == typeName
-        return "vec" if use_custom_vec else "std::vector<" + typeName + ">"
+        if use_custom_vec:
+            return "Vec<" + str(len(fields)) + ">"
+        return "std::vector<" + typeName + ">"
     elif isinstance(typ, IntegerType):
         return "int" if not int_to_apint else "APInt"
     elif isinstance(typ, IndexType):
