@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+set(CMAKE_CXX_FLAGS "-Wall -Werror -fPIC -fstrict-enums ${CMAKE_CXX_FLAGS}")
 
 add_compile_options(
     -Wall
@@ -37,7 +38,7 @@ find_package(Clang REQUIRED CONFIG)
 include_directories(${CLANG_INCLUDE_DIRS})
 
 # Set LLVM and Clang components
-llvm_map_components_to_libnames(LLVM_LIBS core)
+llvm_map_components_to_libnames(LLVM_LIBS core target)
 set(CLANG_LIBS clang-cpp)
 
 # Convert text file to a header file using xxd
