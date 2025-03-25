@@ -14,7 +14,7 @@ The diagram below shows the overview of this project.
 
 #### Set up LLVM
 
-This section tells you how to build LLVM required by the Eval Engine from the source code. 
+This section tells you how to build LLVM required by the Eval Engine from the source code.
 
 The Eval Engine requires LLVM built with LLVMGold library, so first we need to download the library
 
@@ -25,7 +25,7 @@ This line download `binutils` library and we need to use its include path later 
 
 Suppose its path is `/home/username/GitRepo/binutils/`
 
-Next, clone llvm repo 
+Next, clone llvm repo
 ```bash
 git clone https://github.com/llvm/llvm-project.git
 cd llvm-project
@@ -35,20 +35,20 @@ cd build
 ```
 and build the LLVM with following configuration:
 ```bash
-cmake -GNinja -DLLVM_ENABLE_RTTI=ON -DLLVM_ENABLE_EH=ON -DBUILD_SHARED_LIBS=ON \ 
+cmake -GNinja -DLLVM_ENABLE_RTTI=ON -DLLVM_ENABLE_EH=ON -DBUILD_SHARED_LIBS=ON \
 -DLLVM_BINUTILS_INCDIR=/home/username/GitRepo/binutils/include/ \
 -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD=X86 -DLLVM_ENABLE_ASSERTIONS=ON \
 -DLLVM_ENABLE_PROJECTS="llvm;clang;mlir"  ../llvm
 ```
 
 Please update the second line `-DLLVM_BINUTILS_INCDIR=` with your own path
-and don't forget to add `include/` at the end. 
+and don't forget to add `include/` at the end.
 
 Lastly, we should run
 ```bash
 ninja
 ```
-To build LLVM 
+To build LLVM
 
 
 
@@ -64,7 +64,7 @@ cmake .. && make
 cd ../../..
 ```
 
-If you build LLVM from the source as described in the previous section, you should use following commands to replace 
+If you build LLVM from the source as described in the previous section, you should use following commands to replace
 the third line in the previous block.
 ```bash
 cmake .. -D  CMAKE_CXX_COMPILER=/home/username/GitRepo/llvm-project/build/bin/clang++ \
