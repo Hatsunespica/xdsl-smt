@@ -13,11 +13,11 @@ from xdsl_smt.utils.function_with_condition import FunctionWithCondition
 from xdsl_smt.utils.synthesizer_context import SynthesizerContext
 
 
-def rename_functions(lst: list[FuncOp], prefix: str) -> list[str]:
+def rename_functions(lst: list[FunctionWithCondition], prefix: str) -> list[str]:
     func_names: list[str] = []
     for i, func in enumerate(lst):
         func_names.append(prefix + str(i))
-        func.sym_name = StringAttr(func_names[-1])
+        func.set_func_name(func_names[-1])
     return func_names
 
 
@@ -57,7 +57,7 @@ class SolutionSet(ABC):
             list[CompareResult],
         ],
     ):
-        rename_functions([fc.func for fc in initial_solutions], "partial_solution_")
+        rename_functions(initial_solutions, "partial_solution_")
         self.solutions = initial_solutions
         self.solution_conds = [None] * len(initial_solutions)
         self.solutions_size = len(initial_solutions)
@@ -180,7 +180,7 @@ class SizedSolutionSet(SolutionSet):
                 self.eliminate_dead_code,
                 self.eval_func,
             )
-        rename_functions([fc.func for fc in candidates], "part_solution_")
+        rename_functions(candidates, "part_solution_")
         ref_funcs: list[FunctionWithCondition] = []
 
         # First select a function with maximal precise
@@ -263,6 +263,7 @@ class UnsizedSolutionSet(SolutionSet):
         new_candidates_c: list[FunctionWithCondition],
     ) -> SolutionSet:
         candidates = self.solutions + new_candidates_sp + new_candidates_c
+        rename_functions(candidates, "part_solution_")
         self.logger.info(f"Size of new candidates: {len(new_candidates_sp)}")
         self.logger.info(f"Size of new conditional candidates: {len(new_candidates_c)}")
         self.logger.info(f"Size of solutions: {len(candidates)}")
