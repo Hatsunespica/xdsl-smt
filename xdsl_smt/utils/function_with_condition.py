@@ -33,6 +33,16 @@ class FunctionWithCondition:
         return f"Cond:\n{cond_str}\nFunc:{str(eliminate_dead_code(self.func))}"
 
     def get_function(self) -> FuncOp:
+        """
+        Because select operation only works on TransferIntegertype, so we have to decouple all result obtained from getTop
+        and call_body
+        The whole function first get top and get all its elements
+        Next, it calls body and get all its element
+        Finally, it selects element by the condition and returns it
+
+        TODO: Add select support on AbstractValues, so this function can be simplified.
+        """
+
         whole_function = FuncOp(self.func_name, self.func.function_type)
         args = whole_function.args
 
