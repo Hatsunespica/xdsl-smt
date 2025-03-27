@@ -540,7 +540,7 @@ def eval_transfer_func_helper(
         )
         transfer_func_names.append(fc.func_name)
         transfer_func_srcs.append(caller_str)
-        helper_funcs.extend(callee_str)
+        # helper_funcs.extend(callee_str)
 
     # transfer_cond_names = [
     #     None if fc.cond is None else fc.cond.sym_name.data for fc in transfer
@@ -561,7 +561,7 @@ def eval_transfer_func_helper(
         )
         base_func_names.append(fc.func_name)
         base_func_srcs.append(caller_str)
-        helper_funcs.extend(callee_str)
+        # helper_funcs.extend(callee_str)
     # base_cond_names = [
     #     None if fc.cond is None else fc.cond.sym_name.data for fc in base
     # ]

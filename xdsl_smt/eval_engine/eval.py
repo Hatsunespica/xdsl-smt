@@ -239,9 +239,9 @@ def eval_transfer_func(
     transfer_func_header += f"\ntypedef {domain}<{bitwidth}> Domain;\n"
     transfer_func_header += f"\nunsigned int numFuncs = {len(xfer_names)};\n"
 
-    ref_xfer_srcs, ref_xfer_names = rename(
-        ref_xfer_srcs, ref_xfer_names, ref_func_suffix
-    )
+    # ref_xfer_srcs, ref_xfer_names = rename(
+    #     ref_xfer_srcs, ref_xfer_names, ref_func_suffix
+    # )
     ref_xfer_func_wrapper = make_xfer_wrapper(ref_xfer_names, ref_func_wrapper_name)
 
     # ref_cond_srcs, ref_cond_names = rename(
@@ -249,7 +249,7 @@ def eval_transfer_func(
     # )
     # ref_cond_wrapper = make_conds_wrapper(ref_cond_names, ref_cond_wrapper_name)
 
-    xfer_srcs, xfer_names = rename(xfer_srcs, xfer_names)
+    # xfer_srcs, xfer_names = rename(xfer_srcs, xfer_names)
     xfer_func_wrapper = make_xfer_wrapper(xfer_names, func_wrapper_name)
 
     # cond_srcs, cond_names = rename(cond_srcs, cond_names, cond_suffix)

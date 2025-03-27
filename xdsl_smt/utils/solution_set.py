@@ -347,9 +347,11 @@ class UnsizedSolutionSet(SolutionSet):
         self.logger.info(f"The number of conditional solutions: {num_cond_solutions}")
 
         precise_candidates = self.precise_set + new_candidates_p
-        result = self.eval_improve(
-            [FunctionWithCondition(f) for f in precise_candidates]
-        )
+        precise_candidates_to_eval = [
+            FunctionWithCondition(f) for f in precise_candidates
+        ]
+        rename_functions(precise_candidates_to_eval, "precise_candidates_")
+        result = self.eval_improve(precise_candidates_to_eval)
 
         sorted_pairs = sorted(
             zip(precise_candidates, result),

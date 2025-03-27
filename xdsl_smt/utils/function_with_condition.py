@@ -25,7 +25,7 @@ class FunctionWithCondition:
 
     def set_func_name(self, new_func_name: str):
         self.func_name = new_func_name
-        self.func.sym_name = StringAttr(new_func_name + "_base")
+        self.func.sym_name = StringAttr(new_func_name + "_body")
         if self.cond is not None:
             self.cond.sym_name = StringAttr(new_func_name + "_cond")
 
