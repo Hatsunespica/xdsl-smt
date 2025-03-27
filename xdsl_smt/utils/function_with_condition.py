@@ -46,6 +46,14 @@ class FunctionWithCondition:
         whole_function = FuncOp(self.func_name, self.func.function_type)
         args = whole_function.args
 
+        if self.cond is None:
+            call_op = CallOp(self.func.sym_name.data, args)
+            assert len(call_op.results) == 1
+            call_res = call_op.results[0]
+            return_op = ReturnOp(call_res)
+            whole_function.body.block.add_ops([call_op, return_op])
+            return whole_function
+
         call_top_op = CallOp("getTop", [args[0]])
         assert len(call_top_op.results) == 1
         top_res = call_top_op.results[0]
@@ -98,5 +106,7 @@ class FunctionWithCondition:
         whole_function = self.get_function()
         whole_function_str = lower_to_cpp(eliminate_dead_code(whole_function))
         func_str = lower_to_cpp(eliminate_dead_code(self.func))
+        if self.cond is None:
+            return whole_function_str, [func_str]
         cond_str = lower_to_cpp(eliminate_dead_code(self.cond))
         return whole_function_str, [func_str, cond_str]
