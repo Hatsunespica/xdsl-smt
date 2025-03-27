@@ -63,7 +63,9 @@ class FunctionWithCondition:
             ).apply(MLContext(), module_op)
             return whole_function
 
-        call_top_op = CallOp("getTop", [args[0]], self.func.function_type.outputs.data[0])
+        call_top_op = CallOp(
+            "getTop", [args[0]], self.func.function_type.outputs.data[0]
+        )
         assert len(call_top_op.results) == 1
         top_res = call_top_op.results[0]
         top_res_type = top_res.type

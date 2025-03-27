@@ -529,57 +529,31 @@ def eval_transfer_func_helper(
     """
     This function is a helper of eval_transfer_func that prints the mlir func as cpp code
     """
-    # transfer_func_names = [fc.func.sym_name.data for fc in transfer]
-    # transfer_func_srcs = [print_to_cpp(eliminate_dead_code(fc.func)) for fc in transfer]
     transfer_func_names = []
     transfer_func_srcs = []
     assert get_top_func_op is not None
     for fc in transfer:
-        caller_str, callee_str = fc.get_function_str(
+        caller_str, _ = fc.get_function_str(
             get_top_func_op, print_to_cpp, eliminate_dead_code
         )
         transfer_func_names.append(fc.func_name)
         transfer_func_srcs.append(caller_str)
-        # helper_funcs.extend(callee_str)
-
-    # transfer_cond_names = [
-    #     None if fc.cond is None else fc.cond.sym_name.data for fc in transfer
-    # ]
-    # transfer_cond_srcs = [
-    #     None if fc.cond is None else print_to_cpp(eliminate_dead_code(fc.cond))
-    #     for fc in transfer
-    # ]
-
-    # base_func_names = [fc.func.sym_name.data for fc in base]
-    # base_func_srcs = [print_to_cpp(eliminate_dead_code(fc.func)) for fc in base]
 
     base_func_names = []
     base_func_srcs = []
     for fc in base:
-        caller_str, callee_str = fc.get_function_str(
+        caller_str, _ = fc.get_function_str(
             get_top_func_op, print_to_cpp, eliminate_dead_code
         )
         base_func_names.append(fc.func_name)
         base_func_srcs.append(caller_str)
-        # helper_funcs.extend(callee_str)
-    # base_cond_names = [
-    #     None if fc.cond is None else fc.cond.sym_name.data for fc in base
-    # ]
-    # base_cond_srcs = [
-    #     None if fc.cond is None else print_to_cpp(eliminate_dead_code(fc.cond))
-    #     for fc in base
-    # ]
 
     return eval_engine.eval_transfer_func(
         transfer_func_names,
         transfer_func_srcs,
-        # transfer_cond_names,
-        # transfer_cond_srcs,
         concrete_op_expr,
         base_func_names,
         base_func_srcs,
-        # base_cond_names,
-        # base_cond_srcs,
         domain,
         bitwidth,
         helper_funcs,
@@ -822,7 +796,7 @@ def synthesize_transfer_function(
         transfers: list[FuncOp] = []
         for i in range(num_programs):
             _: float = mcmc_samplers[i].sample_next()
-            proposed_solution = mcmc_samplers[i].get_proposed()
+            proposed_solution = mcmc_samplers[i].get_proposed().clone()
             # print(proposed_solution)
             assert proposed_solution is not None
             transfers.append(proposed_solution)

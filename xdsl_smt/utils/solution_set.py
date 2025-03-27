@@ -348,7 +348,7 @@ class UnsizedSolutionSet(SolutionSet):
 
         precise_candidates = self.precise_set + new_candidates_p
         precise_candidates_to_eval = [
-            FunctionWithCondition(f) for f in precise_candidates
+            FunctionWithCondition(f.clone()) for f in precise_candidates
         ]
         rename_functions(precise_candidates_to_eval, "precise_candidates_")
         result = self.eval_improve(precise_candidates_to_eval)
