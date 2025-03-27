@@ -52,7 +52,7 @@ class FunctionWithCondition:
 
         if self.cond is None:
             call_op = CallOp(
-                self.func.sym_name.data, args, self.func.function_type.outputs
+                self.func.sym_name.data, args, self.func.function_type.outputs.data[0]
             )
             assert len(call_op.results) == 1
             call_res = call_op.results[0]
@@ -63,7 +63,7 @@ class FunctionWithCondition:
             ).apply(MLContext(), module_op)
             return whole_function
 
-        call_top_op = CallOp("getTop", [args[0]], self.func.function_type.outputs)
+        call_top_op = CallOp("getTop", [args[0]], self.func.function_type.outputs.data[0])
         assert len(call_top_op.results) == 1
         top_res = call_top_op.results[0]
         top_res_type = top_res.type
@@ -74,7 +74,7 @@ class FunctionWithCondition:
             top_res_element_ops.append(GetOp(top_res, i))
 
         call_body_op = CallOp(
-            self.func.sym_name.data, args, self.func.function_type.outputs
+            self.func.sym_name.data, args, self.func.function_type.outputs.data[0]
         )
         assert len(call_body_op.results) == 1
         body_res = call_body_op.results[0]
@@ -87,12 +87,12 @@ class FunctionWithCondition:
 
         res_element_ops: list[SelectOp] = []
         call_cond_op = CallOp(
-            self.cond.sym_name.data, args, self.cond.function_type.outputs
+            self.cond.sym_name.data, args, self.cond.function_type.outputs.data[0]
         )
         assert len(call_cond_op.results) == 1
         cond_res = call_cond_op.results[0]
-        assert isinstance(cond_res.type, i1)
 
+        assert cond_res.type == i1
         for top_ele_op, body_ele_op in zip(top_res_element_ops, body_res_element_ops):
             res_element_ops.append(
                 SelectOp(cond_res, body_ele_op.result, top_ele_op.result)
