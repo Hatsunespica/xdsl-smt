@@ -274,11 +274,32 @@ public:
 
 class IntegerModulo : public AbstVal<IntegerModulo, 3> {
 private:
-  // okay as long as bw is less than 11
-  // constexpr const static std::array<unsigned char, n> primes = {2,3,5,7,11};
   constexpr const static std::array<unsigned char, n> primes = {2, 3, 5};
+  unsigned int crt;
+  unsigned int p;
+  unsigned int numTs;
 
   const Vec<n> residues() const { return v; }
+
+  bool isBadBottom() const {
+    const unsigned int max =
+        static_cast<unsigned int>(A::APInt::getMaxValue(bw()).getZExtValue());
+
+    if (numTs == 0 && crt > max)
+      return true;
+
+    return false;
+  }
+
+  bool isBadSingleton() const {
+    const unsigned int max =
+        static_cast<unsigned int>(A::APInt::getMaxValue(bw()).getZExtValue());
+
+    if (numTs == 1 && crt + p > max && static_cast<int>(crt - p) < 0)
+      return true;
+
+    return false;
+  }
 
   static unsigned int modInv(int a, int b) {
     int b0 = b, t, q;
@@ -293,34 +314,41 @@ private:
     return static_cast<unsigned int>((x1 < 0) ? x1 + b0 : x1);
   }
 
-  const std::vector<unsigned int> chineseRemainder() const {
-    unsigned int result = 0;
-    unsigned int p = 1;
-
+  explicit IntegerModulo(const Vec<n> &vC, bool fixBadVals)
+      : AbstVal<IntegerModulo, n>(vC) {
+    unsigned int numTs_ = 0;
+    unsigned int p_ = 1;
+    unsigned int crt_ = 0;
     for (unsigned int i = 0; i < n; ++i)
-      if (residues()[i] != primes[i])
-        p *= primes[i];
+      if (residues()[i] == primes[i])
+        numTs_ += 1;
+      else
+        p_ *= primes[i];
+
+    numTs = numTs_;
+    p = p_;
 
     for (unsigned int i = 0; i < n; ++i) {
       if (residues()[i] == primes[i])
         continue;
       unsigned int pp = p / primes[i];
-      result += static_cast<unsigned int>(residues()[i].getZExtValue()) *
-                modInv(static_cast<int>(pp), primes[i]) * pp;
+      crt_ += static_cast<unsigned int>(residues()[i].getZExtValue()) *
+              modInv(static_cast<int>(pp), primes[i]) * pp;
     }
 
-    const unsigned int max =
-        static_cast<unsigned int>(A::APInt::getMaxValue(bw()).getZExtValue());
+    crt = crt_ % p;
 
-    std::vector<unsigned int> r;
-    for (result %= p; result <= max; result += p)
-      r.push_back(result);
-
-    return r;
+    if (fixBadVals) {
+      if (isBadBottom())
+        v = bottom(bw()).v;
+      else if (isBadSingleton()) {
+        v = fromConcrete(A::APInt(bw(), crt)).v;
+      }
+    }
   }
 
 public:
-  explicit IntegerModulo(const Vec<n> &vC) : AbstVal<IntegerModulo, n>(vC) {}
+  explicit IntegerModulo(const Vec<n> &vC) : IntegerModulo(vC, true) {}
 
   const std::string display() const {
     if (IntegerModulo::isBottom()) {
@@ -337,9 +365,8 @@ public:
         ss << residues()[i].getZExtValue() << " ";
 
     ss << "vals: ";
-    auto a = chineseRemainder();
-    for (unsigned int i = 0; i < a.size(); ++i)
-      ss << a[i] << " ";
+    for (unsigned int x : toConcrete())
+      ss << x << " ";
 
     if (IntegerModulo::isTop())
       ss << "(top)";
@@ -347,57 +374,54 @@ public:
     return ss.str();
   }
 
-  bool isConstant() const {
-    for (unsigned int i = 0; i < n; ++i)
-      if (residues()[i] == primes[i])
-        return false;
-
-    if (chineseRemainder().size() != 1)
-      return false;
-
-    return true;
-  }
-
+  bool isConstant() const { return numTs == 0; }
   const A::APInt getConstant() const {
     assert(isConstant());
-    return A::APInt(bw(), chineseRemainder()[0]);
+    return A::APInt(bw(), crt);
   }
 
   const IntegerModulo meet(const IntegerModulo &rhs) const {
-    std::vector<A::APInt> r;
+    Vec<n> x(bw());
 
     for (unsigned int i = 0; i < n; ++i) {
       if (residues()[i] == rhs.residues()[i])
-        r.push_back(residues()[i]);
+        x[i] = residues()[i];
       else if (residues()[i] == primes[i])
-        r.push_back(rhs.residues()[i]);
+        x[i] = rhs.residues()[i];
       else if (rhs.residues()[i] == primes[i])
-        r.push_back(residues()[i]);
+        x[i] = residues()[i];
       else
         return bottom(bw());
     }
 
-    return IntegerModulo(r.data());
+    return IntegerModulo(x);
   }
 
   const IntegerModulo join(const IntegerModulo &rhs) const {
-    std::vector<A::APInt> r;
+    Vec<n> x(bw());
 
     for (unsigned int i = 0; i < n; ++i)
       if (residues()[i] == rhs.residues()[i])
-        r.push_back(residues()[i]);
+        x[i] = residues()[i];
       else if (residues()[i] == primes[i] + 1)
-        r.push_back(rhs.residues()[i]);
+        x[i] = rhs.residues()[i];
       else if (rhs.residues()[i] == primes[i] + 1)
-        r.push_back(residues()[i]);
+        x[i] = residues()[i];
       else
-        r.push_back(A::APInt(bw(), primes[i]));
+        x[i] = primes[i];
 
-    return IntegerModulo(r.data());
+    return IntegerModulo(x);
   }
 
   const std::vector<unsigned int> toConcrete() const {
-    return chineseRemainder();
+    const unsigned int max =
+        static_cast<unsigned int>(A::APInt::getMaxValue(bw()).getZExtValue());
+
+    std::vector<unsigned int> r;
+    for (unsigned int x = crt; x <= max; x += p)
+      r.push_back(x);
+
+    return r;
   }
 
   static IntegerModulo fromConcrete(const A::APInt &x) {
@@ -426,31 +450,22 @@ public:
 
   static std::vector<IntegerModulo> const enumVals(unsigned int bw) {
     std::vector<IntegerModulo> r;
-    // IntegerModulo tmp();
-    std::vector<A::APInt> tmp(n, A::APInt(bw, 0));
+    Vec<n> x(bw);
 
     while (true) {
-      bool noTs = true;
-      for (unsigned int i = 0; i < n; ++i)
-        if (tmp[i] == primes[i]) {
-          noTs = false;
-          break;
-        }
+      IntegerModulo x_im(x, false);
+      if (!x_im.isBadBottom() && !x_im.isBadSingleton())
+        r.push_back(x_im);
 
-      IntegerModulo tmp_i(tmp.data());
-      if (!(tmp_i.chineseRemainder().size() == 0) &&
-          (noTs || !(tmp_i.chineseRemainder().size() == 1)))
-        r.push_back(tmp_i);
-
-      if (tmp_i.isTop())
+      if (x_im.isTop())
         break;
 
       for (unsigned int i = 0; i < n; ++i) {
-        if (tmp[i] != primes[i]) {
+        if (x[i] != primes[i]) {
           for (unsigned int j = 0; j < i; ++j)
-            tmp[j] = 0;
+            x[j] = 0;
 
-          tmp[i] += 1;
+          x[i] += 1;
           break;
         }
       }

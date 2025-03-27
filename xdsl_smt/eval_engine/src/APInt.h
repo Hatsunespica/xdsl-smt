@@ -1113,6 +1113,11 @@ public:
       new (&v[i]) A::APInt(x[i]);
   }
 
+  Vec(unsigned int bw) {
+    for (unsigned int i = 0; i < N; ++i)
+      new (&v[i]) A::APInt(bw, 0);
+  }
+
   Vec(const Vec<N> &other) {
     for (unsigned int i = 0; i < N; ++i)
       new (&v[i]) A::APInt(other.v[i]);
@@ -1135,6 +1140,7 @@ public:
   }
 
   const A::APInt &operator[](unsigned int i) const { return v[i]; }
+  A::APInt &operator[](unsigned int i) { return v[i]; }
 };
 
 #endif
