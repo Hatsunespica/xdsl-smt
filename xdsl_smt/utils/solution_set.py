@@ -89,15 +89,17 @@ class SolutionSet(ABC):
     def has_solution(self) -> bool:
         return self.solutions_size != 0
 
-    def generate_solution(self) -> FuncOp:
+    def generate_solution(self) -> tuple[FuncOp, list[FuncOp]]:
         assert self.has_solution()
         solutions = self.solutions
         result = FuncOp("solution", solutions[0].func.function_type)
         result_type = result.function_type.outputs.data
         part_result: list[CallOp] = []
+        part_solution_funcs: list[FuncOp] = []
         for ith, func_with_cond in enumerate(solutions):
             cur_func_name = "partial_solution_" + str(ith)
-            func_with_cond.func.sym_name = StringAttr("partial_solution_" + str(ith))
+            func_with_cond.set_func_name(cur_func_name)
+            part_solution_funcs.append(func_with_cond.get_function())
             part_result.append(CallOp(cur_func_name, result.args, result_type))
         if len(part_result) == 1:
             result.body.block.add_ops(part_result + [ReturnOp(part_result[-1])])
@@ -120,13 +122,13 @@ class SolutionSet(ABC):
             result.body.block.add_ops(
                 part_result + meet_result + [ReturnOp(meet_result[-1])]
             )
-        return result
+        return result, part_solution_funcs
 
     def generate_solution_and_cpp(self) -> tuple[FuncOp, str]:
-        final_solution = self.generate_solution()
+        final_solution, part_solutions = self.generate_solution()
         solution_str = ""
-        for sol in self.solutions:
-            solution_str += self.lower_to_cpp(sol.func)
+        for sol in part_solutions:
+            solution_str += self.lower_to_cpp(sol)
             solution_str += "\n"
         solution_str += self.lower_to_cpp(final_solution)
         solution_str += "\n"

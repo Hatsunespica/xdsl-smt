@@ -531,22 +531,21 @@ def eval_transfer_func_helper(
     """
     transfer_func_names = []
     transfer_func_srcs = []
+    helper_func_srcs = []
     assert get_top_func_op is not None
     for fc in transfer:
-        caller_str, _ = fc.get_function_str(
-            get_top_func_op, print_to_cpp, eliminate_dead_code
-        )
+        caller_str, helper_strs = fc.get_function_str(print_to_cpp, eliminate_dead_code)
         transfer_func_names.append(fc.func_name)
         transfer_func_srcs.append(caller_str)
+        helper_func_srcs += helper_strs
 
     base_func_names = []
     base_func_srcs = []
     for fc in base:
-        caller_str, _ = fc.get_function_str(
-            get_top_func_op, print_to_cpp, eliminate_dead_code
-        )
+        caller_str, helper_strs = fc.get_function_str(print_to_cpp, eliminate_dead_code)
         base_func_names.append(fc.func_name)
         base_func_srcs.append(caller_str)
+        helper_func_srcs += helper_strs
 
     return eval_engine.eval_transfer_func(
         transfer_func_names,
@@ -556,7 +555,7 @@ def eval_transfer_func_helper(
         base_func_srcs,
         domain,
         bitwidth,
-        helper_funcs,
+        helper_funcs + helper_func_srcs,
     )
 
 
@@ -641,9 +640,7 @@ def build_eval_list(
         lst.append(fwc)
     for i in c:
         prec_func = prec_func_after_distribute[i - c.start].clone()
-        fwc = FunctionWithCondition(
-            prec_func, mcmc_proposals[i]
-        )
+        fwc = FunctionWithCondition(prec_func, mcmc_proposals[i])
         fwc.set_func_name(f"{prec_func.sym_name.data}_abd_{i}")
         lst.append(fwc)
 
