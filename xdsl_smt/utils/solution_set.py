@@ -33,6 +33,7 @@ class SolutionSet(ABC):
     precise_set: list[FuncOp]
     lower_to_cpp: Callable[[FuncOp], str]
     eliminate_dead_code: Callable[[FuncOp], FuncOp]
+    is_perfect: bool
 
     """
     list of name of transfer functions
@@ -56,6 +57,7 @@ class SolutionSet(ABC):
             ],
             list[CompareResult],
         ],
+        is_perfect: bool = False,
     ):
         rename_functions(initial_solutions, "partial_solution_")
         self.solutions = initial_solutions
@@ -65,14 +67,7 @@ class SolutionSet(ABC):
         self.eliminate_dead_code = eliminate_dead_code
         self.eval_func = eval_func
         self.precise_set = []
-        # self.eval_func = lambda transfer=list[FuncOp], base=list[FuncOp]: (
-        #     eval_func_with_cond(
-        #         transfer,
-        #         [],
-        #         base,
-        #         [],
-        #     )
-        # )
+        self.is_perfect = is_perfect
 
     def eval_improve(
         self, transfers: list[FunctionWithCondition]
@@ -159,9 +154,14 @@ class SizedSolutionSet(SolutionSet):
             ],
             list[CompareResult],
         ],
+        is_perfect: bool = False,
     ):
         super().__init__(
-            initial_solutions, lower_to_cpp, eliminate_dead_code, eval_func_with_cond
+            initial_solutions,
+            lower_to_cpp,
+            eliminate_dead_code,
+            eval_func_with_cond,
+            is_perfect,
         )
         self.size = size
 
@@ -200,6 +200,7 @@ class SizedSolutionSet(SolutionSet):
 
         ref_funcs.append(candidates.pop(index))
 
+        is_perfect = False
         # Greedy select all subsequent functions
         for _ in range(1, self.size + 1):
             index = 0
@@ -207,9 +208,13 @@ class SizedSolutionSet(SolutionSet):
             # cost = 2
             result: list[CompareResult] = self.eval_func(candidates, ref_funcs)
             for ith_result in range(len(result)):
+                if result[ith_result].unsolved_cases == 0:
+                    is_perfect = True
+                    break
                 if result[ith_result].unsolved_exacts > num_exacts:
                     index = ith_result
                     num_exacts = result[ith_result].unsolved_exacts
+
             # Xuanyu: temporarily comment this out since (1) now the cost depends on both mcmc_sampler and cmp_result (2) I think #exacts is enough to rank tfs
             #     cost = result[ith_result].get_cost()
             # elif (
@@ -226,6 +231,7 @@ class SizedSolutionSet(SolutionSet):
             self.lower_to_cpp,
             self.eliminate_dead_code,
             self.eval_func,
+            is_perfect,
         )
 
 
@@ -250,9 +256,14 @@ class UnsizedSolutionSet(SolutionSet):
         ],
         logger: logging.Logger,
         eliminate_dead_code: Callable[[FuncOp], FuncOp],
+        is_perfect: bool = False,
     ):
         super().__init__(
-            initial_solutions, lower_to_cpp, eliminate_dead_code, eval_func_with_cond
+            initial_solutions,
+            lower_to_cpp,
+            eliminate_dead_code,
+            eval_func_with_cond,
+            is_perfect,
         )
         self.logger = logger
 
@@ -317,6 +328,9 @@ class UnsizedSolutionSet(SolutionSet):
             most_unsol_e = 0
             result = self.eval_improve(candidates)
             for ith_result in range(len(result)):
+                if result[ith_result].unsolved_cases == 0:
+                    self.is_perfect = True
+                    break
                 if result[ith_result].unsolved_exacts > most_unsol_e:
                     index = ith_result
                     most_unsol_e = result[ith_result].unsolved_exacts
@@ -345,6 +359,9 @@ class UnsizedSolutionSet(SolutionSet):
             f"The number of solutions after reseting: {len(self.solutions)}"
         )
         self.logger.info(f"The number of conditional solutions: {num_cond_solutions}")
+
+        if self.is_perfect:
+            return self
 
         precise_candidates = self.precise_set + new_candidates_p
         precise_candidates_to_eval = [

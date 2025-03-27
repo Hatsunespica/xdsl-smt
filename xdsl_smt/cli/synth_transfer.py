@@ -1135,14 +1135,9 @@ def main() -> None:
             inv_temp,
         )
 
-        # Check 100% precise in precise solution
-        """
-        if cur_most_e == sound_most_exact_tfs[0][1].all_cases:
-            logger.info(f"Find a perfect solution:\n")
-            for f in ref_funcs:
-                logger.info(eliminate_dead_code(f))
-            exit(0)
-        """
+        if solution_set.is_perfect:
+            print("Found a perfect solution")
+            break
 
     # Eval last solution:
     if not solution_set.has_solution():
@@ -1154,11 +1149,7 @@ def main() -> None:
     cmp_results: list[CompareResult] = eval_engine.eval_transfer_func(
         ["solution"],
         [solution_str],
-        [],
-        [],
         crt_func,
-        [],
-        [],
         [],
         [],
         eval_engine.AbstractDomain.KnownBits,
