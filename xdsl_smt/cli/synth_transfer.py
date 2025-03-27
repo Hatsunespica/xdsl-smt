@@ -498,6 +498,7 @@ DOMAIN_CONSTRAINT = "getConstraint"
 OP_CONSTRAINT = "op_constraint"
 MEET_FUNC = "meet"
 GET_TOP_FUNC = "getTop"
+get_top_func_op: FuncOp | None = None
 TMP_MODULE: list[ModuleOp] = []
 ctx: MLContext
 
@@ -532,8 +533,11 @@ def eval_transfer_func_helper(
     # transfer_func_srcs = [print_to_cpp(eliminate_dead_code(fc.func)) for fc in transfer]
     transfer_func_names = []
     transfer_func_srcs = []
+    assert get_top_func_op is not None
     for fc in transfer:
-        caller_str, callee_str = fc.get_function_str(print_to_cpp, eliminate_dead_code)
+        caller_str, callee_str = fc.get_function_str(
+            get_top_func_op, print_to_cpp, eliminate_dead_code
+        )
         transfer_func_names.append(fc.func_name)
         transfer_func_srcs.append(caller_str)
         helper_funcs.extend(callee_str)
@@ -552,7 +556,9 @@ def eval_transfer_func_helper(
     base_func_names = []
     base_func_srcs = []
     for fc in base:
-        caller_str, callee_str = fc.get_function_str(print_to_cpp, eliminate_dead_code)
+        caller_str, callee_str = fc.get_function_str(
+            get_top_func_op, print_to_cpp, eliminate_dead_code
+        )
         base_func_names.append(fc.func_name)
         base_func_srcs.append(caller_str)
         helper_funcs.extend(callee_str)
@@ -1054,6 +1060,8 @@ def main() -> None:
                 meet_func = print_to_cpp(func)
             elif func_name == GET_TOP_FUNC:
                 get_top_func = print_to_cpp(func)
+                global get_top_func_op
+                get_top_func_op = func
     if meet_func == "":
         solution_size = 1
 

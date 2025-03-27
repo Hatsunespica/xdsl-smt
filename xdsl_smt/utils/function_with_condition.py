@@ -1,10 +1,12 @@
 from dataclasses import dataclass, field
 from typing import Callable
 
-from xdsl.dialects.builtin import StringAttr, i1
+from xdsl.context import MLContext
+from xdsl.dialects.builtin import StringAttr, i1, ModuleOp
 from xdsl.dialects.func import FuncOp, CallOp, ReturnOp
 
 from xdsl_smt.dialects.transfer import AbstractValueType, GetOp, SelectOp, MakeOp
+from xdsl_smt.passes.transfer_inline import FunctionCallInline
 
 
 @dataclass
@@ -33,7 +35,7 @@ class FunctionWithCondition:
         )
         return f"Cond:\n{cond_str}\nFunc:{str(eliminate_dead_code(self.func))}"
 
-    def get_function(self) -> FuncOp:
+    def get_function(self, get_top: FuncOp) -> FuncOp:
         """
         Because select operation only works on TransferIntegertype, so we have to decouple all result obtained from getTop
         and call_body
@@ -45,6 +47,7 @@ class FunctionWithCondition:
         """
 
         whole_function = FuncOp(self.func_name, self.func.function_type)
+        module_op = ModuleOp([whole_function])
         args = whole_function.args
 
         if self.cond is None:
@@ -55,6 +58,9 @@ class FunctionWithCondition:
             call_res = call_op.results[0]
             return_op = ReturnOp(call_res)
             whole_function.body.block.add_ops([call_op, return_op])
+            FunctionCallInline(
+                False, {"getTop": get_top, self.func.sym_name.data: self.func}
+            ).apply(MLContext(), module_op)
             return whole_function
 
         call_top_op = CallOp("getTop", [args[0]], self.func.function_type.outputs)
@@ -103,14 +109,23 @@ class FunctionWithCondition:
             + res_element_ops
             + [make_op, return_op]
         )
+        FunctionCallInline(
+            False,
+            {
+                "getTop": get_top,
+                self.func.sym_name.data: self.func,
+                self.cond.sym_name.data: self.cond,
+            },
+        ).apply(MLContext(), module_op)
         return whole_function
 
     def get_function_str(
         self,
+        get_top: FuncOp,
         lower_to_cpp: Callable[[FuncOp], str],
         eliminate_dead_code: Callable[[FuncOp], FuncOp],
     ) -> tuple[str, list[str]]:
-        whole_function = self.get_function()
+        whole_function = self.get_function(get_top)
         whole_function_str = lower_to_cpp(eliminate_dead_code(whole_function))
         func_str = lower_to_cpp(eliminate_dead_code(self.func))
         if self.cond is None:

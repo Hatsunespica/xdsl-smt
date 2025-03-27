@@ -272,7 +272,7 @@ def eval_transfer_func(
 
     with open(synth_code_path, "w") as f:
         f.write(
-            f"{transfer_func_header}\n{all_helper_funcs_src}\n{all_xfer_src}\n{xfer_func_wrapper}\n{ref_xfer_func_wrapper}\n{cond_wrapper}\n{ref_cond_wrapper}\n"
+            f"{transfer_func_header}\n{all_helper_funcs_src}\n{all_xfer_src}\n{xfer_func_wrapper}\n{ref_xfer_func_wrapper}\n"
         )
 
     try:
