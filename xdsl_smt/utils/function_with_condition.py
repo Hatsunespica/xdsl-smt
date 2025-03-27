@@ -24,7 +24,8 @@ class FunctionWithCondition:
     def set_func_name(self, new_func_name: str):
         self.func_name = new_func_name
         self.func.sym_name = StringAttr(new_func_name + "_base")
-        self.cond.sym_name = StringAttr(new_func_name + "_cond")
+        if self.cond is not None:
+            self.cond.sym_name = StringAttr(new_func_name + "_cond")
 
     def to_str(self, eliminate_dead_code: Callable[[FuncOp], FuncOp]):
         cond_str = (

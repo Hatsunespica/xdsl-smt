@@ -20,11 +20,12 @@ llvm_bin_dir: str = ""
 
 
 def get_build_cmd() -> list[str]:
-    has_libclang = (
-        run(["ldconfig", "-p"], stdout=PIPE)
-        .stdout.decode("utf-8")
-        .find("libclang.so.19")
-    )
+    # has_libclang = (
+    #     run(["ldconfig", "-p"], stdout=PIPE)
+    #     .stdout.decode("utf-8")
+    #     .find("libclang.so.19")
+    # )
+    has_libclang = 1
 
     llvm_include_dir = (
         run(
@@ -195,44 +196,44 @@ def rename(
 def eval_transfer_func(
     xfer_names: list[str],
     xfer_srcs: list[str],
-    _cond_names: list[str | None],
-    _cond_srcs: list[str | None],
+    # _cond_names: list[str | None],
+    # _cond_srcs: list[str | None],
     concrete_op_expr: str,
     ref_xfer_names: list[str],
     ref_xfer_srcs: list[str],
-    _ref_cond_names: list[str | None],
-    _ref_cond_srcs: list[str | None],
+    # _ref_cond_names: list[str | None],
+    # _ref_cond_srcs: list[str | None],
     domain: AbstractDomain,
     bitwidth: int,
     helper_funcs: list[str] | None = None,
 ) -> list[CompareResult]:
     func_wrapper_name = "synth_function"
-    cond_wrapper_name = "synth_cond"
+    # cond_wrapper_name = "synth_cond"
     ref_func_wrapper_name = "ref_function"
-    ref_cond_wrapper_name = "ref_cond"
+    # ref_cond_wrapper_name = "ref_cond"
     ref_func_suffix = "BASE"
-    cond_suffix = "COND"
-    ref_cond_suffix = "BASE_COND"
+    # cond_suffix = "COND"
+    # ref_cond_suffix = "BASE_COND"
 
-    if not _cond_names:
-        _cond_names = [""] * len(xfer_names)
-        _cond_srcs = [""] * len(xfer_names)
-    if not _ref_cond_names:
-        _ref_cond_names = [""] * len(ref_xfer_names)
-        _ref_cond_srcs = [""] * len(ref_xfer_names)
+    # if not _cond_names:
+    #     _cond_names = [""] * len(xfer_names)
+    #     _cond_srcs = [""] * len(xfer_names)
+    # if not _ref_cond_names:
+    #     _ref_cond_names = [""] * len(ref_xfer_names)
+    #     _ref_cond_srcs = [""] * len(ref_xfer_names)
+    #
+    # cond_names: list[str] = ["" if s is None else s for s in _cond_names]
+    # cond_srcs: list[str] = ["" if s is None else s for s in _cond_srcs]
+    # ref_cond_names: list[str] = ["" if s is None else s for s in _ref_cond_names]
+    # ref_cond_srcs: list[str] = ["" if s is None else s for s in _ref_cond_srcs]
 
-    cond_names: list[str] = ["" if s is None else s for s in _cond_names]
-    cond_srcs: list[str] = ["" if s is None else s for s in _cond_srcs]
-    ref_cond_names: list[str] = ["" if s is None else s for s in _ref_cond_names]
-    ref_cond_srcs: list[str] = ["" if s is None else s for s in _ref_cond_srcs]
-
-    assert len(xfer_names) == len(xfer_srcs) == len(cond_names) == len(cond_srcs)
-    assert (
-        len(ref_xfer_names)
-        == len(ref_xfer_names)
-        == len(ref_cond_names)
-        == len(ref_cond_srcs)
-    )
+    # assert len(xfer_names) == len(xfer_srcs) == len(cond_names) == len(cond_srcs)
+    # assert (
+    #     len(ref_xfer_names)
+    #     == len(ref_xfer_names)
+    #     == len(ref_cond_names)
+    #     == len(ref_cond_srcs)
+    # )
 
     transfer_func_header = make_xfer_header(concrete_op_expr)
     transfer_func_header += f"\ntypedef {domain}<{bitwidth}> Domain;\n"
@@ -243,22 +244,22 @@ def eval_transfer_func(
     )
     ref_xfer_func_wrapper = make_xfer_wrapper(ref_xfer_names, ref_func_wrapper_name)
 
-    ref_cond_srcs, ref_cond_names = rename(
-        ref_cond_srcs, ref_cond_names, ref_cond_suffix
-    )
-    ref_cond_wrapper = make_conds_wrapper(ref_cond_names, ref_cond_wrapper_name)
+    # ref_cond_srcs, ref_cond_names = rename(
+    #     ref_cond_srcs, ref_cond_names, ref_cond_suffix
+    # )
+    # ref_cond_wrapper = make_conds_wrapper(ref_cond_names, ref_cond_wrapper_name)
 
     xfer_srcs, xfer_names = rename(xfer_srcs, xfer_names)
     xfer_func_wrapper = make_xfer_wrapper(xfer_names, func_wrapper_name)
 
-    cond_srcs, cond_names = rename(cond_srcs, cond_names, cond_suffix)
-    cond_wrapper = make_conds_wrapper(cond_names, cond_wrapper_name)
+    # cond_srcs, cond_names = rename(cond_srcs, cond_names, cond_suffix)
+    # cond_wrapper = make_conds_wrapper(cond_names, cond_wrapper_name)
 
     all_xfer_src = "\n".join(
         xfer_srcs
         + ref_xfer_srcs
-        + [s for s in cond_srcs if s != ""]
-        + [s for s in ref_cond_srcs if s != ""]
+        # + [s for s in cond_srcs if s != ""]
+        # + [s for s in ref_cond_srcs if s != ""]
     )
 
     all_helper_funcs_src = ""

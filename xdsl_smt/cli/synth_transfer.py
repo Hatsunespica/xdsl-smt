@@ -497,6 +497,7 @@ INSTANCE_CONSTRAINT = "getInstanceConstraint"
 DOMAIN_CONSTRAINT = "getConstraint"
 OP_CONSTRAINT = "op_constraint"
 MEET_FUNC = "meet"
+GET_TOP_FUNC = "getTop"
 TMP_MODULE: list[ModuleOp] = []
 ctx: MLContext
 
@@ -527,35 +528,52 @@ def eval_transfer_func_helper(
     """
     This function is a helper of eval_transfer_func that prints the mlir func as cpp code
     """
-    transfer_func_names = [fc.func.sym_name.data for fc in transfer]
-    transfer_func_srcs = [print_to_cpp(eliminate_dead_code(fc.func)) for fc in transfer]
-    transfer_cond_names = [
-        None if fc.cond is None else fc.cond.sym_name.data for fc in transfer
-    ]
-    transfer_cond_srcs = [
-        None if fc.cond is None else print_to_cpp(eliminate_dead_code(fc.cond))
-        for fc in transfer
-    ]
-    base_func_names = [fc.func.sym_name.data for fc in base]
-    base_func_srcs = [print_to_cpp(eliminate_dead_code(fc.func)) for fc in base]
-    base_cond_names = [
-        None if fc.cond is None else fc.cond.sym_name.data for fc in base
-    ]
-    base_cond_srcs = [
-        None if fc.cond is None else print_to_cpp(eliminate_dead_code(fc.cond))
-        for fc in base
-    ]
+    # transfer_func_names = [fc.func.sym_name.data for fc in transfer]
+    # transfer_func_srcs = [print_to_cpp(eliminate_dead_code(fc.func)) for fc in transfer]
+    transfer_func_names = []
+    transfer_func_srcs = []
+    for fc in transfer:
+        caller_str, callee_str = fc.get_function_str(print_to_cpp, eliminate_dead_code)
+        transfer_func_names.append(fc.func_name)
+        transfer_func_srcs.append(caller_str)
+        helper_funcs.extend(callee_str)
+
+    # transfer_cond_names = [
+    #     None if fc.cond is None else fc.cond.sym_name.data for fc in transfer
+    # ]
+    # transfer_cond_srcs = [
+    #     None if fc.cond is None else print_to_cpp(eliminate_dead_code(fc.cond))
+    #     for fc in transfer
+    # ]
+
+    # base_func_names = [fc.func.sym_name.data for fc in base]
+    # base_func_srcs = [print_to_cpp(eliminate_dead_code(fc.func)) for fc in base]
+
+    base_func_names = []
+    base_func_srcs = []
+    for fc in base:
+        caller_str, callee_str = fc.get_function_str(print_to_cpp, eliminate_dead_code)
+        base_func_names.append(fc.func_name)
+        base_func_srcs.append(caller_str)
+        helper_funcs.extend(callee_str)
+    # base_cond_names = [
+    #     None if fc.cond is None else fc.cond.sym_name.data for fc in base
+    # ]
+    # base_cond_srcs = [
+    #     None if fc.cond is None else print_to_cpp(eliminate_dead_code(fc.cond))
+    #     for fc in base
+    # ]
 
     return eval_engine.eval_transfer_func(
         transfer_func_names,
         transfer_func_srcs,
-        transfer_cond_names,
-        transfer_cond_srcs,
+        # transfer_cond_names,
+        # transfer_cond_srcs,
         concrete_op_expr,
         base_func_names,
         base_func_srcs,
-        base_cond_names,
-        base_cond_srcs,
+        # base_cond_names,
+        # base_cond_srcs,
         domain,
         bitwidth,
         helper_funcs,
@@ -634,15 +652,19 @@ def build_eval_list(
     """
     lst: list[FunctionWithCondition] = []
     for i in sp:
-        lst.append(FunctionWithCondition(mcmc_proposals[i]))
+        fwc = FunctionWithCondition(mcmc_proposals[i])
+        fwc.set_func_name(f"{mcmc_proposals[i].sym_name.data}{i}")
+        lst.append(fwc)
     for i in p:
-        lst.append(FunctionWithCondition(mcmc_proposals[i]))
+        fwc = FunctionWithCondition(mcmc_proposals[i])
+        fwc.set_func_name(f"{mcmc_proposals[i].sym_name.data}{i}")
+        lst.append(fwc)
     for i in c:
-        lst.append(
-            FunctionWithCondition(
-                prec_func_after_distribute[i - c.start], mcmc_proposals[i]
-            )
+        fwc = FunctionWithCondition(
+            prec_func_after_distribute[i - c.start], mcmc_proposals[i]
         )
+        fwc.set_func_name(f"{mcmc_proposals[i].sym_name.data}{i}")
+        lst.append(fwc)
 
     return lst
 
@@ -1017,6 +1039,7 @@ def main() -> None:
     instance_constraint_func = ""
     op_constraint_func = get_default_op_constraint()
     meet_func = ""
+    get_top_func = ""
     # Handle helper funcitons
     for func in module.ops:
         if isinstance(func, FuncOp):
@@ -1029,6 +1052,8 @@ def main() -> None:
                 op_constraint_func = print_to_cpp(func)
             elif func_name == MEET_FUNC:
                 meet_func = print_to_cpp(func)
+            elif func_name == GET_TOP_FUNC:
+                get_top_func = print_to_cpp(func)
     if meet_func == "":
         solution_size = 1
 
@@ -1064,7 +1089,12 @@ def main() -> None:
         crt_func,
         eval_engine.AbstractDomain.KnownBits,
         bitwidth,
-        [instance_constraint_func, domain_constraint_func, op_constraint_func],
+        [
+            instance_constraint_func,
+            domain_constraint_func,
+            op_constraint_func,
+            get_top_func,
+        ],
     )
 
     if solution_size == 0:
@@ -1080,6 +1110,7 @@ def main() -> None:
         instance_constraint_func,
         domain_constraint_func,
         op_constraint_func,
+        get_top_func,
     ]
 
     eval_func = main_eval_func(
