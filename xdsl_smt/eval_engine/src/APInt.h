@@ -1103,16 +1103,6 @@ public:
       new (&v[i]) A::APInt(arr[i]);
   }
 
-  Vec(const A::APInt *x) {
-    for (unsigned int i = 0; i < N; ++i)
-      new (&v[i]) A::APInt(x[i]);
-  }
-
-  Vec(A::APInt *x) {
-    for (unsigned int i = 0; i < N; ++i)
-      new (&v[i]) A::APInt(x[i]);
-  }
-
   Vec(unsigned int bw) {
     for (unsigned int i = 0; i < N; ++i)
       new (&v[i]) A::APInt(bw, 0);
@@ -1142,5 +1132,63 @@ public:
   const A::APInt &operator[](unsigned int i) const { return v[i]; }
   A::APInt &operator[](unsigned int i) { return v[i]; }
 };
+
+namespace IM {
+constexpr unsigned char primes[32] = {
+    2,  3,  5,  7,  11, 13, 17, 19, 23, 29,  31,  37,  41,  43,  47,  53,
+    59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107, 109, 113, 127, 131};
+
+inline unsigned long modInv(long a, long b) {
+  long b0 = b, t, q;
+  long x0 = 0, x1 = 1;
+  if (b == 1)
+    return 1;
+  while (a > 1) {
+    q = a / b;
+    t = b, b = a % b, a = t;
+    t = x0, x0 = x1 - q * x0, x1 = t;
+  }
+  return static_cast<unsigned long>((x1 < 0) ? x1 + b0 : x1);
+}
+
+template <unsigned int N> A::APInt crt(const Vec<N> &x, const A::APInt p) {
+  unsigned long crt = 0;
+
+  for (unsigned int i = 0; i < N; ++i) {
+    if (x[i] == primes[i])
+      continue;
+    unsigned long pp = p.getZExtValue() / primes[i];
+    crt += x[i].getZExtValue() * modInv(static_cast<long>(pp), primes[i]) * pp;
+  }
+
+  return A::APInt(x[0].getBitWidth(), crt % p.getZExtValue());
+}
+
+template <unsigned int N> A::APInt prod(const Vec<N> &x) {
+  unsigned long p = 1;
+  for (unsigned int i = 0; i < N; ++i)
+    if (x.v[i] != primes[i])
+      p *= primes[i];
+
+  return A::APInt(64, p);
+}
+
+template <unsigned int N> Vec<N> fromConcrete(const A::APInt &x) {
+  Vec<N> r(x.getBitWidth());
+
+  for (unsigned int i = 0; i < N; ++i)
+    r[i] = x.urem(primes[i]);
+
+  return r;
+}
+
+template <unsigned int N> Vec<N> bottom(unsigned int bw) {
+  Vec<N> x(bw);
+  for (unsigned int i = 0; i < N; ++i)
+    x[i] = primes[i] + 1;
+
+  return x;
+}
+} // namespace IM
 
 #endif

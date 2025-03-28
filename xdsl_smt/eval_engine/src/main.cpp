@@ -37,7 +37,7 @@ int main() {
   else if (domain == "ConstantRange")
     Eval<ConstantRange>(std::move(jit), synNames, bFnNames, bw).eval().print();
   else if (domain == "IntegerModulo")
-    Eval<IntegerModulo>(std::move(jit), synNames, bFnNames, bw).eval().print();
+    Eval<IntegerModulo<6>>(std::move(jit), synNames, bFnNames, bw).eval().print();
   else
     std::cerr << "Unknown domain: " << domain << "\n";
 
