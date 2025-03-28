@@ -127,6 +127,13 @@ class SolutionSet(ABC):
     def generate_solution_and_cpp(self) -> tuple[FuncOp, str]:
         final_solution, part_solutions = self.generate_solution()
         solution_str = ""
+        for sol in self.solutions:
+            solution_str += self.lower_to_cpp(self.eliminate_dead_code(sol.func))
+            solution_str += "\n"
+            if sol.cond is not None:
+                solution_str += self.lower_to_cpp(self.eliminate_dead_code(sol.cond))
+                solution_str += "\n"
+
         for sol in part_solutions:
             solution_str += self.lower_to_cpp(sol)
             solution_str += "\n"

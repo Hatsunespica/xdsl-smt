@@ -1152,12 +1152,7 @@ def main() -> None:
         [],
         eval_engine.AbstractDomain.KnownBits,
         bitwidth,
-        [
-            instance_constraint_func,
-            domain_constraint_func,
-            op_constraint_func,
-            meet_func,
-        ],
+        helper_funcs + [meet_func],
     )
     solution_result = cmp_results[0]
     print(
