@@ -6,6 +6,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstdio>
+#include <iomanip>
 #include <iostream>
 #include <numeric>
 #include <ostream>
@@ -272,18 +273,22 @@ public:
   }
 };
 
-class IntegerModulo : public AbstVal<IntegerModulo, 3> {
+class IntegerModulo : public AbstVal<IntegerModulo, 7> {
 private:
-  constexpr const static std::array<unsigned char, n> primes = {2, 3, 5};
-  unsigned int crt;
-  unsigned int p;
+  constexpr const static std::array<unsigned char, n> primes = {2, 3, 5, 7, 11, 13, 17};
+
+public:
+  // TODO maybe make these public perm
+  // but private for now
+  unsigned long crt;
+  unsigned long p;
   unsigned int numTs;
 
+private:
   const Vec<n> residues() const { return v; }
 
   bool isBadBottom() const {
-    const unsigned int max =
-        static_cast<unsigned int>(A::APInt::getMaxValue(bw()).getZExtValue());
+    const unsigned long max = A::APInt::getMaxValue(bw()).getZExtValue();
 
     if (numTs == 0 && crt > max)
       return true;
@@ -292,18 +297,17 @@ private:
   }
 
   bool isBadSingleton() const {
-    const unsigned int max =
-        static_cast<unsigned int>(A::APInt::getMaxValue(bw()).getZExtValue());
+    const unsigned long max = A::APInt::getMaxValue(bw()).getZExtValue();
 
-    if (numTs == 1 && crt + p > max && static_cast<int>(crt - p) < 0)
+    if (numTs != 0 && crt + p > max)
       return true;
 
     return false;
   }
 
-  static unsigned int modInv(int a, int b) {
-    int b0 = b, t, q;
-    int x0 = 0, x1 = 1;
+  static unsigned long modInv(long a, long b) {
+    long b0 = b, t, q;
+    long x0 = 0, x1 = 1;
     if (b == 1)
       return 1;
     while (a > 1) {
@@ -311,14 +315,13 @@ private:
       t = b, b = a % b, a = t;
       t = x0, x0 = x1 - q * x0, x1 = t;
     }
-    return static_cast<unsigned int>((x1 < 0) ? x1 + b0 : x1);
+    return static_cast<unsigned long>((x1 < 0) ? x1 + b0 : x1);
   }
 
   explicit IntegerModulo(const Vec<n> &vC, bool fixBadVals)
       : AbstVal<IntegerModulo, n>(vC) {
     unsigned int numTs_ = 0;
-    unsigned int p_ = 1;
-    unsigned int crt_ = 0;
+    unsigned long p_ = 1;
     for (unsigned int i = 0; i < n; ++i)
       if (residues()[i] == primes[i])
         numTs_ += 1;
@@ -327,13 +330,14 @@ private:
 
     numTs = numTs_;
     p = p_;
+    unsigned long crt_ = 0;
 
     for (unsigned int i = 0; i < n; ++i) {
       if (residues()[i] == primes[i])
         continue;
-      unsigned int pp = p / primes[i];
-      crt_ += static_cast<unsigned int>(residues()[i].getZExtValue()) *
-              modInv(static_cast<int>(pp), primes[i]) * pp;
+      unsigned long pp = p / primes[i];
+      crt_ += residues()[i].getZExtValue() *
+              modInv(static_cast<long>(pp), primes[i]) * pp;
     }
 
     crt = crt_ % p;
@@ -363,6 +367,9 @@ public:
         ss << "T ";
       else
         ss << residues()[i].getZExtValue() << " ";
+
+    ss << "crt: " << std::setw(2) << crt << " ";
+    ss << "p: " << std::setw(4) << p << " ";
 
     ss << "vals: ";
     for (unsigned int x : toConcrete())
@@ -414,12 +421,11 @@ public:
   }
 
   const std::vector<unsigned int> toConcrete() const {
-    const unsigned int max =
-        static_cast<unsigned int>(A::APInt::getMaxValue(bw()).getZExtValue());
+    const unsigned long max = A::APInt::getMaxValue(bw()).getZExtValue();
 
     std::vector<unsigned int> r;
-    for (unsigned int x = crt; x <= max; x += p)
-      r.push_back(x);
+    for (unsigned long x = crt; x <= max; x += p)
+      r.push_back(static_cast<unsigned int>(x));
 
     return r;
   }
