@@ -497,6 +497,8 @@ INSTANCE_CONSTRAINT = "getInstanceConstraint"
 DOMAIN_CONSTRAINT = "getConstraint"
 OP_CONSTRAINT = "op_constraint"
 MEET_FUNC = "meet"
+GET_TOP_FUNC = "getTop"
+get_top_func_op: FuncOp | None = None
 TMP_MODULE: list[ModuleOp] = []
 ctx: MLContext
 
@@ -527,38 +529,33 @@ def eval_transfer_func_helper(
     """
     This function is a helper of eval_transfer_func that prints the mlir func as cpp code
     """
-    transfer_func_names = [fc.func.sym_name.data for fc in transfer]
-    transfer_func_srcs = [print_to_cpp(eliminate_dead_code(fc.func)) for fc in transfer]
-    transfer_cond_names = [
-        None if fc.cond is None else fc.cond.sym_name.data for fc in transfer
-    ]
-    transfer_cond_srcs = [
-        None if fc.cond is None else print_to_cpp(eliminate_dead_code(fc.cond))
-        for fc in transfer
-    ]
-    base_func_names = [fc.func.sym_name.data for fc in base]
-    base_func_srcs = [print_to_cpp(eliminate_dead_code(fc.func)) for fc in base]
-    base_cond_names = [
-        None if fc.cond is None else fc.cond.sym_name.data for fc in base
-    ]
-    base_cond_srcs = [
-        None if fc.cond is None else print_to_cpp(eliminate_dead_code(fc.cond))
-        for fc in base
-    ]
+    transfer_func_names = []
+    transfer_func_srcs = []
+    helper_func_srcs = []
+    assert get_top_func_op is not None
+    for fc in transfer:
+        caller_str, helper_strs = fc.get_function_str(print_to_cpp, eliminate_dead_code)
+        transfer_func_names.append(fc.func_name)
+        transfer_func_srcs.append(caller_str)
+        helper_func_srcs += helper_strs
+
+    base_func_names = []
+    base_func_srcs = []
+    for fc in base:
+        caller_str, helper_strs = fc.get_function_str(print_to_cpp, eliminate_dead_code)
+        base_func_names.append(fc.func_name)
+        base_func_srcs.append(caller_str)
+        helper_func_srcs += helper_strs
 
     return eval_engine.eval_transfer_func(
         transfer_func_names,
         transfer_func_srcs,
-        transfer_cond_names,
-        transfer_cond_srcs,
         concrete_op_expr,
         base_func_names,
         base_func_srcs,
-        base_cond_names,
-        base_cond_srcs,
         domain,
         bitwidth,
-        helper_funcs,
+        helper_funcs + helper_func_srcs,
     )
 
 
@@ -634,15 +631,18 @@ def build_eval_list(
     """
     lst: list[FunctionWithCondition] = []
     for i in sp:
-        lst.append(FunctionWithCondition(mcmc_proposals[i]))
+        fwc = FunctionWithCondition(mcmc_proposals[i])
+        fwc.set_func_name(f"{mcmc_proposals[i].sym_name.data}{i}")
+        lst.append(fwc)
     for i in p:
-        lst.append(FunctionWithCondition(mcmc_proposals[i]))
+        fwc = FunctionWithCondition(mcmc_proposals[i])
+        fwc.set_func_name(f"{mcmc_proposals[i].sym_name.data}{i}")
+        lst.append(fwc)
     for i in c:
-        lst.append(
-            FunctionWithCondition(
-                prec_func_after_distribute[i - c.start], mcmc_proposals[i]
-            )
-        )
+        prec_func = prec_func_after_distribute[i - c.start].clone()
+        fwc = FunctionWithCondition(prec_func, mcmc_proposals[i])
+        fwc.set_func_name(f"{prec_func.sym_name.data}_abd_{i}")
+        lst.append(fwc)
 
     return lst
 
@@ -794,7 +794,7 @@ def synthesize_transfer_function(
         transfers: list[FuncOp] = []
         for i in range(num_programs):
             _: float = mcmc_samplers[i].sample_next()
-            proposed_solution = mcmc_samplers[i].get_proposed()
+            proposed_solution = mcmc_samplers[i].get_proposed().clone()
             # print(proposed_solution)
             assert proposed_solution is not None
             transfers.append(proposed_solution)
@@ -1017,6 +1017,7 @@ def main() -> None:
     instance_constraint_func = ""
     op_constraint_func = get_default_op_constraint()
     meet_func = ""
+    get_top_func = ""
     # Handle helper funcitons
     for func in module.ops:
         if isinstance(func, FuncOp):
@@ -1029,6 +1030,10 @@ def main() -> None:
                 op_constraint_func = print_to_cpp(func)
             elif func_name == MEET_FUNC:
                 meet_func = print_to_cpp(func)
+            elif func_name == GET_TOP_FUNC:
+                get_top_func = print_to_cpp(func)
+                global get_top_func_op
+                get_top_func_op = func
     if meet_func == "":
         solution_size = 1
 
@@ -1064,7 +1069,12 @@ def main() -> None:
         crt_func,
         eval_engine.AbstractDomain.KnownBits,
         bitwidth,
-        [instance_constraint_func, domain_constraint_func, op_constraint_func],
+        [
+            instance_constraint_func,
+            domain_constraint_func,
+            op_constraint_func,
+            get_top_func,
+        ],
     )
 
     if solution_size == 0:
@@ -1080,6 +1090,7 @@ def main() -> None:
         instance_constraint_func,
         domain_constraint_func,
         op_constraint_func,
+        get_top_func,
     ]
 
     eval_func = main_eval_func(
@@ -1122,14 +1133,9 @@ def main() -> None:
             inv_temp,
         )
 
-        # Check 100% precise in precise solution
-        """
-        if cur_most_e == sound_most_exact_tfs[0][1].all_cases:
-            logger.info(f"Find a perfect solution:\n")
-            for f in ref_funcs:
-                logger.info(eliminate_dead_code(f))
-            exit(0)
-        """
+        if solution_set.is_perfect:
+            print("Found a perfect solution")
+            break
 
     # Eval last solution:
     if not solution_set.has_solution():
@@ -1141,25 +1147,16 @@ def main() -> None:
     cmp_results: list[CompareResult] = eval_engine.eval_transfer_func(
         ["solution"],
         [solution_str],
-        [],
-        [],
         crt_func,
-        [],
-        [],
         [],
         [],
         eval_engine.AbstractDomain.KnownBits,
         bitwidth,
-        [
-            instance_constraint_func,
-            domain_constraint_func,
-            op_constraint_func,
-            meet_func,
-        ],
+        helper_funcs + [meet_func],
     )
     solution_result = cmp_results[0]
     print(
-        f"last_solution\t{solution_result.get_sound_prop() * 100:.2f}%\t{solution_result.get_exact_prop() * 100:.2f}%\t{solution_result.get_unsolved_edit_dis_avg():.3f}"
+        f"last_solution\t{solution_result.get_sound_prop() * 100:.2f}%\t{solution_result.get_exact_prop() * 100:.2f}%"
     )
 
 

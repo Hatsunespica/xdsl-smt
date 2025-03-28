@@ -13,11 +13,11 @@ from xdsl_smt.utils.function_with_condition import FunctionWithCondition
 from xdsl_smt.utils.synthesizer_context import SynthesizerContext
 
 
-def rename_functions(lst: list[FuncOp], prefix: str) -> list[str]:
+def rename_functions(lst: list[FunctionWithCondition], prefix: str) -> list[str]:
     func_names: list[str] = []
     for i, func in enumerate(lst):
         func_names.append(prefix + str(i))
-        func.sym_name = StringAttr(func_names[-1])
+        func.set_func_name(func_names[-1])
     return func_names
 
 
@@ -33,6 +33,7 @@ class SolutionSet(ABC):
     precise_set: list[FuncOp]
     lower_to_cpp: Callable[[FuncOp], str]
     eliminate_dead_code: Callable[[FuncOp], FuncOp]
+    is_perfect: bool
 
     """
     list of name of transfer functions
@@ -56,8 +57,9 @@ class SolutionSet(ABC):
             ],
             list[CompareResult],
         ],
+        is_perfect: bool = False,
     ):
-        rename_functions([fc.func for fc in initial_solutions], "partial_solution_")
+        rename_functions(initial_solutions, "partial_solution_")
         self.solutions = initial_solutions
         self.solution_conds = [None] * len(initial_solutions)
         self.solutions_size = len(initial_solutions)
@@ -65,14 +67,7 @@ class SolutionSet(ABC):
         self.eliminate_dead_code = eliminate_dead_code
         self.eval_func = eval_func
         self.precise_set = []
-        # self.eval_func = lambda transfer=list[FuncOp], base=list[FuncOp]: (
-        #     eval_func_with_cond(
-        #         transfer,
-        #         [],
-        #         base,
-        #         [],
-        #     )
-        # )
+        self.is_perfect = is_perfect
 
     def eval_improve(
         self, transfers: list[FunctionWithCondition]
@@ -94,15 +89,17 @@ class SolutionSet(ABC):
     def has_solution(self) -> bool:
         return self.solutions_size != 0
 
-    def generate_solution(self) -> FuncOp:
+    def generate_solution(self) -> tuple[FuncOp, list[FuncOp]]:
         assert self.has_solution()
         solutions = self.solutions
         result = FuncOp("solution", solutions[0].func.function_type)
         result_type = result.function_type.outputs.data
         part_result: list[CallOp] = []
+        part_solution_funcs: list[FuncOp] = []
         for ith, func_with_cond in enumerate(solutions):
             cur_func_name = "partial_solution_" + str(ith)
-            func_with_cond.func.sym_name = StringAttr("partial_solution_" + str(ith))
+            func_with_cond.set_func_name(cur_func_name)
+            part_solution_funcs.append(func_with_cond.get_function())
             part_result.append(CallOp(cur_func_name, result.args, result_type))
         if len(part_result) == 1:
             result.body.block.add_ops(part_result + [ReturnOp(part_result[-1])])
@@ -125,13 +122,20 @@ class SolutionSet(ABC):
             result.body.block.add_ops(
                 part_result + meet_result + [ReturnOp(meet_result[-1])]
             )
-        return result
+        return result, part_solution_funcs
 
     def generate_solution_and_cpp(self) -> tuple[FuncOp, str]:
-        final_solution = self.generate_solution()
+        final_solution, part_solutions = self.generate_solution()
         solution_str = ""
         for sol in self.solutions:
-            solution_str += self.lower_to_cpp(sol.func)
+            solution_str += self.lower_to_cpp(self.eliminate_dead_code(sol.func))
+            solution_str += "\n"
+            if sol.cond is not None:
+                solution_str += self.lower_to_cpp(self.eliminate_dead_code(sol.cond))
+                solution_str += "\n"
+
+        for sol in part_solutions:
+            solution_str += self.lower_to_cpp(sol)
             solution_str += "\n"
         solution_str += self.lower_to_cpp(final_solution)
         solution_str += "\n"
@@ -159,9 +163,14 @@ class SizedSolutionSet(SolutionSet):
             ],
             list[CompareResult],
         ],
+        is_perfect: bool = False,
     ):
         super().__init__(
-            initial_solutions, lower_to_cpp, eliminate_dead_code, eval_func_with_cond
+            initial_solutions,
+            lower_to_cpp,
+            eliminate_dead_code,
+            eval_func_with_cond,
+            is_perfect,
         )
         self.size = size
 
@@ -180,7 +189,7 @@ class SizedSolutionSet(SolutionSet):
                 self.eliminate_dead_code,
                 self.eval_func,
             )
-        rename_functions([fc.func for fc in candidates], "part_solution_")
+        rename_functions(candidates, "part_solution_")
         ref_funcs: list[FunctionWithCondition] = []
 
         # First select a function with maximal precise
@@ -200,6 +209,7 @@ class SizedSolutionSet(SolutionSet):
 
         ref_funcs.append(candidates.pop(index))
 
+        is_perfect = False
         # Greedy select all subsequent functions
         for _ in range(1, self.size + 1):
             index = 0
@@ -207,9 +217,13 @@ class SizedSolutionSet(SolutionSet):
             # cost = 2
             result: list[CompareResult] = self.eval_func(candidates, ref_funcs)
             for ith_result in range(len(result)):
+                if result[ith_result].unsolved_cases == 0:
+                    is_perfect = True
+                    break
                 if result[ith_result].unsolved_exacts > num_exacts:
                     index = ith_result
                     num_exacts = result[ith_result].unsolved_exacts
+
             # Xuanyu: temporarily comment this out since (1) now the cost depends on both mcmc_sampler and cmp_result (2) I think #exacts is enough to rank tfs
             #     cost = result[ith_result].get_cost()
             # elif (
@@ -226,6 +240,7 @@ class SizedSolutionSet(SolutionSet):
             self.lower_to_cpp,
             self.eliminate_dead_code,
             self.eval_func,
+            is_perfect,
         )
 
 
@@ -250,9 +265,14 @@ class UnsizedSolutionSet(SolutionSet):
         ],
         logger: logging.Logger,
         eliminate_dead_code: Callable[[FuncOp], FuncOp],
+        is_perfect: bool = False,
     ):
         super().__init__(
-            initial_solutions, lower_to_cpp, eliminate_dead_code, eval_func_with_cond
+            initial_solutions,
+            lower_to_cpp,
+            eliminate_dead_code,
+            eval_func_with_cond,
+            is_perfect,
         )
         self.logger = logger
 
@@ -263,6 +283,7 @@ class UnsizedSolutionSet(SolutionSet):
         new_candidates_c: list[FunctionWithCondition],
     ) -> SolutionSet:
         candidates = self.solutions + new_candidates_sp + new_candidates_c
+        rename_functions(candidates, "part_solution_")
         self.logger.info(f"Size of new candidates: {len(new_candidates_sp)}")
         self.logger.info(f"Size of new conditional candidates: {len(new_candidates_c)}")
         self.logger.info(f"Size of solutions: {len(candidates)}")
@@ -316,6 +337,9 @@ class UnsizedSolutionSet(SolutionSet):
             most_unsol_e = 0
             result = self.eval_improve(candidates)
             for ith_result in range(len(result)):
+                if result[ith_result].unsolved_cases == 0:
+                    self.is_perfect = True
+                    break
                 if result[ith_result].unsolved_exacts > most_unsol_e:
                     index = ith_result
                     most_unsol_e = result[ith_result].unsolved_exacts
@@ -345,10 +369,15 @@ class UnsizedSolutionSet(SolutionSet):
         )
         self.logger.info(f"The number of conditional solutions: {num_cond_solutions}")
 
+        if self.is_perfect:
+            return self
+
         precise_candidates = self.precise_set + new_candidates_p
-        result = self.eval_improve(
-            [FunctionWithCondition(f) for f in precise_candidates]
-        )
+        precise_candidates_to_eval = [
+            FunctionWithCondition(f.clone()) for f in precise_candidates
+        ]
+        rename_functions(precise_candidates_to_eval, "precise_candidates_")
+        result = self.eval_improve(precise_candidates_to_eval)
 
         sorted_pairs = sorted(
             zip(precise_candidates, result),
@@ -364,9 +393,7 @@ class UnsizedSolutionSet(SolutionSet):
                 f"unsolved_exact: {res.get_unsolved_exact_prop() * 100:.2f}%, sound: {res.get_sound_prop() * 100:.2f}%"
             )
             self.precise_set.append(cand)
-        # return UnsizedSolutionSet(
-        #     self.solutions.copy(), self.lower_to_cpp, self.eval_func, self.logger, self.eliminate_dead_code
-        # )
+        self.solutions_size = len(self.solutions)
         return self
 
     """

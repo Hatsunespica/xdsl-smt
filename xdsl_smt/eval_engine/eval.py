@@ -20,11 +20,12 @@ llvm_bin_dir: str = ""
 
 
 def get_build_cmd() -> list[str]:
-    has_libclang = (
-        run(["ldconfig", "-p"], stdout=PIPE)
-        .stdout.decode("utf-8")
-        .find("libclang.so.19")
-    )
+    # has_libclang = (
+    #     run(["ldconfig", "-p"], stdout=PIPE)
+    #     .stdout.decode("utf-8")
+    #     .find("libclang.so.19")
+    # )
+    has_libclang = 1
 
     llvm_include_dir = (
         run(
@@ -115,16 +116,8 @@ def make_func_call(x: str) -> str:
     return f"const std::vector<llvm::APInt> res_v_{x} = {x}" + "(lhs.v, rhs.v);"
 
 
-def make_func_call_cond(x: str) -> str:
-    return f"const bool res_v_{x} = {x}" + "(lhs.v, rhs.v);"
-
-
 def make_res(x: str) -> str:
     return f"Domain res_{x}(res_v_{x});"
-
-
-def make_res_cond(x: str) -> str:
-    return f"bool res_{x};\nres_{x} = res_v_{x};\n"
 
 
 def make_xfer_wrapper(func_names: list[str], wrapper_name: str) -> str:
@@ -142,124 +135,29 @@ def make_xfer_wrapper(func_names: list[str], wrapper_name: str) -> str:
     return func_sig + "{" + f"\n{func_calls}\n{results}\n{return_statment}" + "}"
 
 
-def make_conds_wrapper(cond_names: list[str], wrapper_name: str) -> str:
-    func_sig = (
-        "std::vector<bool> "
-        + wrapper_name
-        + "_wrapper(const Domain &lhs, const Domain &rhs)"
-    )
-    func_calls = "\n".join([make_func_call_cond(x) for x in cond_names if x != ""])
-    results = "\n".join([make_res_cond(x) for x in cond_names if x != ""])
-    return_elems = ", ".join([("true" if x == "" else f"res_{x}") for x in cond_names])
-    return_statment = "return {%s};" % return_elems
-
-    return func_sig + "{" + f"\n{func_calls}\n{results}\n{return_statment}" + "}"
-
-
-def rename(
-    srcs: list[str], names: list[str], label: str = ""
-) -> tuple[list[str], list[str]]:
-    """
-    rename the transfer functions
-    """
-    new_srcs: list[str] = []
-    new_names: list[str] = []
-    for i, (nm, src) in enumerate(zip(names, srcs)):
-        if src == "":
-            new_srcs.append("")
-        else:
-            new_srcs.append(src.replace(nm, f"{nm}_{label}{i}"))
-
-    for i, nm in enumerate(names):
-        if nm == "":
-            new_names.append("")
-        else:
-            new_names.append(f"{nm}_{label}{i}")
-    return new_srcs, new_names
-
-
-# def rename_no_none(
-#     srcs: list[str], names: list[str], label: str = ""
-# ) -> tuple[list[str], list[str]]:
-#     """
-#     the version of rename that ensures no None values are in the lists
-#     """
-#     new_srcs = [
-#         src.replace(nm, f"{nm}_{label}{i}")
-#         for i, (nm, src) in enumerate(zip(names, srcs))
-#     ]
-#     new_names = [f"{nm}_{label}{i}" for i, nm in enumerate(names)]
-#     return new_srcs, new_names
-
-
 def eval_transfer_func(
     xfer_names: list[str],
     xfer_srcs: list[str],
-    _cond_names: list[str | None],
-    _cond_srcs: list[str | None],
     concrete_op_expr: str,
     ref_xfer_names: list[str],
     ref_xfer_srcs: list[str],
-    _ref_cond_names: list[str | None],
-    _ref_cond_srcs: list[str | None],
     domain: AbstractDomain,
     bitwidth: int,
     helper_funcs: list[str] | None = None,
 ) -> list[CompareResult]:
     func_wrapper_name = "synth_function"
-    cond_wrapper_name = "synth_cond"
     ref_func_wrapper_name = "ref_function"
-    ref_cond_wrapper_name = "ref_cond"
-    ref_func_suffix = "BASE"
-    cond_suffix = "COND"
-    ref_cond_suffix = "BASE_COND"
-
-    if not _cond_names:
-        _cond_names = [""] * len(xfer_names)
-        _cond_srcs = [""] * len(xfer_names)
-    if not _ref_cond_names:
-        _ref_cond_names = [""] * len(ref_xfer_names)
-        _ref_cond_srcs = [""] * len(ref_xfer_names)
-
-    cond_names: list[str] = ["" if s is None else s for s in _cond_names]
-    cond_srcs: list[str] = ["" if s is None else s for s in _cond_srcs]
-    ref_cond_names: list[str] = ["" if s is None else s for s in _ref_cond_names]
-    ref_cond_srcs: list[str] = ["" if s is None else s for s in _ref_cond_srcs]
-
-    assert len(xfer_names) == len(xfer_srcs) == len(cond_names) == len(cond_srcs)
-    assert (
-        len(ref_xfer_names)
-        == len(ref_xfer_names)
-        == len(ref_cond_names)
-        == len(ref_cond_srcs)
-    )
+    assert len(xfer_names) == len(xfer_srcs)
+    assert len(ref_xfer_names) == len(ref_xfer_names)
 
     transfer_func_header = make_xfer_header(concrete_op_expr)
     transfer_func_header += f"\ntypedef {domain}<{bitwidth}> Domain;\n"
     transfer_func_header += f"\nunsigned int numFuncs = {len(xfer_names)};\n"
 
-    ref_xfer_srcs, ref_xfer_names = rename(
-        ref_xfer_srcs, ref_xfer_names, ref_func_suffix
-    )
     ref_xfer_func_wrapper = make_xfer_wrapper(ref_xfer_names, ref_func_wrapper_name)
-
-    ref_cond_srcs, ref_cond_names = rename(
-        ref_cond_srcs, ref_cond_names, ref_cond_suffix
-    )
-    ref_cond_wrapper = make_conds_wrapper(ref_cond_names, ref_cond_wrapper_name)
-
-    xfer_srcs, xfer_names = rename(xfer_srcs, xfer_names)
     xfer_func_wrapper = make_xfer_wrapper(xfer_names, func_wrapper_name)
 
-    cond_srcs, cond_names = rename(cond_srcs, cond_names, cond_suffix)
-    cond_wrapper = make_conds_wrapper(cond_names, cond_wrapper_name)
-
-    all_xfer_src = "\n".join(
-        xfer_srcs
-        + ref_xfer_srcs
-        + [s for s in cond_srcs if s != ""]
-        + [s for s in ref_cond_srcs if s != ""]
-    )
+    all_xfer_src = "\n".join(xfer_srcs + ref_xfer_srcs)
 
     all_helper_funcs_src = ""
     if helper_funcs:
@@ -271,7 +169,7 @@ def eval_transfer_func(
 
     with open(synth_code_path, "w") as f:
         f.write(
-            f"{transfer_func_header}\n{all_helper_funcs_src}\n{all_xfer_src}\n{xfer_func_wrapper}\n{ref_xfer_func_wrapper}\n{cond_wrapper}\n{ref_cond_wrapper}\n"
+            f"{transfer_func_header}\n{all_helper_funcs_src}\n{all_xfer_src}\n{xfer_func_wrapper}\n{ref_xfer_func_wrapper}\n"
         )
 
     try:
