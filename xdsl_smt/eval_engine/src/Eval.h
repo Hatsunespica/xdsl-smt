@@ -78,14 +78,12 @@ public:
                    std::back_inserter(xferFns), [this](const std::string &x) {
                      return llvm::cantFail(jit->lookup(x))
                          .toPtr<typename Domain::XferFn>();
-                     ;
                    });
 
     std::transform(baseFnNames.begin(), baseFnNames.end(),
                    std::back_inserter(baseFns), [this](const std::string &x) {
                      return llvm::cantFail(jit->lookup(x))
                          .toPtr<typename Domain::XferFn>();
-                     ;
                    });
 
     concOp = llvm::cantFail(jit->lookup("concrete_op"))
