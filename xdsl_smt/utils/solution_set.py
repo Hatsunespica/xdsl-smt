@@ -386,9 +386,7 @@ class UnsizedSolutionSet(SolutionSet):
                 f"unsolved_exact: {res.get_unsolved_exact_prop() * 100:.2f}%, sound: {res.get_sound_prop() * 100:.2f}%"
             )
             self.precise_set.append(cand)
-        # return UnsizedSolutionSet(
-        #     self.solutions.copy(), self.lower_to_cpp, self.eval_func, self.logger, self.eliminate_dead_code
-        # )
+        self.solutions_size = len(self.solutions)
         return self
 
     """
