@@ -53,12 +53,6 @@ public:
   }
 
   // methods delegated to derived class
-  bool isConstant() const {
-    return static_cast<const Domain *>(this)->isConstant();
-  }
-  const A::APInt getConstant() const {
-    return static_cast<const Domain *>(this)->getConstant();
-  }
   const Domain meet(const Domain &rhs) const {
     return static_cast<const Domain *>(this)->meet(rhs);
   }
@@ -78,6 +72,15 @@ private:
   A::APInt zero() const { return v[0]; }
   A::APInt one() const { return v[1]; }
   bool hasConflict() const { return zero().intersects(one()); }
+
+  bool isConstant() const {
+    return zero().popcount() + one().popcount() == bw();
+  }
+
+  const A::APInt getConstant() const {
+    assert(isConstant());
+    return one();
+  }
 
 public:
   explicit KnownBits(const Vec<2> &vC) : AbstVal<KnownBits, 2>(vC) {}
@@ -99,15 +102,6 @@ public:
       ss << " (top)";
 
     return ss.str();
-  }
-
-  bool isConstant() const {
-    return zero().popcount() + one().popcount() == bw();
-  }
-
-  const A::APInt getConstant() const {
-    assert(isConstant());
-    return one();
   }
 
   const KnownBits meet(const KnownBits &rhs) const {
@@ -177,6 +171,13 @@ private:
   A::APInt lower() const { return v[0]; }
   A::APInt upper() const { return v[1]; }
 
+  bool isConstant() const { return lower() == upper(); }
+
+  const A::APInt getConstant() const {
+    assert(isConstant());
+    return lower();
+  }
+
 public:
   explicit ConstantRange(const Vec<2> &vC) : AbstVal<ConstantRange, 2>(vC) {}
 
@@ -193,13 +194,6 @@ public:
       ss << " (top)";
 
     return ss.str();
-  }
-
-  bool isConstant() const { return lower() == upper(); }
-
-  const A::APInt getConstant() const {
-    assert(isConstant());
-    return lower();
   }
 
   const ConstantRange meet(const ConstantRange &rhs) const {
@@ -273,6 +267,12 @@ private:
   unsigned int numTs;
 
   const Vec<N> residues() const { return this->v; }
+
+  bool isConstant() const { return numTs == 0; }
+  const A::APInt getConstant() const {
+    assert(isConstant());
+    return A::APInt(this->bw(), crt);
+  }
 
   bool isBadBottom() const {
     const unsigned long max = A::APInt::getMaxValue(this->bw()).getZExtValue();
@@ -350,12 +350,6 @@ public:
       ss << "(top)";
 
     return ss.str();
-  }
-
-  bool isConstant() const { return numTs == 0; }
-  const A::APInt getConstant() const {
-    assert(isConstant());
-    return A::APInt(this->bw(), crt);
   }
 
   const IntegerModulo meet(const IntegerModulo &rhs) const {
