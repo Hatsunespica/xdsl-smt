@@ -111,12 +111,6 @@ def register_all_arguments(arg_parser: argparse.ArgumentParser):
         "-random_seed", type=int, nargs="?", help="specify the random seed"
     )
     arg_parser.add_argument(
-        "-llvm_build_dir",
-        type=str,
-        nargs="?",
-        help="Specify the build directory of LLVM",
-    )
-    arg_parser.add_argument(
         "-program_length",
         type=int,
         nargs="?",
@@ -476,7 +470,7 @@ def print_to_cpp(func: FuncOp) -> str:
 
 def get_default_op_constraint():
     return """
-    int op_constraint(APInt arg0,APInt arg1){
+    extern "C" int op_constraint(APInt arg0,APInt arg1){
 	return true;
     }
     """
@@ -521,7 +515,6 @@ def is_ref_function(func: FuncOp) -> bool:
 def eval_transfer_func_helper(
     transfer: list[FunctionWithCondition],
     base: list[FunctionWithCondition],
-    concrete_op_expr: str,
     domain: eval_engine.AbstractDomain,
     bitwidth: int,
     helper_funcs: list[str] | None = None,
@@ -550,12 +543,11 @@ def eval_transfer_func_helper(
     return eval_engine.eval_transfer_func(
         transfer_func_names,
         transfer_func_srcs,
-        concrete_op_expr,
         base_func_names,
         base_func_srcs,
+        helper_funcs + helper_func_srcs,
         domain,
         bitwidth,
-        helper_funcs + helper_func_srcs,
     )
 
 
@@ -565,7 +557,6 @@ This function returns a simplified eval_func receiving transfer functions and ba
 
 
 def solution_set_eval_func(
-    concrete_op_expr: str,
     domain: eval_engine.AbstractDomain,
     bitwidth: int,
     helper_funcs: list[str] | None = None,
@@ -578,16 +569,7 @@ def solution_set_eval_func(
 ]:
     return lambda transfer=list[FunctionWithCondition], base=list[
         FunctionWithCondition
-    ]: (
-        eval_transfer_func_helper(
-            transfer,
-            base,
-            concrete_op_expr,
-            domain,
-            bitwidth,
-            helper_funcs,
-        )
-    )
+    ]: (eval_transfer_func_helper(transfer, base, domain, bitwidth, helper_funcs))
 
 
 """
@@ -596,7 +578,6 @@ This function returns a simplified eval_func only receiving transfer names and s
 
 
 def main_eval_func(
-    concrete_op_expr: str,
     base_transfers: list[FunctionWithCondition],
     domain: eval_engine.AbstractDomain,
     bitwidth: int,
@@ -604,12 +585,7 @@ def main_eval_func(
 ) -> Callable[[list[FunctionWithCondition]], list[CompareResult]]:
     return lambda transfers=list[FunctionWithCondition]: (
         eval_transfer_func_helper(
-            transfers,
-            base_transfers,
-            concrete_op_expr,
-            domain,
-            bitwidth,
-            helper_funcs,
+            transfers, base_transfers, domain, bitwidth, helper_funcs
         )
     )
 
@@ -959,13 +935,6 @@ def main() -> None:
     weighted_dsl = args.weighted_dsl
     num_abd_procs = args.num_abd_procs
 
-    # Set up llvm_build_dir
-    llvm_build_dir = args.llvm_build_dir
-    if llvm_build_dir is not None:
-        if not llvm_build_dir.endswith("/"):
-            llvm_build_dir += "/"
-        llvm_build_dir += "bin/"
-        eval_engine.llvm_bin_dir = llvm_build_dir
     if num_programs is None:
         num_programs = NUM_PROGRAMS
     if total_rounds is None:
@@ -1065,16 +1034,18 @@ def main() -> None:
     ), "No transfer function is found in input file"
     assert crt_func != "", "Failed to get concrete function from input file"
 
-    solution_eval_func = solution_set_eval_func(
+    helper_funcs = [
         crt_func,
+        instance_constraint_func,
+        domain_constraint_func,
+        op_constraint_func,
+        get_top_func,
+    ]
+
+    solution_eval_func = solution_set_eval_func(
         eval_engine.AbstractDomain.KnownBits,
         bitwidth,
-        [
-            instance_constraint_func,
-            domain_constraint_func,
-            op_constraint_func,
-            get_top_func,
-        ],
+        helper_funcs,
     )
 
     if solution_size == 0:
@@ -1086,15 +1057,7 @@ def main() -> None:
             solution_size, [], print_to_cpp, eliminate_dead_code, solution_eval_func
         )
 
-    helper_funcs = [
-        instance_constraint_func,
-        domain_constraint_func,
-        op_constraint_func,
-        get_top_func,
-    ]
-
     eval_func = main_eval_func(
-        crt_func,
         base_transfers,
         eval_engine.AbstractDomain.KnownBits,
         bitwidth,
@@ -1147,12 +1110,11 @@ def main() -> None:
     cmp_results: list[CompareResult] = eval_engine.eval_transfer_func(
         ["solution"],
         [solution_str],
-        crt_func,
         [],
         [],
+        helper_funcs + [meet_func],
         eval_engine.AbstractDomain.KnownBits,
         bitwidth,
-        helper_funcs + [meet_func],
     )
     solution_result = cmp_results[0]
     print(

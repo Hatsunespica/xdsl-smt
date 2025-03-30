@@ -10,17 +10,67 @@ The diagram below shows the overview of this project.
 
 ## Installation
 
-### Set up LLVM
+### Build the Eval Engine
 
-After cloning LLVM repo, `cd` to the new cloned repo (normally the folder name is llvm-project) and execute
+#### Set up LLVM
 
+This section tells you how to build LLVM required by the Eval Engine from the source code.
+
+The Eval Engine requires LLVM built with LLVMGold library, so first we need to download the library
+
+`git clone --depth 1 git://sourceware.org/git/binutils-gdb.git binutils`
+
+This line download `binutils` library and we need to use its include path later in LLVM configuration.
+(Reminder: No need to build it manually because LLVM would automatically build it since we specify its path)
+
+Suppose its path is `/home/username/GitRepo/binutils/`
+
+Next, clone llvm repo
 ```bash
+git clone https://github.com/llvm/llvm-project.git
+cd llvm-project
+git checkout 87adafcd2e248fa69d1f776a9e60f95df03b885d
 mkdir build
 cd build
-cmake -GNinja -DLLVM_ENABLE_RTTI=ON -DLLVM_ENABLE_EH=ON -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD=X86 -DLLVM_ENABLE_ASSERTIONS=ON -DLLVM_ENABLE_PROJECTS="llvm;clang;mlir" ../llvm
-ninja
+```
+and build the LLVM with following configuration:
+```bash
+cmake -GNinja -DLLVM_ENABLE_RTTI=ON -DLLVM_ENABLE_EH=ON -DBUILD_SHARED_LIBS=ON \
+-DLLVM_BINUTILS_INCDIR=/home/username/GitRepo/binutils/include/ \
+-DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD=X86 -DLLVM_ENABLE_ASSERTIONS=ON \
+-DLLVM_ENABLE_PROJECTS="llvm;clang;mlir"  ../llvm
 ```
 
+Please update the second line `-DLLVM_BINUTILS_INCDIR=` with your own path
+and don't forget to add `include/` at the end.
+
+Lastly, we should run
+```bash
+ninja
+```
+To build LLVM
+
+
+
+#### Make the Eval Engine
+First install the development packages for llvm and clang.
+If they are not availible via your distro's package manager, then build them from source.
+So here, suppose you have a working LLVM setup.
+
+```bash
+cd xdsl_smt/eval_engine/
+mkdir build && cd build
+cmake .. && make
+cd ../../..
+```
+
+If you build LLVM from the source as described in the previous section, you should use following commands to replace
+the third line in the previous block.
+```bash
+cmake .. -D  CMAKE_CXX_COMPILER=/home/username/GitRepo/llvm-project/build/bin/clang++ \
+-D CMAKE_PREFIX_PATH=/home/username/GitRepo/llvm-project/build
+make
+```
 
 ### Virtual environment
 
@@ -109,39 +159,39 @@ You can play with other input specification under `tests/synth`.
 
 ## Extending the project with one new abstract domain
 
-To add a new abstract domain you add a new class to `AbstVal.cpp` which inherits from the `AbstVal` base class and is templated on the bitwidth, `N`.
+To add a new abstract domain you add a new class to `AbstVal.cpp` which inherits from the `AbstVal` base class.
 Here's an example called `NewDomain`:
 
 ```cpp
-template <unsigned char N> class NewDomain : public AbstVal<NewDomain<N>, N> {
+class NewDomain : public AbstVal<NewDomain> {
 public:
-  explicit NewDomain(const std::vector<llvm::APInt> &v)
-      : AbstVal<NewDomain<N>, N>(v) {}
+  explicit NewDomain(const std::vector<APInt> &v, unsigned int bw)
+      : AbstVal<NewDomain>(v, bw) {}
 
   const std::string display() const;
   bool isConstant() const;
-  const llvm::APInt getConstant() const;
+  const APInt getConstant() const;
 
   const NewDomain meet(const NewDomain &) const;
   const NewDomain join(const NewDomain &) const;
   const std::vector<unsigned int> toConcrete() const;
 
   // static constructors
-  static NewDomain top();
-  static NewDomain bottom();
-  static NewDomain fromConcrete(const llvm::APInt &);
-  static std::vector<NewDomain> const enumVals();
+  static NewDomain top(unsigned int bw);
+  static NewDomain bottom(unsigned int bw);
+  static NewDomain fromConcrete(const APInt &v, unsigned int bw);
+  static std::vector<NewDomain> const enumVals(unsigned int bw);
 };
 ```
 
 Here's a list of the methods required for every domain domain:
-* `NewDomain(const std::vector<llvm::APInt> &)`: this constructor is for synthesiszed transfer functions to create instances of `NewDomain` in the evaluation engine
+* `NewDomain(const std::vector<APInt> &v, unsigned int bw)`: this constructor is for synthesiszed transfer functions to create instances of `NewDomain` in the evaluation engine
 * `display()`, `isConstant()`, and `getConstant()`: are not used by the evaluation engine (and as such are not strictly required), but they are handy for debugging
 * `meet(const NewDomain &)`, and `join(const NewDomain &)`: should follow their respective definitions, in the lattice of the abstract domain
 * `toConcrete()`: is the gamma function, which enumerates all of the concrete values represented by the abstract value as a `std::vector<unsigned int>`
-* `top()`, and `bottom()`: should also follow their definitions of full set and empty set
-* `fromConcrete(const llvm::APInt &)`: takes a concrete value and constructs the abstract value holding only that concrete value
-* `enumVals()`: enumerates the entire lattice of abstract values as a `std::vector<NewDoman>`
+* `top(unsigned int bw)`, and `bottom(unsigned int bw)`: should also follow their definitions of full set and empty set
+* `fromConcrete(const APInt &v, unsigned int bw)`: takes a concrete value and constructs the abstract value holding only that concrete value
+* `enumVals(unsigned int bw)`: enumerates the entire lattice of abstract values as a `std::vector<NewDoman>`
 
 The other last change needed to add a new domain is in `eval.py`.
 Add `NewDomain = auto()` to the list of other domains in the enum.
