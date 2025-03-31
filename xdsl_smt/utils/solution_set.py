@@ -8,6 +8,8 @@ from xdsl_smt.utils.compare_result import CompareResult
 from abc import ABC, abstractmethod
 import logging
 
+from xdsl_smt.utils.verifier_utils import verify_transfer_function
+
 
 def rename_functions(lst: list[FuncOp], prefix: str) -> list[str]:
     func_names: list[str] = []
@@ -104,6 +106,16 @@ class SolutionSet(ABC):
         solution_str += self.lower_to_cpp(final_solution)
         solution_str += "\n"
         return final_solution, solution_str
+
+    def remove_unsound_solutions(self, concrete_op: FuncOp, helper_funcs: list[FuncOp]):
+        unsound_lst: list[int] = []
+        for i, sol in enumerate(self.solutions):
+            if not verify_transfer_function(sol, concrete_op, helper_funcs):
+                unsound_lst.append(i)
+        for unsound_idx in unsound_lst[::-1]:
+            self.solutions.pop(unsound_idx)
+            self.solution_names.pop(unsound_idx)
+            self.solutions_size -= 1
 
 
 """

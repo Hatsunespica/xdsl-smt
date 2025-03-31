@@ -423,90 +423,25 @@ def verify_smt_transfer_function(
     smt_transfer_function: SMTTransferFunction,
     domain_constraint: FunctionCollection,
     instance_constraint: FunctionCollection,
-    width: int,
-    transfer_function: TransferFunction,
-    func_name_to_func: dict[str, FuncOp],
-    dynamic_transfer_functions: dict[str, FuncOp],
     ctx: MLContext,
 ) -> bool:
     # Soundness check
-    query_module = ModuleOp([])
-    dynamic_concrete_function_module = ModuleOp([])
-    dynamic_transfer_function_module = ModuleOp([])
     int_attr = generate_int_attr_arg(smt_transfer_function.int_attr_arg)
+    # assert current use has no int_attr
+    assert int_attr == {}
 
-    # enumerating all possible int attr
-    while True:
-        query_module = ModuleOp([])
-        added_ops: list[Operation] = int_attr_check(
-            smt_transfer_function, domain_constraint, instance_constraint, int_attr
-        )
-        query_module.body.block.add_ops(added_ops)
-        FunctionCallInline(True, {}).apply(ctx, query_module)
-        # we find int_attr is satisfiable
-        if not verify_pattern(ctx, query_module):
-            # start to create dynamic concrete function
-            # and update smt_transfer_function
-            if smt_transfer_function.concrete_function is None:
-                dynamic_concrete_function_module = ModuleOp([])
-                dynamic_concrete_function_module.body.block.add_ops(
-                    [
-                        get_dynamic_concrete_function(
-                            smt_transfer_function.concrete_function_name,
-                            width,
-                            int_attr,
-                            transfer_function.is_forward,
-                        )
-                    ]
-                )
-                lower_to_smt_module(dynamic_concrete_function_module, width, ctx)
-                assert len(dynamic_concrete_function_module.ops) == 1
-                assert isinstance(
-                    dynamic_concrete_function_module.ops.first, DefineFunOp
-                )
-                concrete_func = dynamic_concrete_function_module.ops.first
-                smt_transfer_function.concrete_function = concrete_func
+    assert smt_transfer_function.concrete_function is not None
+    assert smt_transfer_function.transfer_function is not None
 
-            assert smt_transfer_function.concrete_function is not None
-
-            if smt_transfer_function.transfer_function is None:
-                # dynamic create transfer_function with given int_attr
-                dynamic_transfer_function_module = ModuleOp([])
-                smt_transfer_function.transfer_function = get_dynamic_transfer_function(
-                    dynamic_transfer_functions[
-                        smt_transfer_function.transfer_function_name
-                    ],
-                    width,
-                    dynamic_transfer_function_module,
-                    int_attr,
-                    ctx,
-                )
-
-            assert smt_transfer_function.transfer_function is not None
-
-            soundness_result = soundness_check(
-                smt_transfer_function,
-                domain_constraint,
-                instance_constraint,
-                int_attr,
-                ctx,
-            )
-            if not soundness_result:
-                return False
-            soundness_counterexample_result = soundness_counterexample_check(
-                smt_transfer_function,
-                domain_constraint,
-                instance_constraint,
-                func_name_to_func,
-                int_attr,
-                ctx,
-            )
-            if not soundness_counterexample_result:
-                return False
-
-        hasNext = next_int_attr_arg(int_attr, width)
-        if not hasNext:
-            break
+    soundness_result = soundness_check(
+        smt_transfer_function,
+        domain_constraint,
+        instance_constraint,
+        int_attr,
+        ctx,
+    )
+    if not soundness_result:
+        return False
     return True
 
 
@@ -634,39 +569,8 @@ def verify_transfer_function(
             op_constraint = func_name_to_smt_func[op_constraint_func_name]
 
         soundness_counterexample = None
-        if (
-            "soundness_counterexample"
-            in transfer_function_obj.transfer_function.attributes
-        ):
-            soundness_counterexample_func_name_attr = (
-                transfer_function_obj.transfer_function.attributes[
-                    "soundness_counterexample"
-                ]
-            )
-            assert isinstance(soundness_counterexample_func_name_attr, StringAttr)
-            soundness_counterexample_func_name = (
-                soundness_counterexample_func_name_attr.data
-            )
-            soundness_counterexample = func_name_to_smt_func[
-                soundness_counterexample_func_name
-            ]
-
         int_attr_arg = None
         int_attr_constraint = None
-        if "int_attr" in transfer_function_obj.transfer_function.attributes:
-            assert (
-                "int_attr_constraint"
-                in transfer_function_obj.transfer_function.attributes
-            )
-            int_attr_arg = get_int_attr_arg(transfer_function_obj.transfer_function)
-            int_attr_constraint_name_attr = (
-                transfer_function_obj.transfer_function.attributes[
-                    "int_attr_constraint"
-                ]
-            )
-            assert isinstance(int_attr_constraint_name_attr, StringAttr)
-            int_attr_constraint_name = int_attr_constraint_name_attr.data
-            int_attr_constraint = func_name_to_smt_func[int_attr_constraint_name]
 
         smt_transfer_function_obj = SMTTransferFunction(
             transfer_function_obj,
@@ -685,10 +589,6 @@ def verify_transfer_function(
             smt_transfer_function_obj,
             domain_constraint,
             instance_constraint,
-            width,
-            transfer_function_obj,
-            func_name_to_func,
-            {},
             ctx,
         )
         if not result:
