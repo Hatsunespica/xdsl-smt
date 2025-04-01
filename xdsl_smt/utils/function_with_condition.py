@@ -1,12 +1,8 @@
 from dataclasses import dataclass, field
 from typing import Callable
-
-from xdsl.context import MLContext
-from xdsl.dialects.builtin import StringAttr, i1, ModuleOp
+from xdsl.dialects.builtin import StringAttr, i1
 from xdsl.dialects.func import FuncOp, CallOp, ReturnOp
-
 from xdsl_smt.dialects.transfer import AbstractValueType, GetOp, SelectOp, MakeOp
-from xdsl_smt.passes.transfer_inline import FunctionCallInline
 
 
 @dataclass

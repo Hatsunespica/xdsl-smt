@@ -517,7 +517,7 @@ def eval_transfer_func_helper(
     base: list[FunctionWithCondition],
     domain: eval_engine.AbstractDomain,
     bitwidth: int,
-    helper_funcs: list[str] | None = None,
+    helper_funcs: list[str],
 ) -> list[CompareResult]:
     """
     This function is a helper of eval_transfer_func that prints the mlir func as cpp code
@@ -559,7 +559,7 @@ This function returns a simplified eval_func receiving transfer functions and ba
 def solution_set_eval_func(
     domain: eval_engine.AbstractDomain,
     bitwidth: int,
-    helper_funcs: list[str] | None = None,
+    helper_funcs: list[str],
 ) -> Callable[
     [
         list[FunctionWithCondition],
@@ -581,7 +581,7 @@ def main_eval_func(
     base_transfers: list[FunctionWithCondition],
     domain: eval_engine.AbstractDomain,
     bitwidth: int,
-    helper_funcs: list[str] | None = None,
+    helper_funcs: list[str],
 ) -> Callable[[list[FunctionWithCondition]], list[CompareResult]]:
     return lambda transfers=list[FunctionWithCondition]: (
         eval_transfer_func_helper(
@@ -767,9 +767,9 @@ def synthesize_transfer_function(
         transfers: list[FuncOp] = []
         for i in range(num_programs):
             _: float = mcmc_samplers[i].sample_next()
-            proposed_solution = mcmc_samplers[i].get_proposed().clone()
+            proposed_solution = mcmc_samplers[i].get_proposed()
             assert proposed_solution is not None
-            transfers.append(proposed_solution)
+            transfers.append(proposed_solution.clone())
 
         func_with_cond_lst = build_eval_list(
             transfers, sp_range, p_range, c_range, prec_set_after_distribute
