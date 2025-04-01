@@ -57,14 +57,6 @@ class CompareResult:
     def __str__(self):
         return f"all: {self.all_cases}\ts: {self.sounds}\te: {self.exacts}\tp: {self.edit_dis}\tunsolved:{self.unsolved_cases}\tus: {self.unsolved_sounds}\tue: {self.unsolved_exacts}\tup: {self.unsolved_edit_dis}\tbasep: {self.base_edit_dis}"
 
-    # def get_cost(self) -> float:
-    #     if self.cost is None:
-    #         alpha = 8
-    #         sound = self.get_sound_prop()
-    #         dis = self.get_unsolved_edit_dis_avg() / (self.bitwidth * 2)
-    #         self.cost = (1 - sound + alpha * dis) / (1 + alpha)
-    #     return self.cost
-
     def get_sound_prop(self) -> float:
         return self.sounds / self.all_cases
 

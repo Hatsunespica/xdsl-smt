@@ -329,19 +329,13 @@ class SynthesizerContext:
         constraint: Callable[[SSAValue], bool],
         exclude_val: SSAValue | None = None,
     ) -> SSAValue | None:
-        # print("select_operand")
         current_pos = self.random.randint(0, len(vals) - 1)
         for _ in range(len(vals)):
-            # print("pos:", current_pos)
-            # if exclude_val is not None:
-            #     print("current owner", vals[current_pos].owner)
-            #     print("exclude owner", exclude_val.owner)
             if not constraint(vals[current_pos]) and vals[current_pos] != exclude_val:
                 return vals[current_pos]
             current_pos += 1
             current_pos %= len(vals)
         return None
-        # raise ValueError("Cannot find any matched operand")
 
     def select_two_operand(
         self,
@@ -350,14 +344,11 @@ class SynthesizerContext:
         constraint2: Callable[[SSAValue], bool] | None = None,
         is_idempotent: bool = False,
     ) -> tuple[SSAValue | None, SSAValue | None]:
-        # print("select_two_operand", is_idempotent)
         val1 = self.select_operand(vals, constraint1)
         if val1 is None:
             return None, None
         if constraint2 is None:
             constraint2 = constraint1
-        # if is_idempotent:
-        #     constraint2 = lambda val=SSAValue: constraint1(val) and val != val1
         if is_idempotent:
             val2 = self.select_operand(vals, constraint2, val1)
         else:

@@ -74,9 +74,6 @@ class SolutionSet(ABC):
     ) -> list[CompareResult]:
         return self.eval_func(transfers, self.solutions)
 
-    # def eval_improve(self, transfers: list[FuncOp]) -> list[CompareResult]:
-    #     return self.eval_improve_with_cond(transfers, [])
-
     @abstractmethod
     def construct_new_solution_set(
         self,
@@ -223,7 +220,6 @@ class SizedSolutionSet(SolutionSet):
                 if result[ith_result].unsolved_exacts > num_exacts:
                     index = ith_result
                     num_exacts = result[ith_result].unsolved_exacts
-
             # Xuanyu: temporarily comment this out since (1) now the cost depends on both mcmc_sampler and cmp_result (2) I think #exacts is enough to rank tfs
             #     cost = result[ith_result].get_cost()
             # elif (
@@ -287,48 +283,6 @@ class UnsizedSolutionSet(SolutionSet):
         self.logger.info(f"Size of new candidates: {len(new_candidates_sp)}")
         self.logger.info(f"Size of new conditional candidates: {len(new_candidates_c)}")
         self.logger.info(f"Size of solutions: {len(candidates)}")
-        # cur_most_e: float = 0
-        #     cpp_code = self.lower_to_cpp(self.eliminate_dead_code(func))
-        #
-        #     cmp_results: list[CompareResult] = self.eval_func(
-        #         [candidate_names[i]],
-        #         [cpp_code],
-        #         self.solution_names,
-        #         self.solution_srcs,
-        #     )
-        #     if cmp_results[0].exacts > cur_most_e:
-        #         self.logger.info(
-        #             f"Add a new transformer {i}. Exact: {cmp_results[0].get_exact_prop() * 100:.2f}%, Precision: {cmp_results[0].get_bitwise_precision() * 100:.2f}%"
-        #         )
-        #         self.logger.debug(cmp_results[0])
-        #         cur_most_e = cmp_results[0].exacts
-        #         self.solutions.append(func)
-        #         self.solution_names.append(candidate_names[i])
-        #         self.solution_srcs.append(cpp_code)
-        #         self.solutions_size += 1
-        #
-        # self.logger.info(f"Size of the sound set: {self.solutions_size}")
-
-        # if cur_most_e == 0:
-        #     self.logger.info(f"No improvement in the last one iteration!")
-
-        # Remove redundant transformers
-        # i = 0
-        # while i < self.solutions_size:
-        #     cmp_results: list[CompareResult] = self.eval_func(
-        #         [self.solution_names[i]],
-        #         [self.solution_srcs[i]],
-        #         self.solution_names[:i] + self.solution_names[i + 1 :],
-        #         self.solution_srcs[:i] + self.solution_srcs[i + 1 :],
-        #     )
-        #     if cmp_results[0].unsolved_exacts == 0:
-        #         del self.solutions[i]
-        #         del self.solution_names[i]
-        #         del self.solution_srcs[i]
-        #         self.solutions_size -= 1
-        #     else:
-        #         i += 1
-
         self.solutions = []
         self.logger.info("Reset solution set...")
         num_cond_solutions = 0
@@ -357,11 +311,9 @@ class UnsizedSolutionSet(SolutionSet):
                 else:
                     log_str = "Add a existing transformer (cond)"
                     num_cond_solutions += 1
-
             self.logger.info(
                 f"{log_str}. Exact: {result[index].get_exact_prop() * 100:.2f}%, Precision: {result[index].get_bitwise_precision() * 100:.2f}%"
             )
-
             self.solutions.append(candidates.pop(index))
 
         self.logger.info(

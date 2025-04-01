@@ -695,7 +695,6 @@ def synthesize_transfer_function(
     )
     sp_size = sp_range.stop - sp_range.start
     p_size = p_range.stop - p_range.start
-    # c_size = c_range.stop - c_range.start
 
     for i in range(num_programs):
         if i in sp_range:
@@ -734,7 +733,6 @@ def synthesize_transfer_function(
     transfers: list[FuncOp] = []
     for i in range(num_programs):
         transfers.append(mcmc_samplers[i].get_current().clone())
-        # print(transfers[i])
     func_with_cond_lst = build_eval_list(
         transfers, sp_range, p_range, c_range, prec_set_after_distribute
     )
@@ -770,7 +768,6 @@ def synthesize_transfer_function(
         for i in range(num_programs):
             _: float = mcmc_samplers[i].sample_next()
             proposed_solution = mcmc_samplers[i].get_proposed().clone()
-            # print(proposed_solution)
             assert proposed_solution is not None
             transfers.append(proposed_solution)
 
