@@ -1070,6 +1070,7 @@ def main() -> None:
         # current_total_rounds += (total_rounds - current_total_rounds) // (
         #     num_iters - ith_iter
         # )
+        print(f"Iteration {ith_iter} starts...")
         if weighted_dsl:
             assert isinstance(solution_set, UnsizedSolutionSet)
             solution_set.learn_weights(context_weighted)
@@ -1091,6 +1092,7 @@ def main() -> None:
             solution_size,
             inv_temp,
         )
+        print(f"Iteration {ith_iter} finished. Size of the solution set: {solution_set.solutions_size}")
 
         if solution_set.is_perfect:
             print("Found a perfect solution")
