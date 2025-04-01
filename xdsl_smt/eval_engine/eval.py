@@ -4,8 +4,6 @@ from enum import Enum, auto
 
 from xdsl_smt.utils.compare_result import CompareResult
 
-# from xdsl_smt.utils.func_with_cpp import FuncWithCpp
-
 
 class AbstractDomain(Enum):
     KnownBits = auto()
