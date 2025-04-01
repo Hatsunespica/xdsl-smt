@@ -47,7 +47,7 @@ class FunctionWithCondition:
 
         if self.cond is None:
             call_op = CallOp(
-                self.func.sym_name.data, args, self.func.function_type.outputs.data[0]
+                self.func.sym_name.data, args, self.func.function_type.outputs.data
             )
             assert len(call_op.results) == 1
             call_res = call_op.results[0]
@@ -55,9 +55,7 @@ class FunctionWithCondition:
             whole_function.body.block.add_ops([call_op, return_op])
             return whole_function
 
-        call_top_op = CallOp(
-            "getTop", [args[0]], self.func.function_type.outputs.data[0]
-        )
+        call_top_op = CallOp("getTop", [args[0]], self.func.function_type.outputs.data)
         assert len(call_top_op.results) == 1
         top_res = call_top_op.results[0]
         top_res_type = top_res.type
@@ -68,7 +66,7 @@ class FunctionWithCondition:
             top_res_element_ops.append(GetOp(top_res, i))
 
         call_body_op = CallOp(
-            self.func.sym_name.data, args, self.func.function_type.outputs.data[0]
+            self.func.sym_name.data, args, self.func.function_type.outputs.data
         )
         assert len(call_body_op.results) == 1
         body_res = call_body_op.results[0]
@@ -81,7 +79,7 @@ class FunctionWithCondition:
 
         res_element_ops: list[SelectOp] = []
         call_cond_op = CallOp(
-            self.cond.sym_name.data, args, self.cond.function_type.outputs.data[0]
+            self.cond.sym_name.data, args, self.cond.function_type.outputs.data
         )
         assert len(call_cond_op.results) == 1
         cond_res = call_cond_op.results[0]
