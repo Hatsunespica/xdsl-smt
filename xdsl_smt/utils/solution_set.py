@@ -1,7 +1,6 @@
 from __future__ import annotations
 from typing import Callable
 
-from xdsl.dialects.builtin import StringAttr
 from xdsl.dialects.func import FuncOp, CallOp, ReturnOp
 from xdsl.ir import Operation
 
