@@ -522,9 +522,9 @@ def eval_transfer_func_helper(
     """
     This function is a helper of eval_transfer_func that prints the mlir func as cpp code
     """
-    transfer_func_names = []
-    transfer_func_srcs = []
-    helper_func_srcs = []
+    transfer_func_names: list[str] = []
+    transfer_func_srcs: list[str] = []
+    helper_func_srcs: list[str] = []
     assert get_top_func_op is not None
     for fc in transfer:
         caller_str, helper_strs = fc.get_function_str(print_to_cpp, eliminate_dead_code)
@@ -532,8 +532,8 @@ def eval_transfer_func_helper(
         transfer_func_srcs.append(caller_str)
         helper_func_srcs += helper_strs
 
-    base_func_names = []
-    base_func_srcs = []
+    base_func_names: list[str] = []
+    base_func_srcs: list[str] = []
     for fc in base:
         caller_str, helper_strs = fc.get_function_str(print_to_cpp, eliminate_dead_code)
         base_func_names.append(fc.func_name)
