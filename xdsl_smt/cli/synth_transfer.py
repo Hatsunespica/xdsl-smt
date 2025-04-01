@@ -654,9 +654,8 @@ def mcmc_setup(
         base_count = c_size // prec_set_size
         remainder = c_size % prec_set_size
         for i, item in enumerate(solution_set.precise_set):
-            prec_set_after_distribute.extend(
-                [item] * (base_count + (1 if i < remainder else 0))
-            )
+            for _ in range(base_count + (1 if i < remainder else 0)):
+                prec_set_after_distribute.append(item.clone())
 
     num_programs = sp_size + p_size + c_size
 
