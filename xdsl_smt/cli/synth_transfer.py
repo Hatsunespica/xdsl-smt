@@ -43,7 +43,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.func import Func, FuncOp, ReturnOp
 from ..dialects.transfer import Transfer
-from xdsl.dialects.arith import Arith
+from xdsl.dialects.arith import Arith, ConstantOp
 from xdsl.dialects.comb import Comb
 from xdsl.dialects.hw import HW
 from ..passes.dead_code_elimination import DeadCodeElimination
@@ -94,7 +94,7 @@ from ..utils.transfer_function_check_util import (
 from ..utils.transfer_function_util import (
     FunctionCollection,
     SMTTransferFunction,
-    fixDefiningOpReturnType,
+    fix_defining_op_return_type,
 )
 
 # from ..utils.visualize import print_figure
@@ -344,7 +344,7 @@ def get_dynamic_transfer_function(
     lowerToSMTModule(module, width, ctx)
     resultFunc = module.ops.first
     assert isinstance(resultFunc, DefineFunOp)
-    return fixDefiningOpReturnType(resultFunc)
+    return fix_defining_op_return_type(resultFunc)
 
 
 def get_dynamic_concrete_function_name(concrete_op_name: str) -> str:
@@ -468,12 +468,13 @@ def print_to_cpp(func: FuncOp) -> str:
     return sio.getvalue()
 
 
-def get_default_op_constraint():
-    return """
-    extern "C" int op_constraint(APInt arg0,APInt arg1){
-	return true;
-    }
-    """
+def get_default_op_constraint(concrete_func: FuncOp):
+    cond_type = FunctionType.from_lists(concrete_func.function_type.inputs, [i1])
+    func = FuncOp("op_constraint", cond_type)
+    true_op: ConstantOp = ConstantOp(IntegerAttr.from_int_and_width(1, 1), i1)
+    return_op = ReturnOp(true_op)
+    func.body.block.add_ops([true_op, return_op])
+    return func
 
 
 SYNTH_WIDTH = 4
@@ -679,6 +680,9 @@ def synthesize_transfer_function(
     logger: logging.Logger,
     # Evalate transfer functions
     eval_func: Callable[[list[FunctionWithCondition]], list[CompareResult]],
+    concrete_func: FuncOp,
+    helper_funcs: list[FuncOp],
+    ctx: MLContext,
     # Global arguments
     num_programs: int,
     program_length: int,
@@ -887,6 +891,8 @@ def synthesize_transfer_function(
     new_solution_set: SolutionSet = solution_set.construct_new_solution_set(
         candidates_sp, candidates_p, candidates_c
     )
+    new_solution_set.remove_unsound_solutions(concrete_func, helper_funcs, ctx)
+    new_solution_set = new_solution_set.construct_new_solution_set([], [], [])
 
     if solution_size == 0:
         print_set_of_funcs_to_file(
@@ -978,28 +984,28 @@ def main() -> None:
     context_cond.use_full_int_ops()
     context_cond.use_full_i1_ops()
 
-    domain_constraint_func = ""
-    instance_constraint_func = ""
-    op_constraint_func = get_default_op_constraint()
-    meet_func = ""
-    get_top_func = ""
+    domain_constraint_func: FuncOp | None = None
+    instance_constraint_func: FuncOp | None = None
+    op_constraint_func: FuncOp | None = None
+    meet_func: FuncOp | None = None
+    get_top_func: FuncOp | None = None
     # Handle helper funcitons
     for func in module.ops:
         if isinstance(func, FuncOp):
             func_name = func.sym_name.data
             if func_name == DOMAIN_CONSTRAINT:
-                domain_constraint_func = print_to_cpp(func)
+                domain_constraint_func = func
             elif func_name == INSTANCE_CONSTRAINT:
-                instance_constraint_func = print_to_cpp(func)
+                instance_constraint_func = func
             elif func_name == OP_CONSTRAINT:
-                op_constraint_func = print_to_cpp(func)
+                op_constraint_func = func
             elif func_name == MEET_FUNC:
-                meet_func = print_to_cpp(func)
+                meet_func = func
             elif func_name == GET_TOP_FUNC:
-                get_top_func = print_to_cpp(func)
+                get_top_func = func
                 global get_top_func_op
                 get_top_func_op = func
-    if meet_func == "":
+    if meet_func is None:
         solution_size = 1
 
     ref_funcs: list[FuncOp] = []
@@ -1010,7 +1016,7 @@ def main() -> None:
     base_transfers = [FunctionWithCondition(f) for f in ref_funcs]
 
     transfer_func = None
-    crt_func = ""
+    crt_func = None
     for func in module.ops:
         if isinstance(func, FuncOp) and is_transfer_function(func):
             if isinstance(func, FuncOp) and "applied_to" in func.attributes:
@@ -1021,14 +1027,16 @@ def main() -> None:
                 concrete_func = get_concrete_function(
                     concrete_func_name, SYNTH_WIDTH, None
                 )
-                crt_func = print_concrete_function_to_cpp(concrete_func)
+                crt_func = concrete_func
                 transfer_func = func
                 break
 
     assert isinstance(
         transfer_func, FuncOp
     ), "No transfer function is found in input file"
-    assert crt_func != "", "Failed to get concrete function from input file"
+    assert crt_func is not None, "Failed to get concrete function from input file"
+    if op_constraint_func is None:
+        op_constraint_func = get_default_op_constraint(crt_func)
 
     helper_funcs = [
         crt_func,
@@ -1038,10 +1046,14 @@ def main() -> None:
         get_top_func,
     ]
 
+    helper_funcs_cpp = [print_concrete_function_to_cpp(crt_func)] + [
+        print_to_cpp(func) for func in helper_funcs[1:]
+    ]
+
     solution_eval_func = solution_set_eval_func(
         eval_engine.AbstractDomain.KnownBits,
         bitwidth,
-        helper_funcs,
+        helper_funcs_cpp,
     )
 
     if solution_size == 0:
@@ -1057,7 +1069,7 @@ def main() -> None:
         base_transfers,
         eval_engine.AbstractDomain.KnownBits,
         bitwidth,
-        helper_funcs,
+        helper_funcs_cpp,
     )
 
     # current_prog_len = 10
@@ -1084,6 +1096,9 @@ def main() -> None:
             solution_set,
             logger,
             eval_func,
+            crt_func,
+            helper_funcs[1:],
+            ctx,
             num_programs,
             program_length,
             condition_length,
@@ -1112,7 +1127,7 @@ def main() -> None:
         [solution_str],
         [],
         [],
-        helper_funcs + [meet_func],
+        helper_funcs_cpp + [print_to_cpp(meet_func)],
         eval_engine.AbstractDomain.KnownBits,
         bitwidth,
     )

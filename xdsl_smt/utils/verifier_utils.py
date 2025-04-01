@@ -80,7 +80,7 @@ import sys as sys
 
 
 def solve_vector_width(maximal_bits: int):
-    return list(range(1, maximal_bits))
+    return list(range(4, 5))
 
 
 def verify_pattern(ctx: MLContext, op: ModuleOp) -> bool:
@@ -91,7 +91,7 @@ def verify_pattern(ctx: MLContext, op: ModuleOp) -> bool:
     DeadCodeElimination().apply(ctx, cloned_op)
 
     print_to_smtlib(cloned_op, stream)
-    # print(stream.getvalue())
+    print(stream.getvalue())
     res = subprocess.run(
         ["z3", "-in"],
         capture_output=True,
@@ -301,6 +301,7 @@ def build_init_module(
     domain_constraint: FunctionCollection | None = None
     instance_constraint: FunctionCollection | None = None
     transfer_function_obj: TransferFunction | None = None
+    transfer_function_name = transfer_function.sym_name.data
     for func in module_op.ops:
         assert isinstance(func, FuncOp)
         func_name = func.sym_name.data
@@ -315,7 +316,7 @@ def build_init_module(
         assert return_op.operands[0].type == func.function_type.outputs.data[0]
         # End of check function type
 
-        if is_transfer_function(func):
+        if func_name == transfer_function_name:
             assert transfer_function_obj is None
             transfer_function_obj = TransferFunction(
                 func,
@@ -360,6 +361,7 @@ def verify_transfer_function(
         domain_constraint,
         instance_constraint,
     ) = build_init_module(transfer_function, helper_funcs, ctx)
+    print(module_op)
 
     FunctionCallInline(False, func_name_to_func).apply(ctx, module_op)
 

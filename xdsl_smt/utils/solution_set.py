@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import Callable
 
+from xdsl.context import MLContext
 from xdsl.dialects.func import FuncOp, CallOp, ReturnOp
 from xdsl.ir import Operation
 
@@ -138,14 +139,33 @@ class SolutionSet(ABC):
         solution_str += "\n"
         return final_solution, solution_str
 
-    def remove_unsound_solutions(self, concrete_op: FuncOp, helper_funcs: list[FuncOp]):
+    def remove_unsound_solutions(
+        self, concrete_op: FuncOp, helper_funcs: list[FuncOp], ctx: MLContext
+    ):
+        debug = True
+        if debug:
+            print("Removing unsound functions")
         unsound_lst: list[int] = []
         for i, sol in enumerate(self.solutions):
-            if not verify_transfer_function(sol, concrete_op, helper_funcs):
+            cur_helper = [sol.func]
+            if sol.cond is not None:
+                cur_helper.append(sol.cond)
+            if not verify_transfer_function(
+                sol.get_function(), cur_helper + helper_funcs, ctx, 8
+            ):
                 unsound_lst.append(i)
+                if debug:
+                    cmp_res = self.eval_func([sol], [])
+                    print(str(cmp_res[0]))
+                    exit(0)
+        if debug:
+            if len(unsound_lst) != 0:
+                print("Index of unsound solutions:")
+                print(unsound_lst)
+            else:
+                print("All functions are sound")
         for unsound_idx in unsound_lst[::-1]:
             self.solutions.pop(unsound_idx)
-            self.solution_names.pop(unsound_idx)
             self.solutions_size -= 1
 
 
