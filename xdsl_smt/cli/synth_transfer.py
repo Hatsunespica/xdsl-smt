@@ -224,9 +224,7 @@ def print_to_cpp(func: FuncOp) -> str:
 
 
 def get_default_op_constraint(concrete_func: FuncOp):
-    cond_type = FunctionType.from_lists(
-        concrete_func.function_type.inputs, ArrayAttr([i1])
-    )
+    cond_type = FunctionType.from_lists(concrete_func.function_type.inputs.data, [i1])
     func = FuncOp("op_constraint", cond_type)
     true_op: ConstantOp = ConstantOp(IntegerAttr.from_int_and_width(1, 1), i1)
     return_op = ReturnOp(true_op)
