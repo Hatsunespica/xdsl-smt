@@ -275,7 +275,8 @@ def build_init_module(
     transfer_function: FuncOp, helper_funcs: list[FuncOp], ctx: MLContext
 ):
     func_name_to_func: dict[str, FuncOp] = {}
-    module_op = ModuleOp(
+    module_op = ModuleOp([])
+    module_op.body.block.add_ops(
         [transfer_function.clone()] + [func.clone() for func in helper_funcs]
     )
     domain_constraint: FunctionCollection | None = None
@@ -396,6 +397,7 @@ def verify_transfer_function(
         smt_concrete_func = None
         if concrete_func_name in func_name_to_smt_func:
             smt_concrete_func = func_name_to_smt_func[concrete_func_name]
+        assert smt_concrete_func is not None
 
         smt_transfer_function = None
         if func_name in func_name_to_smt_func:
