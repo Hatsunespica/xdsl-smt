@@ -322,66 +322,6 @@ def create_smt_function(func: FuncOp, width: int, ctx: MLContext) -> DefineFunOp
     return resultFunc
 
 
-def get_dynamic_transfer_function(
-    func: FuncOp, width: int, module: ModuleOp, int_attr: dict[int, int], ctx: MLContext
-) -> DefineFunOp:
-    module.body.block.add_op(func)
-    args: list[BlockArgument] = []
-    for arg_idx, val in int_attr.items():
-        bv_constant = ConstantOp.from_int_value(val, width)
-        assert isinstance(func.body.block.first_op, Operation)
-        func.body.block.insert_op_before(bv_constant, func.body.block.first_op)
-        args.append(func.body.block.args[arg_idx])
-        args[-1].replace_by(bv_constant.res)
-    for arg in args:
-        func.body.block.erase_arg(arg)
-    new_args_type = [arg.type for arg in func.body.block.args]
-    new_function_type = FunctionType.from_lists(
-        new_args_type, func.function_type.outputs.data
-    )
-    func.function_type = new_function_type
-
-    lowerToSMTModule(module, width, ctx)
-    resultFunc = module.ops.first
-    assert isinstance(resultFunc, DefineFunOp)
-    return fix_defining_op_return_type(resultFunc)
-
-
-def get_dynamic_concrete_function_name(concrete_op_name: str) -> str:
-    if concrete_op_name == "comb.extract":
-        return "comb_extract"
-    assert False and "Unsupported concrete function"
-
-
-# Used to construct concrete operations with integer attrs when enumerating all possible int attrs
-# Thus this can only be constructed at the run time
-def get_dynamic_concrete_function(
-    concrete_func_name: str, width: int, intAttr: dict[int, int], is_forward: bool
-) -> FuncOp:
-    result = None
-    intTy = IntegerType(width)
-    combOp = None
-    if concrete_func_name == "comb_extract":
-        delta: int = 1 if not is_forward else 0
-        resultWidth = intAttr[1 + delta]
-        resultIntTy = IntegerType(resultWidth)
-        low_bit = intAttr[2 + delta]
-        funcTy = FunctionType.from_lists([intTy], [resultIntTy])
-        result = FuncOp(concrete_func_name, funcTy)
-        combOp = comb.ExtractOp(
-            result.args[0], IntegerAttr.from_int_and_width(low_bit, 64), resultIntTy
-        )
-    else:
-        print(concrete_func_name)
-        assert False and "Not supported concrete function yet"
-    returnOp = ReturnOp(combOp.results[0])
-    result.body.block.add_ops([combOp, returnOp])
-    assert result is not None and (
-        "Cannot find the concrete function for" + concrete_func_name
-    )
-    return result
-
-
 def get_concrete_function(
     concrete_op_name: str, width: int, extra: int | None
 ) -> FuncOp:
