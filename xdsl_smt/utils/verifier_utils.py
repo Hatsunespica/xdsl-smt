@@ -382,6 +382,7 @@ def verify_transfer_function(
                     concrete_func_name += str(extra)
 
         assert concrete_func is not None
+        assert concrete_func_name is not None
         smt_module.body.block.add_op(concrete_func)
         lower_to_smt_module(smt_module, width, ctx)
 

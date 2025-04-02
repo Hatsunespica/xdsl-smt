@@ -1,7 +1,6 @@
 import argparse
 import logging
 import os.path
-import subprocess
 import time
 from typing import cast, Callable
 
@@ -15,21 +14,17 @@ from xdsl.utils.hints import isa
 from xdsl_smt.utils.compare_result import CompareResult
 from ..dialects.smt_dialect import (
     SMTDialect,
-    DefineFunOp,
 )
 from ..dialects.smt_bitvector_dialect import (
     SMTBitVectorDialect,
     ConstantOp,
 )
 from xdsl_smt.dialects.transfer import (
-    AbstractValueType,
     TransIntegerType,
-    TupleType,
 )
 from ..dialects.index_dialect import Index
 from ..dialects.smt_utils_dialect import SMTUtilsDialect
 import xdsl_smt.eval_engine.eval as eval_engine
-from xdsl.ir import BlockArgument
 from xdsl.dialects.builtin import (
     Builtin,
     ModuleOp,
@@ -37,7 +32,6 @@ from xdsl.dialects.builtin import (
     IntegerType,
     i1,
     FunctionType,
-    AnyArrayAttr,
     ArrayAttr,
     StringAttr,
 )
@@ -47,27 +41,12 @@ from xdsl.dialects.arith import Arith, ConstantOp
 from xdsl.dialects.comb import Comb
 from xdsl.dialects.hw import HW
 from ..passes.dead_code_elimination import DeadCodeElimination
-from ..passes.merge_func_results import MergeFuncResultsPass
-from ..passes.transfer_inline import FunctionCallInline
+
 import xdsl.dialects.comb as comb
 from xdsl.ir import Operation
-from ..passes.lower_to_smt.lower_to_smt import LowerToSMTPass, SMTLowerer
-from ..passes.lower_effects import LowerEffectPass
-from ..passes.lower_to_smt import (
-    func_to_smt_patterns,
-)
+
 from ..passes.transfer_lower import LowerToCpp
-from xdsl_smt.semantics import transfer_semantics
-from ..traits.smt_printer import print_to_smtlib
-from xdsl_smt.passes.lower_pairs import LowerPairs
-from xdsl.transforms.canonicalize import CanonicalizePass
-from xdsl_smt.semantics.arith_semantics import arith_semantics
-from xdsl_smt.semantics.builtin_semantics import IntegerTypeSemantics
-from xdsl_smt.semantics.transfer_semantics import (
-    transfer_semantics,
-    AbstractValueTypeSemantics,
-    TransferIntegerTypeSemantics,
-)
+
 from xdsl_smt.semantics.comb_semantics import comb_semantics
 import sys as sys
 
@@ -87,15 +66,6 @@ from ..utils.mutation_program import MutationProgram
 from ..utils.solution_set import SolutionSet, UnsizedSolutionSet, SizedSolutionSet
 from ..utils.synthesizer_context import SynthesizerContext
 from ..utils.random import Random
-from ..utils.transfer_function_check_util import (
-    forward_soundness_check,
-    backward_soundness_check,
-)
-from ..utils.transfer_function_util import (
-    FunctionCollection,
-    SMTTransferFunction,
-    fix_defining_op_return_type,
-)
 
 # from ..utils.visualize import print_figure
 
@@ -172,69 +142,6 @@ def register_all_arguments(arg_parser: argparse.ArgumentParser):
     )
 
 
-def verify_pattern(ctx: MLContext, op: ModuleOp) -> bool:
-    # cloned_op = op.clone()
-    cloned_op = op
-    stream = StringIO()
-    LowerPairs().apply(ctx, cloned_op)
-    CanonicalizePass().apply(ctx, cloned_op)
-    DeadCodeElimination().apply(ctx, cloned_op)
-
-    print_to_smtlib(cloned_op, stream)
-    res = subprocess.run(
-        ["z3", "-in"],
-        capture_output=True,
-        input=stream.getvalue(),
-        text=True,
-    )
-    if res.returncode != 0:
-        raise Exception(res.stderr)
-    return "unsat" in res.stdout
-
-
-def get_model(ctx: MLContext, op: ModuleOp) -> tuple[bool, str]:
-    cloned_op = op.clone()
-    stream = StringIO()
-    LowerPairs().apply(ctx, cloned_op)
-    CanonicalizePass().apply(ctx, cloned_op)
-    DeadCodeElimination().apply(ctx, cloned_op)
-
-    print_to_smtlib(cloned_op, stream)
-    print("\n(eval const_first)\n", file=stream)
-    # print(stream.getvalue())
-    res = subprocess.run(
-        ["z3", "-in"],
-        capture_output=True,
-        input=stream.getvalue(),
-        text=True,
-    )
-    if res.returncode != 0:
-        return False, ""
-    return True, str(res.stdout)
-
-
-def lowerToSMTModule(module: ModuleOp, width: int, ctx: MLContext):
-    # lower to SMT
-    SMTLowerer.rewrite_patterns = {
-        **func_to_smt_patterns,
-    }
-    SMTLowerer.type_lowerers = {
-        IntegerType: IntegerTypeSemantics(),
-        AbstractValueType: AbstractValueTypeSemantics(),
-        TransIntegerType: TransferIntegerTypeSemantics(width),
-        # tuple and abstract use the same type lowerers
-        TupleType: AbstractValueTypeSemantics(),
-    }
-    SMTLowerer.op_semantics = {
-        **arith_semantics,
-        **transfer_semantics,
-        **comb_semantics,
-    }
-    LowerToSMTPass().apply(ctx, module)
-    MergeFuncResultsPass().apply(ctx, module)
-    LowerEffectPass().apply(ctx, module)
-
-
 def parse_file(ctx: MLContext, file: str | None) -> Operation:
     if file is None:
         f = sys.stdin
@@ -257,69 +164,6 @@ def is_forward(func: FuncOp) -> bool:
         assert isinstance(forward, IntegerAttr)
         return forward.value.data == 1
     return False
-
-
-def need_replace_int_attr(func: FuncOp) -> bool:
-    if "replace_int_attr" in func.attributes:
-        forward = func.attributes["replace_int_attr"]
-        assert isinstance(forward, IntegerAttr)
-        return forward.value.data == 1
-    return False
-
-
-def get_operationNo(func: FuncOp) -> int:
-    if "operationNo" in func.attributes:
-        assert isinstance(func.attributes["operationNo"], IntegerAttr)
-        return func.attributes["operationNo"].value.data
-    return -1
-
-
-def get_int_attr_arg(func: FuncOp) -> list[int]:
-    int_attr: list[int] = []
-    assert "int_attr" in func.attributes
-    func_int_attr = func.attributes["int_attr"]
-    assert isa(func_int_attr, AnyArrayAttr)
-    for attr in func_int_attr.data:
-        assert isinstance(attr, IntegerAttr)
-        int_attr.append(attr.value.data)
-    return int_attr
-
-
-def generateIntAttrArg(int_attr_arg: list[int] | None) -> dict[int, int]:
-    if int_attr_arg is None:
-        return {}
-    intAttr: dict[int, int] = {}
-    for i in int_attr_arg:
-        intAttr[i] = 0
-    return intAttr
-
-
-def nextIntAttrArg(intAttr: dict[int, int], width: int) -> bool:
-    if not intAttr:
-        return False
-    maxArity: int = 0
-    for i in intAttr.keys():
-        maxArity = max(i, maxArity)
-    hasCarry: bool = True
-    for i in range(maxArity, -1, -1):
-        if not hasCarry:
-            break
-        if i in intAttr:
-            intAttr[i] += 1
-            if intAttr[i] >= width:
-                intAttr[i] %= width
-            else:
-                hasCarry = False
-    return not hasCarry
-
-
-def create_smt_function(func: FuncOp, width: int, ctx: MLContext) -> DefineFunOp:
-    global TMP_MODULE
-    TMP_MODULE.append(ModuleOp([func.clone()]))
-    lowerToSMTModule(TMP_MODULE[-1], width, ctx)
-    resultFunc = TMP_MODULE[-1].ops.first
-    assert isinstance(resultFunc, DefineFunOp)
-    return resultFunc
 
 
 def get_concrete_function(
@@ -367,35 +211,6 @@ def get_concrete_function(
     return result
 
 
-def soundness_check(
-    smt_transfer_function: SMTTransferFunction,
-    domain_constraint: FunctionCollection,
-    instance_constraint: FunctionCollection,
-    int_attr: dict[int, int],
-    ctx: MLContext,
-):
-    query_module = ModuleOp([])
-    if smt_transfer_function.is_forward:
-        added_ops: list[Operation] = forward_soundness_check(
-            smt_transfer_function,
-            domain_constraint,
-            instance_constraint,
-            int_attr,
-        )
-    else:
-        added_ops: list[Operation] = backward_soundness_check(
-            smt_transfer_function,
-            domain_constraint,
-            instance_constraint,
-            int_attr,
-        )
-    query_module.body.block.add_ops(added_ops)
-    FunctionCallInline(True, {}).apply(ctx, query_module)
-    verify_res = verify_pattern(ctx, query_module)
-    print("Soundness Check result:", verify_res)
-    return verify_res
-
-
 def print_concrete_function_to_cpp(func: FuncOp) -> str:
     sio = StringIO()
     LowerToCpp(sio, True).apply(ctx, cast(ModuleOp, func))
@@ -409,7 +224,9 @@ def print_to_cpp(func: FuncOp) -> str:
 
 
 def get_default_op_constraint(concrete_func: FuncOp):
-    cond_type = FunctionType.from_lists(concrete_func.function_type.inputs, [i1])
+    cond_type = FunctionType.from_lists(
+        concrete_func.function_type.inputs, ArrayAttr([i1])
+    )
     func = FuncOp("op_constraint", cond_type)
     true_op: ConstantOp = ConstantOp(IntegerAttr.from_int_and_width(1, 1), i1)
     return_op = ReturnOp(true_op)
