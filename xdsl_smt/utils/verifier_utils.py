@@ -381,6 +381,7 @@ def verify_transfer_function(
                 if len(applied_to.data) >= 2:
                     concrete_func_name += str(extra)
 
+        assert concrete_func is not None
         smt_module.body.block.add_op(concrete_func)
         lower_to_smt_module(smt_module, width, ctx)
 
@@ -393,6 +394,7 @@ def verify_transfer_function(
                 func_name_to_smt_func[func_name] = op
 
         func_name = transfer_function.sym_name.data
+        assert func_name is not None
 
         smt_concrete_func = None
         if concrete_func_name in func_name_to_smt_func:
