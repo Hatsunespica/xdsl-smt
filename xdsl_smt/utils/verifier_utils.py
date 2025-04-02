@@ -80,7 +80,7 @@ import sys as sys
 
 
 def solve_vector_width(maximal_bits: int):
-    return list(range(4, 5))
+    return list(range(1, maximal_bits))
 
 
 def verify_pattern(ctx: MLContext, op: ModuleOp) -> bool:
@@ -91,7 +91,7 @@ def verify_pattern(ctx: MLContext, op: ModuleOp) -> bool:
     DeadCodeElimination().apply(ctx, cloned_op)
 
     print_to_smtlib(cloned_op, stream)
-    print(stream.getvalue())
+    # print(stream.getvalue())
     res = subprocess.run(
         ["z3", "-in"],
         capture_output=True,
@@ -361,7 +361,6 @@ def verify_transfer_function(
         domain_constraint,
         instance_constraint,
     ) = build_init_module(transfer_function, helper_funcs, ctx)
-    print(module_op)
 
     FunctionCallInline(False, func_name_to_func).apply(ctx, module_op)
 

@@ -36,7 +36,6 @@ def eval_transfer_func(
 
     all_src = "\n".join(helper_srcs + xfer_srcs + base_srcs)
     engine_params += all_src
-    print(all_src)
 
     eval_output = run(
         [engine_path],

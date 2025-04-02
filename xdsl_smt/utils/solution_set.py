@@ -142,31 +142,19 @@ class SolutionSet(ABC):
     def remove_unsound_solutions(
         self, concrete_op: FuncOp, helper_funcs: list[FuncOp], ctx: MLContext
     ):
-        debug = True
-        if debug:
-            print("Removing unsound functions")
         unsound_lst: list[int] = []
         for i, sol in enumerate(self.solutions):
             cur_helper = [sol.func]
             if sol.cond is not None:
                 cur_helper.append(sol.cond)
             if not verify_transfer_function(
-                sol.get_function(), cur_helper + helper_funcs, ctx, 8
+                sol.get_function(), cur_helper + helper_funcs, ctx, 16
             ):
                 unsound_lst.append(i)
-                if debug:
-                    cmp_res = self.eval_func([sol], [])
-                    print(str(cmp_res[0]))
-                    exit(0)
-        if debug:
-            if len(unsound_lst) != 0:
-                print("Index of unsound solutions:")
-                print(unsound_lst)
-            else:
-                print("All functions are sound")
         for unsound_idx in unsound_lst[::-1]:
             self.solutions.pop(unsound_idx)
             self.solutions_size -= 1
+            self.is_perfect = False
 
 
 """
