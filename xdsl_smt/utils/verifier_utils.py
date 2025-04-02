@@ -1,30 +1,20 @@
-import argparse
 import subprocess
 
 from xdsl.context import MLContext
-from xdsl.parser import Parser
 
 from io import StringIO
 
 from xdsl.utils.hints import isa
 from ..dialects.smt_dialect import (
-    SMTDialect,
     DefineFunOp,
-)
-from ..dialects.smt_bitvector_dialect import (
-    SMTBitVectorDialect,
-    ConstantOp,
 )
 from xdsl_smt.dialects.transfer import (
     AbstractValueType,
     TransIntegerType,
     TupleType,
 )
-from ..dialects.index_dialect import Index
-from ..dialects.smt_utils_dialect import SMTUtilsDialect
-from xdsl.ir.core import BlockArgument, Attribute
+from xdsl.ir.core import Attribute
 from xdsl.dialects.builtin import (
-    Builtin,
     ModuleOp,
     IntegerAttr,
     IntegerType,
@@ -32,11 +22,8 @@ from xdsl.dialects.builtin import (
     FunctionType,
     ArrayAttr,
     StringAttr,
-    AnyArrayAttr,
 )
-from xdsl.dialects.func import Func, FuncOp, ReturnOp
-from ..dialects.transfer import Transfer
-from xdsl.dialects.arith import Arith
+from xdsl.dialects.func import FuncOp, ReturnOp
 from ..passes.dead_code_elimination import DeadCodeElimination
 from ..passes.merge_func_results import MergeFuncResultsPass
 from ..passes.transfer_inline import FunctionCallInline
@@ -51,17 +38,11 @@ from ..utils.transfer_function_util import (
     SMTTransferFunction,
     FunctionCollection,
     TransferFunction,
-    fix_defining_op_return_type,
 )
 
 from ..utils.transfer_function_check_util import (
     forward_soundness_check,
     backward_soundness_check,
-    counterexample_check,
-    int_attr_check,
-    forward_precision_check,
-    module_op_validity_check,
-    backward_precision_check,
 )
 from ..passes.transfer_unroll_loop import UnrollTransferLoop
 from xdsl_smt.semantics import transfer_semantics
@@ -76,7 +57,6 @@ from xdsl_smt.semantics.transfer_semantics import (
     TransferIntegerTypeSemantics,
 )
 from xdsl_smt.semantics.comb_semantics import comb_semantics
-import sys as sys
 
 
 def solve_vector_width(maximal_bits: int):

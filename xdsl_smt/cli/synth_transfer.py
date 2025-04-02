@@ -978,7 +978,7 @@ def main() -> None:
     if op_constraint_func is None:
         op_constraint_func = get_default_op_constraint(crt_func)
 
-    helper_funcs = [
+    helper_funcs: list[FuncOp] = [
         crt_func,
         instance_constraint_func,
         domain_constraint_func,
@@ -986,7 +986,7 @@ def main() -> None:
         get_top_func,
     ]
 
-    helper_funcs_cpp = [print_concrete_function_to_cpp(crt_func)] + [
+    helper_funcs_cpp: list[str] = [print_concrete_function_to_cpp(crt_func)] + [
         print_to_cpp(func) for func in helper_funcs[1:]
     ]
 
