@@ -26,6 +26,7 @@ def parse_file(ctx: MLContext, file: str | None) -> Operation:
     module = parser.parse_op()
     return module
 
+
 def is_transfer_function(func: FuncOp) -> bool:
     """
     Input: a function with type FuncOp
@@ -35,7 +36,8 @@ def is_transfer_function(func: FuncOp) -> bool:
 
     return "applied_to" in func.attributes
 
-def test_file(file:str) -> bool:
+
+def test_file(file: str) -> bool:
     ctx = MLContext()
     # Register all dialects
     ctx.load_dialect(Arith)
