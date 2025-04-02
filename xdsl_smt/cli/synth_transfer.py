@@ -328,7 +328,7 @@ def get_dynamic_transfer_function(
     module.body.block.add_op(func)
     args: list[BlockArgument] = []
     for arg_idx, val in int_attr.items():
-        bv_constant = ConstantOp(val, width)
+        bv_constant = ConstantOp.from_int_value(val, width)
         assert isinstance(func.body.block.first_op, Operation)
         func.body.block.insert_op_before(bv_constant, func.body.block.first_op)
         args.append(func.body.block.args[arg_idx])
