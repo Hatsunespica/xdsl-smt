@@ -336,15 +336,16 @@ class UnsizedSolutionSet(SolutionSet):
                 if result[ith_result].unsolved_cases == 0:
                     self.is_perfect = True
                     break
-                if (
-                    result[ith_result].unsolved_exacts > most_unsol_e
-                ) and verify_function(
-                    candidates[ith_result], concrete_op, helper_funcs, ctx
-                ):
+                if result[ith_result].unsolved_exacts > most_unsol_e:
                     index = ith_result
                     most_unsol_e = result[ith_result].unsolved_exacts
             if most_unsol_e == 0:
                 break
+
+            if not verify_function(candidates[index], concrete_op, helper_funcs, ctx):
+                self.logger.info(f"Skip a unsound function")
+                candidates.pop(index)
+                continue
 
             if candidates[index] in new_candidates_sp:
                 log_str = "Add a new transformer"
