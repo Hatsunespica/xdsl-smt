@@ -22,6 +22,20 @@ def rename_functions(lst: list[FunctionWithCondition], prefix: str) -> list[str]
     return func_names
 
 
+def verify_function(
+    func: FunctionWithCondition,
+    concrete_op: FuncOp,
+    helper_funcs: list[FuncOp],
+    ctx: MLContext,
+) -> bool:
+    cur_helper = [func.func]
+    if func.cond is not None:
+        cur_helper.append(func.cond)
+    return verify_transfer_function(
+        func.get_function(), cur_helper + helper_funcs, ctx, 16
+    )
+
+
 """
 This class is an abstract class for maintaining solutions.
 It supports to generate the meet of solutions
@@ -81,6 +95,10 @@ class SolutionSet(ABC):
         new_candidates_sp: list[FunctionWithCondition],
         new_candidates_p: list[FuncOp],
         new_candidates_c: list[FunctionWithCondition],
+        # Parameters used by SMT verifier
+        concrete_op: FuncOp,
+        helper_funcs: list[FuncOp],
+        ctx: MLContext,
     ) -> SolutionSet:
         ...
 
@@ -194,6 +212,9 @@ class SizedSolutionSet(SolutionSet):
         new_candidates_sp: list[FunctionWithCondition],
         new_candidates_p: list[FuncOp],
         new_candidates_c: list[FunctionWithCondition],
+        concrete_op: FuncOp,
+        helper_funcs: list[FuncOp],
+        ctx: MLContext,
     ) -> SolutionSet:
         candidates = self.solutions + new_candidates_sp
         if len(candidates) <= self.size:
@@ -295,6 +316,9 @@ class UnsizedSolutionSet(SolutionSet):
         new_candidates_sp: list[FunctionWithCondition],
         new_candidates_p: list[FuncOp],
         new_candidates_c: list[FunctionWithCondition],
+        concrete_op: FuncOp,
+        helper_funcs: list[FuncOp],
+        ctx: MLContext,
     ) -> SolutionSet:
         candidates = self.solutions + new_candidates_sp + new_candidates_c
         rename_functions(candidates, "part_solution_")
@@ -312,7 +336,11 @@ class UnsizedSolutionSet(SolutionSet):
                 if result[ith_result].unsolved_cases == 0:
                     self.is_perfect = True
                     break
-                if result[ith_result].unsolved_exacts > most_unsol_e:
+                if (
+                    result[ith_result].unsolved_exacts > most_unsol_e
+                ) and verify_function(
+                    candidates[ith_result], concrete_op, helper_funcs, ctx
+                ):
                     index = ith_result
                     most_unsol_e = result[ith_result].unsolved_exacts
             if most_unsol_e == 0:
