@@ -229,6 +229,7 @@ class SizedSolutionSet(SolutionSet):
                 self.lower_to_cpp,
                 self.eliminate_dead_code,
                 self.eval_func,
+                self.logger,
             )
         rename_functions(candidates, "part_solution_")
         ref_funcs: list[FunctionWithCondition] = []
