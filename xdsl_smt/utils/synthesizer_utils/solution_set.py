@@ -5,13 +5,15 @@ from xdsl.context import MLContext
 from xdsl.dialects.func import FuncOp, CallOp, ReturnOp
 from xdsl.ir import Operation
 
-from xdsl_smt.utils.compare_result import CompareResult
+from xdsl_smt.utils.synthesizer_utils.compare_result import CompareResult
 from abc import ABC, abstractmethod
 import logging
-from xdsl_smt.utils.verifier_utils import verify_transfer_function
+from xdsl_smt.utils.synthesizer_utils.verifier_utils import verify_transfer_function
 
-from xdsl_smt.utils.function_with_condition import FunctionWithCondition
-from xdsl_smt.utils.synthesizer_context import SynthesizerContext
+from xdsl_smt.utils.synthesizer_utils.function_with_condition import (
+    FunctionWithCondition,
+)
+from xdsl_smt.utils.synthesizer_utils.synthesizer_context import SynthesizerContext
 
 
 def rename_functions(lst: list[FunctionWithCondition], prefix: str) -> list[str]:
@@ -59,6 +61,7 @@ class SolutionSet(ABC):
     eval_func: Callable[
         [list[FunctionWithCondition], list[FunctionWithCondition]], list[CompareResult]
     ]
+    logger: logging.Logger
 
     def __init__(
         self,
@@ -72,6 +75,7 @@ class SolutionSet(ABC):
             ],
             list[CompareResult],
         ],
+        logger: logging.Logger,
         is_perfect: bool = False,
     ):
         rename_functions(initial_solutions, "partial_solution_")
@@ -81,6 +85,7 @@ class SolutionSet(ABC):
         self.lower_to_cpp = lower_to_cpp
         self.eliminate_dead_code = eliminate_dead_code
         self.eval_func = eval_func
+        self.logger = logger
         self.precise_set = []
         self.is_perfect = is_perfect
 
@@ -196,6 +201,7 @@ class SizedSolutionSet(SolutionSet):
             ],
             list[CompareResult],
         ],
+        logger: logging.Logger,
         is_perfect: bool = False,
     ):
         super().__init__(
@@ -203,6 +209,7 @@ class SizedSolutionSet(SolutionSet):
             lower_to_cpp,
             eliminate_dead_code,
             eval_func_with_cond,
+            logger,
             is_perfect,
         )
         self.size = size
@@ -224,6 +231,7 @@ class SizedSolutionSet(SolutionSet):
                 self.lower_to_cpp,
                 self.eliminate_dead_code,
                 self.eval_func,
+                self.logger,
             )
         rename_functions(candidates, "part_solution_")
         ref_funcs: list[FunctionWithCondition] = []
@@ -275,6 +283,7 @@ class SizedSolutionSet(SolutionSet):
             self.lower_to_cpp,
             self.eliminate_dead_code,
             self.eval_func,
+            self.logger,
             is_perfect,
         )
 
@@ -285,8 +294,6 @@ This class maintains a list of solutions without a specified size
 
 
 class UnsizedSolutionSet(SolutionSet):
-    logger: logging.Logger
-
     def __init__(
         self,
         initial_solutions: list[FunctionWithCondition],
@@ -307,9 +314,9 @@ class UnsizedSolutionSet(SolutionSet):
             lower_to_cpp,
             eliminate_dead_code,
             eval_func_with_cond,
+            logger,
             is_perfect,
         )
-        self.logger = logger
 
     def construct_new_solution_set(
         self,
