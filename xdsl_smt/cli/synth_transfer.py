@@ -243,6 +243,7 @@ TOTAL_ROUNDS = 10000
 INV_TEMP = 200
 SOLUTION_SIZE = 8
 NUM_ITERS = 100
+NUM_ABD_PROCS = 0
 INSTANCE_CONSTRAINT = "getInstanceConstraint"
 DOMAIN_CONSTRAINT = "getConstraint"
 OP_CONSTRAINT = "op_constraint"
@@ -656,14 +657,23 @@ def synthesize_transfer_function(
     return new_solution_set
 
 
-def main() -> None:
+def run(
+    num_programs: int = NUM_PROGRAMS,
+    total_rounds: int = TOTAL_ROUNDS,
+    program_length: int = PROGRAM_LENGTH,
+    inv_temp: int = INV_TEMP,
+    bitwidth: int = SYNTH_WIDTH,
+    solution_size: int = SOLUTION_SIZE,
+    num_iters: int = NUM_ITERS,
+    condition_length: int = CONDITION_LENGTH,
+    num_abd_procs: int = NUM_ABD_PROCS,
+    random_seed: int | None = None,
+    random_number_file: str | None = None,
+    transfer_functions: str | None = None,
+    weighted_dsl: bool = False,
+) -> CompareResult | None:
     global ctx
     ctx = MLContext()
-    arg_parser = argparse.ArgumentParser()
-    register_all_arguments(arg_parser)
-    args = arg_parser.parse_args()
-
-    # Register all dialects
     ctx.load_dialect(Arith)
     ctx.load_dialect(Builtin)
     ctx.load_dialect(Func)
@@ -675,39 +685,7 @@ def main() -> None:
     ctx.load_dialect(Comb)
     ctx.load_dialect(HW)
 
-    # Parse the files
-    module = parse_file(ctx, args.transfer_functions)
-    random_number_file = args.random_file
-    random_seed = args.random_seed
-    num_programs = args.num_programs
-    total_rounds = args.total_rounds
-    program_length = args.program_length
-    condition_length = args.condition_length
-    inv_temp = args.inv_temp
-    bitwidth = args.bitwidth
-    solution_size = args.solution_size
-    num_iters = args.num_iters
-    weighted_dsl = args.weighted_dsl
-    num_abd_procs = args.num_abd_procs
-
-    if num_programs is None:
-        num_programs = NUM_PROGRAMS
-    if total_rounds is None:
-        total_rounds = TOTAL_ROUNDS
-    if program_length is None:
-        program_length = PROGRAM_LENGTH
-    if inv_temp is None:
-        inv_temp = INV_TEMP
-    if bitwidth is None:
-        bitwidth = SYNTH_WIDTH
-    if solution_size is None:
-        solution_size = SOLUTION_SIZE
-    if num_iters is None:
-        num_iters = NUM_ITERS
-    if condition_length is None:
-        condition_length = CONDITION_LENGTH
-    if num_abd_procs is None:
-        num_abd_procs = 0
+    module = parse_file(ctx, transfer_functions)
 
     assert isinstance(module, ModuleOp)
 
@@ -876,7 +854,9 @@ def main() -> None:
     # Eval last solution:
     if not solution_set.has_solution():
         print("Found no solutions")
-        exit(0)
+
+        return None
+
     _, solution_str = solution_set.generate_solution_and_cpp()
     with open("tmp.cpp", "w") as fout:
         fout.write(solution_str)
@@ -892,6 +872,44 @@ def main() -> None:
     solution_result = cmp_results[0]
     print(
         f"last_solution\t{solution_result.get_sound_prop() * 100:.2f}%\t{solution_result.get_exact_prop() * 100:.2f}%"
+    )
+
+    return solution_result
+
+
+def main() -> None:
+    arg_parser = argparse.ArgumentParser()
+    register_all_arguments(arg_parser)
+    args = arg_parser.parse_args()
+
+    num_programs = NUM_PROGRAMS if args.num_programs is None else args.num_programs
+    total_rounds = TOTAL_ROUNDS if args.total_rounds is None else args.total_rounds
+    program_length = (
+        PROGRAM_LENGTH if args.program_length is None else args.program_length
+    )
+    inv_temp = INV_TEMP if args.inv_temp is None else args.inv_temp
+    bitwidth = SYNTH_WIDTH if args.bitwidth is None else args.bitwidth
+    solution_size = SOLUTION_SIZE if args.solution_size is None else args.solution_size
+    num_iters = NUM_ITERS if args.num_iters is None else args.num_iters
+    condition_length = (
+        CONDITION_LENGTH if args.condition_length is None else args.condition_length
+    )
+    num_abd_procs = NUM_ABD_PROCS if args.num_abd_procs is None else args.num_abd_procs
+
+    run(
+        num_programs=num_programs,
+        total_rounds=total_rounds,
+        program_length=program_length,
+        inv_temp=inv_temp,
+        bitwidth=bitwidth,
+        solution_size=solution_size,
+        num_iters=num_iters,
+        condition_length=condition_length,
+        num_abd_procs=num_abd_procs,
+        random_seed=args.random_seed,
+        random_number_file=args.random_file,
+        transfer_functions=args.transfer_functions,
+        weighted_dsl=args.weighted_dsl,
     )
 
 
