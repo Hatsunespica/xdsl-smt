@@ -81,7 +81,6 @@ class SolutionSet(ABC):
     ):
         rename_functions(initial_solutions, "partial_solution_")
         self.solutions = initial_solutions
-        self.solution_conds = [None] * len(initial_solutions)
         self.solutions_size = len(initial_solutions)
         self.lower_to_cpp = lower_to_cpp
         self.eliminate_dead_code = eliminate_dead_code
