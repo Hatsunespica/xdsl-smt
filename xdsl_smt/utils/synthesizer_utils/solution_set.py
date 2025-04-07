@@ -148,7 +148,7 @@ class SolutionSet(ABC):
 
     def generate_solution_and_cpp(self) -> tuple[ModuleOp, str]:
         final_solution, part_solutions = self.generate_solution()
-        function_lst = []
+        function_lst: list[FuncOp] = []
         solution_str = ""
         for sol in self.solutions:
             func_body = self.eliminate_dead_code(sol.func)
@@ -169,7 +169,8 @@ class SolutionSet(ABC):
 
         function_lst += part_solutions
         function_lst.append(final_solution)
-        final_module = ModuleOp(function_lst)
+        final_module = ModuleOp([])
+        final_module.body.block.add_ops(function_lst)
         return final_module, solution_str
 
     def remove_unsound_solutions(
