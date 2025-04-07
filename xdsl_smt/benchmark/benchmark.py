@@ -8,24 +8,24 @@ from io import StringIO
 import telebot
 
 # vals that xuanyu sugessted
-NUM_PROGS = 100
-NUM_ITERS = 20
-NUM_ROUNDS = 2000
-COND_LEN = 10
-SOL_SIZE = 0
-NUM_ABD_P = 30
-BWIDTH = 4
-WEIGHT_DSL = True
-
-# something faster
-# NUM_PROGS = 25
-# NUM_ITERS = 2
-# NUM_ROUNDS = 2
-# COND_LEN = 15
+# NUM_PROGS = 100
+# NUM_ITERS = 20
+# NUM_ROUNDS = 2000
+# COND_LEN = 10
 # SOL_SIZE = 0
-# NUM_ABD_P = 10
+# NUM_ABD_P = 30
 # BWIDTH = 4
 # WEIGHT_DSL = True
+
+# something faster
+NUM_PROGS = 25
+NUM_ITERS = 2
+NUM_ROUNDS = 2
+COND_LEN = 15
+SOL_SIZE = 0
+NUM_ABD_P = 10
+BWIDTH = 4
+WEIGHT_DSL = True
 
 
 def synth_run(args: tuple[str, str, str, int]) -> dict[str, float | str]:
@@ -76,35 +76,51 @@ def send_resuts(df: pd.DataFrame) -> None:
 
 
 def main() -> None:
-    # TODO get other domains
-
     # TODO a csv for all of the params
     # and a seperate csv for synthed results
 
-    domain = "Known Bits"
     seed = randint(1, 1_000_000)
 
     start_dir = path.join("tests", "synth")
     xfer_funcs = {
-        "Add": "knownBitsAdd.mlir",
-        "And": "knownBitsAnd.mlir",
-        "Ashr": "knownBitsAshr.mlir",
-        "Lshr": "knownBitsLshr.mlir",
-        "Mods": "knownBitsMods.mlir",
-        "Modu": "knownBitsModu.mlir",
-        "Mul": "knownBitsMul.mlir",
-        "Or": "knownBitsOr.mlir",
-        "Sdiv": "knownBitsSdiv.mlir",
-        "Shl": "knownBitsShl.mlir",
-        "Udiv": "knownBitsUdiv.mlir",
-        "Xor": "knownBitsXor.mlir",
+        ("KnownBits", "Add"): "knownBitsAdd.mlir",
+        ("KnownBits", "And"): "knownBitsAnd.mlir",
+        ("KnownBits", "Ashr"): "knownBitsAshr.mlir",
+        ("KnownBits", "Lshr"): "knownBitsLshr.mlir",
+        ("KnownBits", "Mods"): "knownBitsMods.mlir",
+        ("KnownBits", "Modu"): "knownBitsModu.mlir",
+        ("KnownBits", "Mul"): "knownBitsMul.mlir",
+        ("KnownBits", "Or"): "knownBitsOr.mlir",
+        ("KnownBits", "Sdiv"): "knownBitsSdiv.mlir",
+        ("KnownBits", "Shl"): "knownBitsShl.mlir",
+        ("KnownBits", "Udiv"): "knownBitsUdiv.mlir",
+        ("KnownBits", "Xor"): "knownBitsXor.mlir",
+        ("ConstantRange", "Add"): "integerRangeAdd.mlir",
+        # ("ConstantRange", "And"): "integerRangeAnd.mlir", # def bad
+        ("ConstantRange", "Ashr"): "integerRangeAshr.mlir",
+        ("ConstantRange", "Lshr"): "integerRangeLshr.mlir",
+        ("ConstantRange", "Mods"): "integerRangeMods.mlir",
+        ("ConstantRange", "Modu"): "integerRangeModu.mlir",
+        ("ConstantRange", "Mul"): "integerRangeMul.mlir",
+        ("ConstantRange", "Or"): "integerRangeOr.mlir",
+        ("ConstantRange", "Sdiv"): "integerRangeSdiv.mlir",
+        ("ConstantRange", "Shl"): "integerRangeShl.mlir",
+        ("ConstantRange", "Udiv"): "integerRangeUdiv.mlir",
+        ("ConstantRange", "Xor"): "integerRangeXor.mlir",
     }
 
-    xfer_funcs = {k: path.join(start_dir, v) for k, v in xfer_funcs.items()}
+    def getPath(x: str) -> str:
+        return "integerRange" if x == "ConstantRange" else "knownBits"
+
+    xfer_funcs = {
+        k: path.join(start_dir, getPath(k[0]), v) for k, v in xfer_funcs.items()
+    }
+
+    [print(x) for x in xfer_funcs.values()]
 
     inputs = [
-        (func_name, domain, xfer_func_fname, seed)
-        for func_name, xfer_func_fname in xfer_funcs.items()
+        (func_name, domain_name, xfer_func_fname, seed)
+        for (domain_name, func_name), xfer_func_fname in xfer_funcs.items()
     ]
 
     with Pool() as p:
