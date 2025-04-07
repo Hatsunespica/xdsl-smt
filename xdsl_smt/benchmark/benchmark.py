@@ -8,24 +8,24 @@ from io import StringIO
 import telebot
 
 # vals that xuanyu sugessted
-# NUM_PROGS = 100
-# NUM_ITERS = 20
-# NUM_ROUNDS = 2000
-# COND_LEN = 10
-# SOL_SIZE = 0
-# NUM_ABD_P = 30
-# BWIDTH = 4
-# WEIGHT_DSL = True
-
-# something faster
-NUM_PROGS = 25
-NUM_ITERS = 2
-NUM_ROUNDS = 2
-COND_LEN = 15
+NUM_PROGS = 100
+NUM_ITERS = 20
+NUM_ROUNDS = 1000
+COND_LEN = 10
 SOL_SIZE = 0
-NUM_ABD_P = 10
+NUM_ABD_P = 30
 BWIDTH = 4
 WEIGHT_DSL = True
+
+# something faster
+# NUM_PROGS = 25
+# NUM_ITERS = 2
+# NUM_ROUNDS = 2
+# COND_LEN = 15
+# SOL_SIZE = 0
+# NUM_ABD_P = 10
+# BWIDTH = 4
+# WEIGHT_DSL = True
 
 
 def synth_run(args: tuple[str, str, str, int]) -> dict[str, float | str]:
@@ -96,7 +96,7 @@ def main() -> None:
         ("KnownBits", "Udiv"): "knownBitsUdiv.mlir",
         ("KnownBits", "Xor"): "knownBitsXor.mlir",
         ("ConstantRange", "Add"): "integerRangeAdd.mlir",
-        # ("ConstantRange", "And"): "integerRangeAnd.mlir", # def bad
+        ("ConstantRange", "And"): "integerRangeAnd.mlir",
         ("ConstantRange", "Ashr"): "integerRangeAshr.mlir",
         ("ConstantRange", "Lshr"): "integerRangeLshr.mlir",
         ("ConstantRange", "Mods"): "integerRangeMods.mlir",
@@ -115,8 +115,6 @@ def main() -> None:
     xfer_funcs = {
         k: path.join(start_dir, getPath(k[0]), v) for k, v in xfer_funcs.items()
     }
-
-    [print(x) for x in xfer_funcs.values()]
 
     inputs = [
         (func_name, domain_name, xfer_func_fname, seed)
