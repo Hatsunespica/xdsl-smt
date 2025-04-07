@@ -146,6 +146,12 @@ def register_all_arguments(arg_parser: argparse.ArgumentParser):
         nargs="?",
         help="Specify the number of mcmc processes that used for abduction. It should be less than num_programs. 0 by default (which means abduction is disabled).",
     )
+    arg_parser.add_argument(
+        "-outputs_folder",
+        type=str,
+        nargs="?",
+        help="Output folder for saving logs",
+    )
 
 
 def parse_file(ctx: MLContext, file: str | None) -> Operation:
@@ -267,8 +273,10 @@ VERBOSE = 1  # todo: make it a cmd line arg
 def eliminate_dead_code(func: FuncOp) -> FuncOp:
     new_module = ModuleOp([func.clone()])
     TransferDeadCodeElimination().apply(ctx, new_module)
-    assert isinstance(new_module.ops.first, FuncOp)
-    return new_module.ops.first
+    func_op = new_module.ops.first
+    assert isinstance(func_op, FuncOp)
+    func_op.detach()
+    return func_op
 
 
 def is_ref_function(func: FuncOp) -> bool:
@@ -453,6 +461,7 @@ def synthesize_transfer_function(
     total_rounds: int,
     solution_size: int,
     inv_temp: int,
+    outputs_folder: str,
 ) -> SolutionSet:
     mcmc_samplers: list[MCMCSampler] = []
 
@@ -658,9 +667,18 @@ def synthesize_transfer_function(
         print_set_of_funcs_to_file(
             [f.to_str(eliminate_dead_code) for f in new_solution_set.solutions],
             ith_iter,
-            OUTPUTS_FOLDER,
+            outputs_folder,
         )
     return new_solution_set
+
+
+def save_solution(solution_module: ModuleOp, solution_str: str, outputs_folder: str):
+    if not outputs_folder.endswith("/"):
+        outputs_folder += "/"
+    with open(outputs_folder + "solution.cpp", "w") as fout:
+        fout.write(solution_str)
+    with open(outputs_folder + "solution.mlir", "w") as fout:
+        print(solution_module, file=fout)
 
 
 def run(
@@ -677,6 +695,7 @@ def run(
     random_number_file: str | None = None,
     transfer_functions: str | None = None,
     weighted_dsl: bool = False,
+    outputs_folder: str = OUTPUTS_FOLDER,
 ) -> CompareResult | None:
     global ctx
     ctx = MLContext()
@@ -695,10 +714,10 @@ def run(
 
     assert isinstance(module, ModuleOp)
 
-    if not os.path.isdir(OUTPUTS_FOLDER):
-        os.mkdir(OUTPUTS_FOLDER)
+    if not os.path.isdir(outputs_folder):
+        os.mkdir(outputs_folder)
 
-    logger = setup_loggers(OUTPUTS_FOLDER, VERBOSE)
+    logger = setup_loggers(outputs_folder, VERBOSE)
 
     logger.debug("Round_ID\tSound%\tUExact%\tUDis\tCost")
 
@@ -853,6 +872,7 @@ def run(
             total_rounds,
             solution_size,
             inv_temp,
+            outputs_folder,
         )
         print(
             f"Iteration {ith_iter} finished. Size of the solution set: {solution_set.solutions_size}"
@@ -906,6 +926,9 @@ def main() -> None:
         CONDITION_LENGTH if args.condition_length is None else args.condition_length
     )
     num_abd_procs = NUM_ABD_PROCS if args.num_abd_procs is None else args.num_abd_procs
+    outputs_folder = (
+        OUTPUTS_FOLDER if args.outputs_folder is None else args.outputs_folder
+    )
 
     run(
         num_programs=num_programs,
@@ -921,6 +944,7 @@ def main() -> None:
         random_number_file=args.random_file,
         transfer_functions=args.transfer_functions,
         weighted_dsl=args.weighted_dsl,
+        outputs_folder=outputs_folder,
     )
 
 
