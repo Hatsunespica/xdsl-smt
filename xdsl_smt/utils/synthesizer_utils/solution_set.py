@@ -345,23 +345,25 @@ class UnsizedSolutionSet(SolutionSet):
         self.solutions = []
         self.logger.info("Reset solution set...")
         num_cond_solutions = 0
+        greedy_by_edit_dis = True  # default
         while len(candidates) > 0:
             index = 0
-            most_prec_improve = 0
+            max_prec_improve = 0
             result = self.eval_improve(candidates)
             for ith_result in range(len(result)):
                 if result[ith_result].unsolved_cases == 0:
                     self.is_perfect = True
                     break
-                if (
-                    result[ith_result].base_edit_dis - result[ith_result].edit_dis
-                    > most_prec_improve
-                ):
-                    index = ith_result
-                    most_prec_improve = (
+                if greedy_by_edit_dis:
+                    improve = (
                         result[ith_result].base_edit_dis - result[ith_result].edit_dis
                     )
-            if most_prec_improve == 0:
+                else:
+                    improve = result[ith_result].unsolved_exacts
+                if improve > max_prec_improve:
+                    index = ith_result
+                    max_prec_improve = improve
+            if max_prec_improve == 0:
                 break
 
             unsound_bit = verify_function(
