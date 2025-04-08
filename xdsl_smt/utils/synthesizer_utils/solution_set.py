@@ -157,7 +157,7 @@ class SolutionSet(ABC):
             if sol.cond is not None:
                 func_cond = self.eliminate_dead_code(sol.cond)
                 function_lst.append(func_cond)
-                solution_str += self.lower_to_cpp(func_body)
+                solution_str += self.lower_to_cpp(func_cond)
                 solution_str += "\n"
 
         for sol in part_solutions:
