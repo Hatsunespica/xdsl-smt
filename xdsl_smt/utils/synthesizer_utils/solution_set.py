@@ -347,16 +347,21 @@ class UnsizedSolutionSet(SolutionSet):
         num_cond_solutions = 0
         while len(candidates) > 0:
             index = 0
-            most_unsol_e = 0
+            most_prec_improve = 0
             result = self.eval_improve(candidates)
             for ith_result in range(len(result)):
                 if result[ith_result].unsolved_cases == 0:
                     self.is_perfect = True
                     break
-                if result[ith_result].unsolved_exacts > most_unsol_e:
+                if (
+                    result[ith_result].base_edit_dis - result[ith_result].edit_dis
+                    > most_prec_improve
+                ):
                     index = ith_result
-                    most_unsol_e = result[ith_result].unsolved_exacts
-            if most_unsol_e == 0:
+                    most_prec_improve = (
+                        result[ith_result].base_edit_dis - result[ith_result].edit_dis
+                    )
+            if most_prec_improve == 0:
                 break
 
             unsound_bit = verify_function(
@@ -401,7 +406,7 @@ class UnsizedSolutionSet(SolutionSet):
         sorted_pairs = sorted(
             zip(precise_candidates, result),
             reverse=True,
-            key=lambda pair: pair[1].unsolved_exacts,
+            key=lambda pair: pair[1].base_edit_dis - pair[1].unsolved_edit_dis,
         )
         K = 15
         top_k = sorted_pairs[:K]
