@@ -289,11 +289,12 @@ def is_base_function(func: FuncOp) -> bool:
 
 
 def construct_top_func(transfer: FuncOp, get_top: FuncOp) -> FuncOp:
-    func = transfer.clone()
+    func = FuncOp("top_transfer_function", transfer.function_type)
+    func.attributes["applied_to"] = transfer.attributes["applied_to"]
+    func.attributes["CPPCLASS"] = transfer.attributes["CPPCLASS"]
+    func.attributes["is_forward"] = transfer.attributes["is_forward"]
     block = func.body.block
     args = func.args
-    for op in block.ops:
-        block.detach_op(op)
 
     call_top_op = CallOp("getTop", [args[0]], func.function_type.outputs.data)
     assert len(call_top_op.results) == 1
