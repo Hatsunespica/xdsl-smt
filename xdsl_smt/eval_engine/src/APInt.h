@@ -31,6 +31,11 @@ public:
   static constexpr unsigned APINT_WORD_SIZE = sizeof(unsigned long);
   static constexpr unsigned APINT_BITS_PER_WORD = APINT_WORD_SIZE * 8;
 
+  explicit APInt() {
+    VAL = 0;
+    BitWidth = 1;
+  }
+
   APInt(unsigned numBits, unsigned long val) : BitWidth(numBits), VAL(val) {
     clearUnusedBits();
   }
@@ -1084,46 +1089,42 @@ inline APInt APInt::sfloordiv_ov(const APInt &RHS, bool &Overflow) const {
 
 } // namespace A
 
-#ifndef _NEW
-#define _NEW
-void *operator new(unsigned long, void *p) noexcept { return p; }
-#endif
-
 template <unsigned int N> class Vec {
+  static_assert(N != 0, "Vec must include at least one element");
+
 public:
-  union {
-    A::APInt v[N];
-  };
+  A::APInt v[N];
 
   template <typename... Args> Vec(Args... args) {
     static_assert(sizeof...(args) == N, "Number of arguments must match N");
     A::APInt arr[] = {args...};
 
     for (unsigned int i = 0; i < N; ++i)
-      new (&v[i]) A::APInt(arr[i]);
+      v[i] = arr[i];
   }
 
   Vec(unsigned int bw) {
+    const A::APInt z = A::APInt(bw, 0);
     for (unsigned int i = 0; i < N; ++i)
-      new (&v[i]) A::APInt(bw, 0);
+      v[i] = z;
   }
 
   Vec(const Vec<N> &other) {
     for (unsigned int i = 0; i < N; ++i)
-      new (&v[i]) A::APInt(other.v[i]);
+      v[i] = other.v[i];
   }
 
   Vec &operator=(const Vec<N> &other) {
     if (this != &other)
       for (unsigned int i = 0; i < N; ++i)
-        new (&v[i]) A::APInt(other.v[i]);
+        v[i] = other.v[i];
 
     return *this;
   }
 
   bool operator==(const Vec<N> &other) const {
     for (unsigned int i = 0; i < N; ++i)
-      if (!(v[i] == other.v[i]))
+      if (v[i] != other.v[i])
         return false;
 
     return true;
