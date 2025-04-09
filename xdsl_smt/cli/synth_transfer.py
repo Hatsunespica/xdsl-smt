@@ -593,7 +593,6 @@ def synthesize_transfer_function(
                     lowest_cost_tfs[i] = tmp_tuple
 
             else:
-                # TODO this function has been stubbed for rn
                 spl.reject_proposed()
 
         for i, spl in enumerate(mcmc_samplers):

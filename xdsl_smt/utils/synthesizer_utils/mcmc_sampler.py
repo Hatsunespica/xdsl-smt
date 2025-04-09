@@ -98,8 +98,6 @@ class MCMCSampler:
 
     def reject_proposed(self):
         self.proposed.erase()
-        # dominic
-        pass
 
     @staticmethod
     def is_i1_op(op: Operation):
