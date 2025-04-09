@@ -112,10 +112,19 @@ class FunctionWithCondition:
         lower_to_cpp: Callable[[FuncOp], str],
         eliminate_dead_code: Callable[[FuncOp], FuncOp],
     ) -> tuple[str, list[str]]:
+        # TODO dominic
+        # right now calls to eliminate_dead_code are removed since they modify the FunctionWithCondition object in place
+        # and without cloning the FunctionWithCondition object beforehand this breaks MCMCSamplers ability to modify those objects in place as well
         whole_function = self.get_function()
-        whole_function_str = lower_to_cpp(eliminate_dead_code(whole_function))
-        func_str = lower_to_cpp(eliminate_dead_code(self.func))
+        # TODO
+        # whole_function_str = lower_to_cpp(eliminate_dead_code(whole_function))
+        whole_function_str = lower_to_cpp(whole_function)
+        # TODO
+        # func_str = lower_to_cpp(eliminate_dead_code(self.func))
+        func_str = lower_to_cpp(self.func)
         if self.cond is None:
             return whole_function_str, [func_str]
-        cond_str = lower_to_cpp(eliminate_dead_code(self.cond))
+        cond_str = lower_to_cpp(self.cond)
+        # TODO
+        # cond_str = lower_to_cpp(eliminate_dead_code(self.cond))
         return whole_function_str, [func_str, cond_str]

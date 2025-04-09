@@ -2,6 +2,7 @@ import argparse
 import logging
 import os.path
 import time
+import sys
 from typing import cast, Callable
 
 from xdsl.context import MLContext
@@ -12,16 +13,9 @@ from io import StringIO
 from xdsl.utils.hints import isa
 
 from xdsl_smt.utils.synthesizer_utils.compare_result import CompareResult
-from ..dialects.smt_dialect import (
-    SMTDialect,
-)
-from ..dialects.smt_bitvector_dialect import (
-    SMTBitVectorDialect,
-    ConstantOp,
-)
-from xdsl_smt.dialects.transfer import (
-    TransIntegerType,
-)
+from ..dialects.smt_dialect import SMTDialect
+from ..dialects.smt_bitvector_dialect import SMTBitVectorDialect
+from xdsl_smt.dialects.transfer import TransIntegerType
 from ..dialects.index_dialect import Index
 from ..dialects.smt_utils_dialect import SMTUtilsDialect
 import xdsl_smt.eval_engine.eval as eval_engine
@@ -48,7 +42,6 @@ from xdsl.ir import Operation
 from ..passes.transfer_lower import LowerToCpp
 
 from xdsl_smt.semantics.comb_semantics import comb_semantics
-import sys as sys
 
 from xdsl_smt.utils.synthesizer_utils.cost_model import (
     decide,
@@ -64,7 +57,6 @@ from xdsl_smt.utils.synthesizer_utils.log_utils import (
     print_set_of_funcs_to_file,
 )
 from xdsl_smt.utils.synthesizer_utils.mcmc_sampler import MCMCSampler
-from xdsl_smt.utils.synthesizer_utils.mutation_program import MutationProgram
 from xdsl_smt.utils.synthesizer_utils.solution_set import (
     SolutionSet,
     UnsizedSolutionSet,
@@ -72,8 +64,6 @@ from xdsl_smt.utils.synthesizer_utils.solution_set import (
 )
 from xdsl_smt.utils.synthesizer_utils.synthesizer_context import SynthesizerContext
 from xdsl_smt.utils.synthesizer_utils.random import Random
-
-# from ..utils.visualize import print_figure
 
 
 def register_all_arguments(arg_parser: argparse.ArgumentParser):
@@ -181,7 +171,10 @@ def is_forward(func: FuncOp) -> bool:
 def get_concrete_function(
     concrete_op_name: str, width: int, extra: int | None
 ) -> FuncOp:
-    # iterate all semantics and find corresponding comb operation
+    """
+    iterate all semantics and find corresponding comb operation
+    """
+
     result = None
     for k in comb_semantics.keys():
         if k.name == concrete_op_name:
@@ -218,7 +211,7 @@ def get_concrete_function(
             returnOp = ReturnOp(combOp.results[0])
             result.body.block.add_ops([combOp, returnOp])
     assert result is not None and (
-        "Cannot find the concrete function for" + concrete_op_name
+        f"Cannot find the concrete function for {concrete_op_name}"
     )
     return result
 
@@ -271,6 +264,10 @@ VERBOSE = 1  # todo: make it a cmd line arg
 
 
 def eliminate_dead_code(func: FuncOp) -> FuncOp:
+    # TODO dominic
+    # this is where functions used to be cloned before DCE elim was called on them
+    # but since that's leaky we don't do it anymore
+    # new_module = ModuleOp([func.clone()])
     new_module = ModuleOp([func])
     TransferDeadCodeElimination().apply(ctx, new_module)
     func_op = new_module.ops.first
@@ -314,6 +311,7 @@ def eval_transfer_func_helper(
     """
     This function is a helper of eval_transfer_func that prints the mlir func as cpp code
     """
+
     transfer_func_names: list[str] = []
     transfer_func_srcs: list[str] = []
     helper_func_srcs: list[str] = []
@@ -343,11 +341,6 @@ def eval_transfer_func_helper(
     )
 
 
-"""
-This function returns a simplified eval_func receiving transfer functions and base functions
-"""
-
-
 def solution_set_eval_func(
     domain: eval_engine.AbstractDomain,
     bitwidth: int,
@@ -359,14 +352,12 @@ def solution_set_eval_func(
     ],
     list[CompareResult],
 ]:
+    """
+    This function returns a simplified eval_func receiving transfer functions and base functions
+    """
     return lambda transfer=list[FunctionWithCondition], base=list[
         FunctionWithCondition
     ]: (eval_transfer_func_helper(transfer, base, domain, bitwidth, helper_funcs))
-
-
-"""
-This function returns a simplified eval_func only receiving transfer names and sources
-"""
 
 
 def main_eval_func(
@@ -375,6 +366,9 @@ def main_eval_func(
     bitwidth: int,
     helper_funcs: list[str],
 ) -> Callable[[list[FunctionWithCondition]], list[CompareResult]]:
+    """
+    This function returns a simplified eval_func only receiving transfer names and sources
+    """
     return lambda transfers=list[FunctionWithCondition]: (
         eval_transfer_func_helper(
             transfers, base_transfers, domain, bitwidth, helper_funcs
@@ -454,11 +448,6 @@ def mcmc_setup(
     return sp_range, p_range, c_range, num_programs, prec_set_after_distribute
 
 
-"""
-Given ith_iter, performs total_rounds mcmc sampling
-"""
-
-
 def synthesize_transfer_function(
     # Necessary items
     ith_iter: int,
@@ -484,6 +473,9 @@ def synthesize_transfer_function(
     inv_temp: int,
     outputs_folder: str,
 ) -> SolutionSet:
+    """
+    Given ith_iter, performs total_rounds mcmc sampling
+    """
     mcmc_samplers: list[MCMCSampler] = []
 
     sp_range, p_range, c_range, num_programs, prec_set_after_distribute = mcmc_setup(
@@ -526,8 +518,8 @@ def synthesize_transfer_function(
         mcmc_samplers.append(spl)
 
     # Get the cost of initial programs
-    transfers = [spl.get_current().clone() for spl in mcmc_samplers]
-
+    # todo dominic when we were cloning it was called like this: spl.get_current().clone()
+    transfers = [spl.get_current() for spl in mcmc_samplers]
     func_with_cond_lst = build_eval_list(
         transfers, sp_range, p_range, c_range, prec_set_after_distribute
     )
@@ -558,9 +550,17 @@ def synthesize_transfer_function(
         for spl in mcmc_samplers:
             spl.sample_next()
             proposed_solution = spl.get_proposed()
-            assert proposed_solution is not None
-            # transfers.append(proposed_solution)
-            transfers.append(proposed_solution.clone())
+            transfers.append(proposed_solution)
+
+        # TODO dominic:
+        # notes
+        # func_with_cond_lst owns a bunch of FuncOps which come from transfers
+        # these funcops are also modified by eval_func
+        # specifically in deadcodeelimination, for now I just removed DCE since it wasn't appearing to do too much optimization
+        # but that's maybe a problem for more complex programs
+        # I should find out
+        # easy fix should be to only do DCE at the end of a particularly long run,
+        # then compare that with the og code in the synth-transfer branch
 
         func_with_cond_lst = build_eval_list(
             transfers, sp_range, p_range, c_range, prec_set_after_distribute
@@ -575,33 +575,25 @@ def synthesize_transfer_function(
         end = time.time()
         used_time = end - start
 
-        for i, (spl, res, sme_tf, me_tf, lc_tf) in enumerate(
-            zip(
-                mcmc_samplers,
-                cmp_results,
-                sound_most_exact_tfs,
-                most_exact_tfs,
-                lowest_cost_tfs,
-            )
-        ):
+        for i, (spl, res) in enumerate(zip(mcmc_samplers, cmp_results)):
             proposed_cost = spl.compute_cost(res)
             current_cost = spl.compute_current_cost()
             decision = decide(random.random(), inv_temp, current_cost, proposed_cost)
             if decision:
                 spl.accept_proposed(res)
-                assert spl.get_proposed() is None
                 tmp_tuple = (spl.current, res, rnd)
                 # Update sound_most_exact_tfs
-                if res.is_sound() and res.exacts > sme_tf[1].exacts:
+                if res.is_sound() and res.exacts > sound_most_exact_tfs[i][1].exacts:
                     sound_most_exact_tfs[i] = tmp_tuple
                 # Update most_exact_tfs
-                if res.unsolved_exacts > me_tf[1].unsolved_exacts:
+                if res.unsolved_exacts > most_exact_tfs[i][1].unsolved_exacts:
                     most_exact_tfs[i] = tmp_tuple
                 # Update lowest_cost_tfs
-                if proposed_cost < spl.compute_cost(lc_tf[1]):
+                if proposed_cost < spl.compute_cost(lowest_cost_tfs[i][1]):
                     lowest_cost_tfs[i] = tmp_tuple
 
             else:
+                # TODO this function has been stubbed for rn
                 spl.reject_proposed()
 
         for i, spl in enumerate(mcmc_samplers):
@@ -870,6 +862,8 @@ def run(
             logger,
         )
 
+    # TODO dominic
+    # the abstract domain here should not be hardcoded
     eval_func = main_eval_func(
         base_transfers,
         eval_engine.AbstractDomain.KnownBits,

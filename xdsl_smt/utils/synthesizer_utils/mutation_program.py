@@ -39,6 +39,10 @@ class MutationProgram:
         new_ops = list(new_func.body.block.ops)
         return MutationProgram(new_func, new_ops)
 
+    def erase(self) -> None:
+        # dominic
+        self.func.erase()
+
     @staticmethod
     def not_in_main_body(op: Operation):
         # filter out operations not belong to main body
