@@ -35,7 +35,7 @@ def verify_function(
     if func.cond is not None:
         cur_helper.append(func.cond)
     return verify_transfer_function(
-        func.get_function(), cur_helper + helper_funcs, ctx, 16
+        func.get_function(), cur_helper + helper_funcs, ctx, 32
     )
 
 
@@ -81,7 +81,6 @@ class SolutionSet(ABC):
     ):
         rename_functions(initial_solutions, "partial_solution_")
         self.solutions = initial_solutions
-        self.solution_conds = [None] * len(initial_solutions)
         self.solutions_size = len(initial_solutions)
         self.lower_to_cpp = lower_to_cpp
         self.eliminate_dead_code = eliminate_dead_code
@@ -158,7 +157,7 @@ class SolutionSet(ABC):
             if sol.cond is not None:
                 func_cond = self.eliminate_dead_code(sol.cond)
                 function_lst.append(func_cond)
-                solution_str += self.lower_to_cpp(func_body)
+                solution_str += self.lower_to_cpp(func_cond)
                 solution_str += "\n"
 
         for sol in part_solutions:
