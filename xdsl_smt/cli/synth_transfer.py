@@ -833,6 +833,8 @@ def run(
     for _, func in base_bodys.items():
         base_transfers.append(FunctionWithCondition(func))
 
+    # TODO dominic
+    # remove hardcoded domains
     solution_eval_func = solution_set_eval_func(
         eval_engine.AbstractDomain.KnownBits,
         bitwidth,
@@ -915,6 +917,8 @@ def run(
 
         return None
 
+    # TODO dominic
+    # no hardcoded domains
     _, solution_str = solution_set.generate_solution_and_cpp()
     with open("tmp.cpp", "w") as fout:
         fout.write(solution_str)
