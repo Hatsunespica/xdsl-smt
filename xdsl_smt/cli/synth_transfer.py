@@ -546,11 +546,7 @@ def synthesize_transfer_function(
     )
 
     for rnd in range(total_rounds):
-        transfers: list[FuncOp] = []
-        for spl in mcmc_samplers:
-            spl.sample_next()
-            proposed_solution = spl.get_proposed()
-            transfers.append(proposed_solution)
+        transfers = [spl.sample_next().get_current() for spl in mcmc_samplers]
 
         # TODO dominic:
         # notes

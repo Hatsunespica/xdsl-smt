@@ -47,12 +47,12 @@ def parse_file(ctx: MLContext, file: str | None) -> Operation:
 class MCMCSampler:
     last_make_op: MakeOp
     current: MutationProgram
-    proposed: MutationProgram
     current_cmp: CompareResult
     context: SynthesizerContext
     random: Random
     compute_cost: Callable[[CompareResult], float]
     is_cond: bool
+    last_op: tuple[int, Operation] | None
 
     def __init__(
         self,
@@ -64,6 +64,7 @@ class MCMCSampler:
         is_cond: bool = False,
         init_cmp_res: CompareResult = CompareResult(0, 0, 0, 0, 0, 0, 0, 0, 0, 4),
     ):
+        self.last_op = None
         self.is_cond = is_cond
         if is_cond:
             cond_type = FunctionType.from_lists(
@@ -73,7 +74,6 @@ class MCMCSampler:
             func = FuncOp("cond", cond_type)
 
         self.current = self.construct_init_program(func, length)
-        self.proposed = self.current.clone()
         self.current_cmp = init_cmp_res
         self.context = context
         self.compute_cost = compute_cost
@@ -87,17 +87,19 @@ class MCMCSampler:
     def get_current(self):
         return self.current.func
 
-    def get_proposed(self):
-        return self.proposed.func
-
     def accept_proposed(self, proposed_cmp: CompareResult):
-        self.current.erase()
-        self.current = self.proposed.clone()
-        self.proposed.erase()
+        assert self.last_op is not None
+        self.last_op[1].erase()
+        self.last_op = None
         self.current_cmp = proposed_cmp
 
     def reject_proposed(self):
-        self.proposed.erase()
+        assert self.last_op is not None
+        idx, new_op = self.last_op
+        old_op = self.current.ops[idx]
+        self.current.replace_operation(old_op, new_op)
+        old_op.erase()
+        self.last_op = None
 
     @staticmethod
     def is_i1_op(op: Operation):
@@ -107,11 +109,14 @@ class MCMCSampler:
     def is_int_op(op: Operation):
         return isinstance(op.results[0].type, TransIntegerType)
 
-    def replace_entire_operation(self, prog: MutationProgram, idx: int):
+    def replace_entire_operation(self, prog: MutationProgram, idx: int, history: bool):
         """
         Random pick an operation and replace it with a new one
         """
         old_op = prog.ops[idx]
+        if history:
+            assert self.last_op is None
+            self.last_op = idx, old_op.clone()
         int_operands, _ = prog.get_valid_int_operands(idx)
         bool_operands, _ = prog.get_valid_bool_operands(idx)
 
@@ -125,8 +130,11 @@ class MCMCSampler:
                 raise VerifyException("Unexpected result type {}".format(old_op))
         prog.replace_operation(old_op, new_op)
 
-    def replace_operand(self, prog: MutationProgram, idx: int):
+    def replace_operand(self, prog: MutationProgram, idx: int, history: bool):
         op = prog.ops[idx]
+        if history:
+            assert self.last_op is None
+            self.last_op = idx, op.clone()
         int_operands, _ = prog.get_valid_int_operands(idx)
         bool_operands, _ = prog.get_valid_bool_operands(idx)
 
@@ -224,9 +232,7 @@ class MCMCSampler:
         Return the new program with the proposal ratio.
         """
 
-        self.proposed = self.current.clone()
-
-        live_ops = self.proposed.get_modifiable_operations()
+        live_ops = self.current.get_modifiable_operations()
         live_op_indices = [x[1] for x in live_ops]
 
         sample_mode = self.random.random()
@@ -234,14 +240,16 @@ class MCMCSampler:
         # replace an operation with a new operation
         if sample_mode < 0.3 and live_op_indices:
             idx = self.random.choice(live_op_indices)
-            self.replace_entire_operation(self.proposed, idx)
+            self.replace_entire_operation(self.current, idx, True)
         # replace an operand in an operation
         elif sample_mode < 1 and live_op_indices:
             idx = self.random.choice(live_op_indices)
-            self.replace_operand(self.proposed, idx)
+            self.replace_operand(self.current, idx, True)
         # elif sample_mode < 1:
         #     # replace an operand in makeOp
         #     ratio = self.replace_make_operand(ops, len(ops) - 2)
+
+        return self
 
     def reset_to_random_prog(self, length: int):
         # Part III-2: Random reset main body
@@ -249,4 +257,4 @@ class MCMCSampler:
         # Only modify ops in the main body
         for i in range(total_ops_len):
             if not MutationProgram.not_in_main_body(self.current.ops[i]):
-                self.replace_entire_operation(self.current, i)
+                self.replace_entire_operation(self.current, i, False)
