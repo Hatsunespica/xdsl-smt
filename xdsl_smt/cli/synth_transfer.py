@@ -171,9 +171,7 @@ def is_forward(func: FuncOp) -> bool:
 def get_concrete_function(
     concrete_op_name: str, width: int, extra: int | None
 ) -> FuncOp:
-    """
-    iterate all semantics and find corresponding comb operation
-    """
+    # iterate all semantics and find corresponding comb operation
 
     result = None
     for k in comb_semantics.keys():
@@ -211,7 +209,7 @@ def get_concrete_function(
             returnOp = ReturnOp(combOp.results[0])
             result.body.block.add_ops([combOp, returnOp])
     assert result is not None and (
-        f"Cannot find the concrete function for {concrete_op_name}"
+        "Cannot find the concrete function for" + concrete_op_name
     )
     return result
 
@@ -259,7 +257,7 @@ VERBOSE = 1  # todo: make it a cmd line arg
 
 def eliminate_dead_code(func: FuncOp) -> FuncOp:
     """
-    This function modifies the func passed to it in place!
+    WARNING: this function modifies the func passed to it in place!
     """
     TransferDeadCodeElimination().apply(ctx, cast(ModuleOp, func))
     return func
@@ -549,16 +547,6 @@ def synthesize_transfer_function(
     for rnd in range(total_rounds):
         transfers = [spl.sample_next().get_current() for spl in mcmc_samplers]
 
-        # TODO dominic:
-        # notes
-        # func_with_cond_lst owns a bunch of FuncOps which come from transfers
-        # these funcops are also modified by eval_func
-        # specifically in deadcodeelimination, for now I just removed DCE since it wasn't appearing to do too much optimization
-        # but that's maybe a problem for more complex programs
-        # I should find out
-        # easy fix should be to only do DCE at the end of a particularly long run,
-        # then compare that with the og code in the synth-transfer branch
-
         func_with_cond_lst = build_eval_list(
             transfers, sp_range, p_range, c_range, prec_set_after_distribute
         )
@@ -834,8 +822,7 @@ def run(
     for _, func in base_bodys.items():
         base_transfers.append(FunctionWithCondition(func))
 
-    # TODO dominic
-    # remove hardcoded domains
+    # TODO remove hardcoded domains
     solution_eval_func = solution_set_eval_func(
         eval_engine.AbstractDomain.KnownBits,
         bitwidth,
@@ -860,8 +847,7 @@ def run(
             logger,
         )
 
-    # TODO dominic
-    # the abstract domain here should not be hardcoded
+    # TODO remove hardcoded domains
     eval_func = main_eval_func(
         base_transfers,
         eval_engine.AbstractDomain.KnownBits,
@@ -918,8 +904,7 @@ def run(
 
         return None
 
-    # TODO dominic
-    # no hardcoded domains
+    # TODO remove hardcoded domains
     _, solution_str = solution_set.generate_solution_and_cpp()
     with open("tmp.cpp", "w") as fout:
         fout.write(solution_str)
