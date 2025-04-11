@@ -222,12 +222,6 @@ def print_concrete_function_to_cpp(func: FuncOp) -> str:
     return sio.getvalue()
 
 
-def print_to_cpp(func: FuncOp) -> str:
-    sio = StringIO()
-    LowerToCpp(sio).apply(ctx, cast(ModuleOp, func))
-    return sio.getvalue()
-
-
 def get_default_op_constraint(concrete_func: FuncOp):
     cond_type = FunctionType.from_lists(concrete_func.function_type.inputs.data, [i1])
     func = FuncOp("op_constraint", cond_type)
@@ -264,16 +258,25 @@ VERBOSE = 1  # todo: make it a cmd line arg
 
 
 def eliminate_dead_code(func: FuncOp) -> FuncOp:
-    # TODO dominic
-    # this is where functions used to be cloned before DCE elim was called on them
-    # but since that's leaky we don't do it anymore
-    # new_module = ModuleOp([func.clone()])
-    new_module = ModuleOp([func])
-    TransferDeadCodeElimination().apply(ctx, new_module)
-    func_op = new_module.ops.first
-    assert isinstance(func_op, FuncOp)
-    func_op.detach()
-    return func_op
+    """
+    This function modifies the func passed to it in place!
+    """
+    TransferDeadCodeElimination().apply(ctx, cast(ModuleOp, func))
+    return func
+
+
+def print_to_cpp(func: FuncOp) -> str:
+    """
+    This function eliminates dead code before lowering to cpp
+    and it makes a copy of the function so it does not modify in place
+    """
+    sio = StringIO()
+    region = func.body.clone()
+    cloned_func = FuncOp(func.sym_name.data, func.function_type, region=region)
+    TransferDeadCodeElimination().apply(ctx, cast(ModuleOp, cloned_func))
+    LowerToCpp(sio).apply(ctx, cast(ModuleOp, cloned_func))
+
+    return sio.getvalue()
 
 
 def is_base_function(func: FuncOp) -> bool:
@@ -317,7 +320,7 @@ def eval_transfer_func_helper(
     helper_func_srcs: list[str] = []
     assert get_top_func_op is not None
     for fc in transfer:
-        caller_str, helper_strs = fc.get_function_str(print_to_cpp, eliminate_dead_code)
+        caller_str, helper_strs = fc.get_function_str(print_to_cpp)
         transfer_func_names.append(fc.func_name)
         transfer_func_srcs.append(caller_str)
         helper_func_srcs += helper_strs
@@ -325,7 +328,7 @@ def eval_transfer_func_helper(
     base_func_names: list[str] = []
     base_func_srcs: list[str] = []
     for fc in base:
-        caller_str, helper_strs = fc.get_function_str(print_to_cpp, eliminate_dead_code)
+        caller_str, helper_strs = fc.get_function_str(print_to_cpp)
         base_func_names.append(fc.func_name)
         base_func_srcs.append(caller_str)
         helper_func_srcs += helper_strs
@@ -517,8 +520,6 @@ def synthesize_transfer_function(
 
         mcmc_samplers.append(spl)
 
-    # Get the cost of initial programs
-    # todo dominic when we were cloning it was called like this: spl.get_current().clone()
     transfers = [spl.get_current() for spl in mcmc_samplers]
     func_with_cond_lst = build_eval_list(
         transfers, sp_range, p_range, c_range, prec_set_after_distribute

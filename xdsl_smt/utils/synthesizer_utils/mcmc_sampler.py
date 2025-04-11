@@ -52,7 +52,6 @@ class MCMCSampler:
     random: Random
     compute_cost: Callable[[CompareResult], float]
     is_cond: bool
-    last_op: tuple[int, Operation] | None
 
     def __init__(
         self,
@@ -64,7 +63,6 @@ class MCMCSampler:
         is_cond: bool = False,
         init_cmp_res: CompareResult = CompareResult(0, 0, 0, 0, 0, 0, 0, 0, 0, 4),
     ):
-        self.last_op = None
         self.is_cond = is_cond
         if is_cond:
             cond_type = FunctionType.from_lists(
@@ -88,18 +86,11 @@ class MCMCSampler:
         return self.current.func
 
     def accept_proposed(self, proposed_cmp: CompareResult):
-        assert self.last_op is not None
-        self.last_op[1].erase()
-        self.last_op = None
+        self.current.remove_history()
         self.current_cmp = proposed_cmp
 
     def reject_proposed(self):
-        assert self.last_op is not None
-        idx, new_op = self.last_op
-        old_op = self.current.ops[idx]
-        self.current.replace_operation(old_op, new_op)
-        old_op.erase()
-        self.last_op = None
+        self.current.revert_operation()
 
     @staticmethod
     def is_i1_op(op: Operation):
@@ -114,9 +105,6 @@ class MCMCSampler:
         Random pick an operation and replace it with a new one
         """
         old_op = self.current.ops[idx]
-        if history:
-            assert self.last_op is None
-            self.last_op = idx, old_op.clone()
         int_operands, _ = self.current.get_valid_int_operands(idx)
         bool_operands, _ = self.current.get_valid_bool_operands(idx)
 
@@ -128,19 +116,20 @@ class MCMCSampler:
                 new_op = self.context.get_random_int_op(int_operands, bool_operands)
             else:
                 raise VerifyException("Unexpected result type {}".format(old_op))
-        self.current.replace_operation(old_op, new_op)
+        self.current.replace_operation(old_op, new_op, history)
 
     def replace_operand(self, idx: int, history: bool):
         op = self.current.ops[idx]
-        if history:
-            assert self.last_op is None
-            self.last_op = idx, op.clone()
+        new_op = op.clone()
+
+        self.current.replace_operation(op, new_op, history)
+
         int_operands, _ = self.current.get_valid_int_operands(idx)
         bool_operands, _ = self.current.get_valid_bool_operands(idx)
 
         success = False
         while not success:
-            success = self.context.replace_operand(op, int_operands, bool_operands)
+            success = self.context.replace_operand(new_op, int_operands, bool_operands)
 
     def construct_init_program(self, _func: FuncOp, length: int):
         func = _func.clone()
