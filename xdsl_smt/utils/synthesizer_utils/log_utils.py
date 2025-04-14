@@ -1,5 +1,4 @@
 import logging
-from logging import critical
 from typing import List
 
 from xdsl.dialects.func import FuncOp

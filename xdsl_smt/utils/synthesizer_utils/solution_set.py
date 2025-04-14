@@ -367,10 +367,12 @@ class UnsizedSolutionSet(SolutionSet):
             if unsound_bit != 0:
                 self.logger.info(f"Skip a unsound function at bit width {unsound_bit}")
                 if unsound_bit == 4:
-                    func_str, helper_str = candidates[index].get_function_str(self.lower_to_cpp,self.eliminate_dead_code)
-                    func_op =  candidates[index].get_function()
+                    func_str, helper_str = candidates[index].get_function_str(
+                        self.lower_to_cpp, self.eliminate_dead_code
+                    )
+                    func_op = candidates[index].get_function()
                     for s in helper_str:
-                        self.logger.critical(s+"\n")
+                        self.logger.critical(s + "\n")
                     self.logger.critical(func_str)
                     str_output = io.StringIO()
                     print(candidates[index].func, file=str_output)
