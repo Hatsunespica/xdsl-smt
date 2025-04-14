@@ -34,8 +34,8 @@ def plot(file):
     x = [i for i in range(len(data))]
     plt.subplot(1, 2, 2)
     plt.ylabel("Used time(s)")
-    plt.xlabel('Iterations')
-    plt.title("Used time(s)/Iterations")
+    plt.xlabel('Steps')
+    plt.title("Used time(s)/Steps")
     plt.plot(x, data)
 
 
