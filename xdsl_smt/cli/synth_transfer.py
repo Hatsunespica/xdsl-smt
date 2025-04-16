@@ -262,7 +262,7 @@ MEET_FUNC = "meet"
 GET_TOP_FUNC = "getTop"
 CONCRETE_OP_FUNC = "concrete_op"
 get_top_func_op: FuncOp | None = None
-ret_top_func_op: FuncOp | None = None
+ret_top_func_op: FuncOp
 TMP_MODULE: list[ModuleOp] = []
 ctx: MLContext
 
