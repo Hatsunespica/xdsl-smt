@@ -928,9 +928,12 @@ def main() -> None:
     # eval the initial solutions in the solution set
 
     init_cmp_res = solution_set.eval_improve([])
-    init_log_str = f"init_solution\t{init_cmp_res[0].get_sound_prop() * 100:.4f}%\t{init_cmp_res[0].get_exact_prop() * 100:.4f}%"
-    logger.info(init_log_str)
-    print(init_log_str)
+    logger.info(
+        f"Initial Solution. Exact: {init_cmp_res[0].get_exact_prop() * 100:.4f}%   Dis:{init_cmp_res[0].base_edit_dis}"
+    )
+    print(
+        f"init_solution\t{init_cmp_res[0].get_sound_prop() * 100:.4f}%\t{init_cmp_res[0].get_exact_prop() * 100:.4f}%"
+    )
 
     # current_prog_len = 10
     # current_total_rounds = 20
