@@ -447,13 +447,13 @@ class UnsizedSolutionSet(SolutionSet):
             for k, v in dict2.items():
                 dict1[k] = dict1.get(k, 0) + v
 
+        self.logger.info(f"Improvement by each individual function")
         for i in range(len(self.solutions)):
             cmp_results: list[CompareResult] = self.eval_func(
                 [self.solutions[i]],
                 self.solutions[:i] + self.solutions[i + 1 :],
             )
             res = cmp_results[0]
-            self.logger.info(f"Improvement by each individual function")
             self.logger.info(
                 f"\tfunc {i}: #exact {res.exacts - res.unsolved_exacts} -> {res.exacts}, new exact%: {res.get_new_exact_prop()}, prec: {res.base_edit_dis} -> {res.edit_dis}, prec improve%: {res.get_prec_improve_avg()}, cond?: {self.solutions[i].cond is not None}"
             )
