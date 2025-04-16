@@ -262,6 +262,7 @@ MEET_FUNC = "meet"
 GET_TOP_FUNC = "getTop"
 CONCRETE_OP_FUNC = "concrete_op"
 get_top_func_op: FuncOp | None = None
+ret_top_func_op: FuncOp | None = None
 TMP_MODULE: list[ModuleOp] = []
 ctx: MLContext
 
@@ -313,7 +314,11 @@ def eval_transfer_func_helper(
 ) -> list[CompareResult]:
     """
     This function is a helper of eval_transfer_func that prints the mlir func as cpp code
+    When transfer is [], this function fill it into [top]
     """
+
+    if not transfer:
+        transfer = [ret_top_func_op]
     transfer_func_names: list[str] = []
     transfer_func_srcs: list[str] = []
     helper_func_srcs: list[str] = []
@@ -690,6 +695,11 @@ def synthesize_transfer_function(
             ith_iter,
             outputs_folder,
         )
+
+    final_cmp_res = solution_set.eval_improve([])
+    logger.info(
+        f"Iter {ith_iter} Finished. Exact: {final_cmp_res[0].get_exact_prop() * 100:.4f}%   Dis:{final_cmp_res[0].base_edit_dis}"
+    )
     return new_solution_set
 
 
@@ -830,6 +840,11 @@ def main() -> None:
     get_top_func: FuncOp | None = func_name_to_func.get(GET_TOP_FUNC, None)
     global get_top_func_op
     get_top_func_op = get_top_func
+    global ret_top_func_op
+    ret_top_func_op = FunctionWithCondition(
+        construct_top_func(transfer_func, get_top_func_op)
+    )
+    ret_top_func_op.set_func_name("ret_top")
 
     if meet_func is None:
         solution_size = 1
@@ -911,12 +926,11 @@ def main() -> None:
     )
 
     # eval the initial solutions in the solution set
-    tmp_top = FunctionWithCondition(construct_top_func(transfer_func, get_top_func))
-    tmp_top.set_func_name("tmp_top")
-    init_cmp_res = solution_set.eval_improve([tmp_top])
-    print(
-        f"init_solution\t{init_cmp_res[0].get_sound_prop() * 100:.4f}%\t{init_cmp_res[0].get_exact_prop() * 100:.4f}%"
-    )
+
+    init_cmp_res = solution_set.eval_improve([])
+    init_log_str = f"init_solution\t{init_cmp_res[0].get_sound_prop() * 100:.4f}%\t{init_cmp_res[0].get_exact_prop() * 100:.4f}%"
+    logger.info(init_log_str)
+    print(init_log_str)
 
     # current_prog_len = 10
     # current_total_rounds = 20
