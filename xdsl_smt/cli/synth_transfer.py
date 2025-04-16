@@ -289,7 +289,7 @@ def is_base_function(func: FuncOp) -> bool:
     return func.sym_name.data.startswith("part_solution_")
 
 
-def construct_top_func(transfer: FuncOp, get_top: FuncOp) -> FuncOp:
+def construct_top_func(transfer: FuncOp) -> FuncOp:
     func = FuncOp("top_transfer_function", transfer.function_type)
     func.attributes["applied_to"] = transfer.attributes["applied_to"]
     func.attributes["CPPCLASS"] = transfer.attributes["CPPCLASS"]
@@ -841,9 +841,7 @@ def main() -> None:
     global get_top_func_op
     get_top_func_op = get_top_func
     global ret_top_func
-    ret_top_func = FunctionWithCondition(
-        construct_top_func(transfer_func, get_top_func_op)
-    )
+    ret_top_func = FunctionWithCondition(construct_top_func(transfer_func))
     ret_top_func.set_func_name("ret_top")
 
     if meet_func is None:
