@@ -318,7 +318,7 @@ def eval_transfer_func_helper(
     """
 
     if not transfer:
-        transfer = [ret_top_func_op]
+        transfer = [ret_top_func]
     transfer_func_names: list[str] = []
     transfer_func_srcs: list[str] = []
     helper_func_srcs: list[str] = []
@@ -840,11 +840,11 @@ def main() -> None:
     get_top_func: FuncOp | None = func_name_to_func.get(GET_TOP_FUNC, None)
     global get_top_func_op
     get_top_func_op = get_top_func
-    global ret_top_func_op
-    ret_top_func_op = FunctionWithCondition(
+    global ret_top_func
+    ret_top_func = FunctionWithCondition(
         construct_top_func(transfer_func, get_top_func_op)
     )
-    ret_top_func_op.set_func_name("ret_top")
+    ret_top_func.set_func_name("ret_top")
 
     if meet_func is None:
         solution_size = 1
