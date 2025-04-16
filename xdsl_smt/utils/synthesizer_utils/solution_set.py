@@ -106,7 +106,8 @@ class SolutionSet(ABC):
         concrete_op: FuncOp,
         helper_funcs: list[FuncOp],
         ctx: MLContext,
-    ) -> SolutionSet: ...
+    ) -> SolutionSet:
+        ...
 
     def has_solution(self) -> bool:
         return self.solutions_size != 0
