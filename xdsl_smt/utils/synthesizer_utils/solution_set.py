@@ -106,8 +106,7 @@ class SolutionSet(ABC):
         concrete_op: FuncOp,
         helper_funcs: list[FuncOp],
         ctx: MLContext,
-    ) -> SolutionSet:
-        ...
+    ) -> SolutionSet: ...
 
     def has_solution(self) -> bool:
         return self.solutions_size != 0
@@ -368,7 +367,7 @@ class UnsizedSolutionSet(SolutionSet):
                 self.logger.info(f"Skip a unsound function at bit width {unsound_bit}")
                 if unsound_bit == 4:
                     func_str, helper_str = candidates[index].get_function_str(
-                        self.lower_to_cpp, self.eliminate_dead_code
+                        self.lower_to_cpp
                     )
                     func_op = candidates[index].get_function()
                     for s in helper_str:
