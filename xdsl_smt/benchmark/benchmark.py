@@ -7,6 +7,8 @@ from random import randint
 from io import StringIO
 import telebot
 
+from xdsl_smt.eval_engine.eval import AbstractDomain
+
 # vals that xuanyu sugessted
 # NUM_PROGS = 100
 # NUM_ITERS = 30
@@ -23,9 +25,9 @@ PROGRAM_LENGTH = 40
 
 # something faster
 # PROGRAM_LENGTH = 40
-# NUM_PROGS = 25
-# NUM_ITERS = 20
-# NUM_ROUNDS = 20
+# NUM_PROGS = 50
+# NUM_ITERS = 25
+# NUM_ROUNDS = 25
 # COND_LEN = 15
 # SOL_SIZE = 0
 # NUM_ABD_P = 10
@@ -68,6 +70,7 @@ def synth_run(args: tuple[str, str, str, int]) -> dict[str, float | str]:
     try:
         output_folder = setup_outputs(domain, func_name)
         res = run(
+            AbstractDomain[domain],
             num_programs=NUM_PROGS,
             num_iters=NUM_ITERS,
             total_rounds=NUM_ROUNDS,

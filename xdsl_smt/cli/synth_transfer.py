@@ -142,6 +142,12 @@ def register_all_arguments(arg_parser: argparse.ArgumentParser):
         nargs="?",
         help="Output folder for saving logs",
     )
+    arg_parser.add_argument(
+        "-domain",
+        type=str,
+        nargs="?",
+        help="Abstract Domain to evaluate",
+    )
 
 
 def parse_file(ctx: MLContext, file: str | None) -> Operation:
@@ -674,6 +680,7 @@ def save_solution(solution_module: ModuleOp, solution_str: str, outputs_folder: 
 
 
 def run(
+    domain: eval_engine.AbstractDomain,
     num_programs: int = NUM_PROGRAMS,
     total_rounds: int = TOTAL_ROUNDS,
     program_length: int = PROGRAM_LENGTH,
@@ -828,9 +835,8 @@ def run(
     for _, func in base_bodys.items():
         base_transfers.append(FunctionWithCondition(func))
 
-    # TODO remove hardcoded domains
     solution_eval_func = solution_set_eval_func(
-        eval_engine.AbstractDomain.KnownBits,
+        domain,
         bitwidth,
         helper_funcs_cpp,
     )
@@ -853,10 +859,9 @@ def run(
             logger,
         )
 
-    # TODO remove hardcoded domains
     eval_func = main_eval_func(
         base_transfers,
-        eval_engine.AbstractDomain.KnownBits,
+        domain,
         bitwidth,
         helper_funcs_cpp,
     )
@@ -926,13 +931,16 @@ def run(
         [],
         [],
         helper_funcs_cpp + [print_to_cpp(meet_func)],
-        eval_engine.AbstractDomain.KnownBits,
+        domain,
         bitwidth,
     )
+
     solution_result = cmp_results[0]
     print(
         f"last_solution\t{solution_result.get_sound_prop() * 100:.2f}%\t{solution_result.get_exact_prop() * 100:.2f}%"
     )
+
+    return solution_result
 
 
 def main() -> None:
@@ -958,6 +966,7 @@ def main() -> None:
     )
 
     run(
+        eval_engine.AbstractDomain[args.domain],
         num_programs=num_programs,
         total_rounds=total_rounds,
         program_length=program_length,
