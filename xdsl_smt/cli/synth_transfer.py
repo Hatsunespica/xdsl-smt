@@ -695,7 +695,7 @@ def run(
     transfer_functions: str | None = None,
     weighted_dsl: bool = False,
     outputs_folder: str = OUTPUTS_FOLDER,
-) -> CompareResult | None:
+) -> CompareResult:
     global ctx
     ctx = MLContext()
     ctx.load_dialect(Arith)
