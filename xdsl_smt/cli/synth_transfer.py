@@ -253,7 +253,6 @@ TMP_MODULE: list[ModuleOp] = []
 ctx: MLContext
 
 OUTPUTS_FOLDER = "outputs"
-LOG_FILE = "synth.log"
 VERBOSE = 1  # todo: make it a cmd line arg
 
 
@@ -918,8 +917,7 @@ def run(
 
     # Eval last solution:
     if not solution_set.has_solution():
-        print("Found no solutions")
-        exit(0)
+        raise Exception("Found no solutions")
     solution_module, solution_str = solution_set.generate_solution_and_cpp()
     save_solution(solution_module, solution_str, outputs_folder)
     cmp_results: list[CompareResult] = eval_engine.eval_transfer_func(

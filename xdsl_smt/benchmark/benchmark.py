@@ -1,5 +1,5 @@
 from xdsl_smt.cli.synth_transfer import run
-from os import path, environ
+from os import mkdir, path, environ, listdir, remove
 import pandas as pd
 from math import nan
 from multiprocessing import Pool
@@ -8,24 +8,55 @@ from io import StringIO
 import telebot
 
 # vals that xuanyu sugessted
-NUM_PROGS = 100
-NUM_ITERS = 20
-NUM_ROUNDS = 2000
+# NUM_PROGS = 100
+# NUM_ITERS = 30
+# NUM_ROUNDS = 2000
+NUM_PROGS = 75
+NUM_ITERS = 25
+NUM_ROUNDS = 1250
 COND_LEN = 10
 SOL_SIZE = 0
-NUM_ABD_P = 30
+NUM_ABD_P = 25
 BWIDTH = 4
 WEIGHT_DSL = True
+PROGRAM_LENGTH = 40
 
 # something faster
+# PROGRAM_LENGTH = 40
 # NUM_PROGS = 25
-# NUM_ITERS = 2
-# NUM_ROUNDS = 2
+# NUM_ITERS = 20
+# NUM_ROUNDS = 20
 # COND_LEN = 15
 # SOL_SIZE = 0
 # NUM_ABD_P = 10
 # BWIDTH = 4
 # WEIGHT_DSL = True
+
+
+def rm_r(dir: str):
+    try:
+        files = listdir(dir)
+        for file in files:
+            file_path = path.join(dir, file)
+            if path.isfile(file_path):
+                remove(file_path)
+    except OSError:
+        print(f"Error occurred while deleting files in {dir}")
+
+
+def setup_outputs(domain: str, func: str) -> str:
+    try:
+        mkdir("outputs")
+    except FileExistsError:
+        pass
+
+    output_folder = path.join("outputs", f"{domain}_{func}")
+    try:
+        mkdir(output_folder)
+    except FileExistsError:
+        rm_r(output_folder)
+
+    return output_folder
 
 
 def synth_run(args: tuple[str, str, str, int]) -> dict[str, float | str]:
@@ -34,29 +65,43 @@ def synth_run(args: tuple[str, str, str, int]) -> dict[str, float | str]:
     fname = args[2]
     seed = args[3]
 
-    res = run(
-        num_programs=NUM_PROGS,
-        num_iters=NUM_ITERS,
-        total_rounds=NUM_ROUNDS,
-        condition_length=COND_LEN,
-        solution_size=SOL_SIZE,
-        num_abd_procs=NUM_ABD_P,
-        bitwidth=BWIDTH,
-        weighted_dsl=WEIGHT_DSL,
-        random_seed=seed,
-        transfer_functions=fname,
-    )
+    try:
+        output_folder = setup_outputs(domain, func_name)
+        res = run(
+            num_programs=NUM_PROGS,
+            num_iters=NUM_ITERS,
+            total_rounds=NUM_ROUNDS,
+            condition_length=COND_LEN,
+            solution_size=SOL_SIZE,
+            num_abd_procs=NUM_ABD_P,
+            bitwidth=BWIDTH,
+            weighted_dsl=WEIGHT_DSL,
+            program_length=PROGRAM_LENGTH,
+            random_seed=seed,
+            transfer_functions=fname,
+            outputs_folder=output_folder,
+        )
 
-    sound_prop = nan if res is None else res.get_sound_prop() * 100
-    exact_prop = nan if res is None else res.get_exact_prop() * 100
+        sound_prop = nan if res is None else res.get_sound_prop() * 100
+        exact_prop = nan if res is None else res.get_exact_prop() * 100
 
-    return {
-        "Domain": domain,
-        "Function": func_name,
-        "Sound Proportion": sound_prop,
-        "Exact Proportion": exact_prop,
-        "Seed": seed,
-    }
+        return {
+            "Domain": domain,
+            "Function": func_name,
+            "Sound Proportion": sound_prop,
+            "Exact Proportion": exact_prop,
+            "Seed": seed,
+            "Notes": "",
+        }
+    except Exception as e:
+        return {
+            "Domain": domain,
+            "Function": func_name,
+            "Sound Proportion": nan,
+            "Exact Proportion": nan,
+            "Seed": seed,
+            "Notes": f"Run was terminated: {e}",
+        }
 
 
 def send_resuts(df: pd.DataFrame) -> None:
@@ -76,9 +121,6 @@ def send_resuts(df: pd.DataFrame) -> None:
 
 
 def main() -> None:
-    # TODO a csv for all of the params
-    # and a seperate csv for synthed results
-
     seed = randint(1, 1_000_000)
 
     start_dir = path.join("tests", "synth")
@@ -109,11 +151,11 @@ def main() -> None:
         ("ConstantRange", "Xor"): "integerRangeXor.mlir",
     }
 
-    def getPath(x: str) -> str:
+    def get_path(x: str) -> str:
         return "integerRange" if x == "ConstantRange" else "knownBits"
 
     xfer_funcs = {
-        k: path.join(start_dir, getPath(k[0]), v) for k, v in xfer_funcs.items()
+        k: path.join(start_dir, get_path(k[0]), v) for k, v in xfer_funcs.items()
     }
 
     inputs = [
