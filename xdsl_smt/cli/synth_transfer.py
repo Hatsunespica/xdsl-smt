@@ -399,11 +399,11 @@ def build_eval_list(
     """
     lst: list[FunctionWithCondition] = []
     for i in sp:
-        fwc = FunctionWithCondition(mcmc_proposals[i])
+        fwc = FunctionWithCondition(mcmc_proposals[i].clone())
         fwc.set_func_name(f"{mcmc_proposals[i].sym_name.data}{i}")
         lst.append(fwc)
     for i in p:
-        fwc = FunctionWithCondition(mcmc_proposals[i])
+        fwc = FunctionWithCondition(mcmc_proposals[i].clone())
         fwc.set_func_name(f"{mcmc_proposals[i].sym_name.data}{i}")
         lst.append(fwc)
     for i in c:
@@ -540,9 +540,11 @@ def synthesize_transfer_function(
     cost_data = [[spl.compute_current_cost()] for spl in mcmc_samplers]
 
     # These 3 lists store "good" transformers during the search
-    sound_most_exact_tfs = [(spl.current, spl.current_cmp, 0) for spl in mcmc_samplers]
-    most_exact_tfs = [(spl.current, spl.current_cmp, 0) for spl in mcmc_samplers]
-    lowest_cost_tfs = [(spl.current, spl.current_cmp, 0) for spl in mcmc_samplers]
+    sound_most_exact_tfs = [
+        (spl.current.func, spl.current_cmp, 0) for spl in mcmc_samplers
+    ]
+    most_exact_tfs = [(spl.current.func, spl.current_cmp, 0) for spl in mcmc_samplers]
+    lowest_cost_tfs = [(spl.current.func, spl.current_cmp, 0) for spl in mcmc_samplers]
 
     # MCMC start
     logger.info(
@@ -571,16 +573,16 @@ def synthesize_transfer_function(
             decision = decide(random.random(), inv_temp, current_cost, proposed_cost)
             if decision:
                 spl.accept_proposed(res)
-                tmp_tuple = (spl.current, res, rnd)
+                # tmp_tuple = (spl.current.func.clone(), res, rnd)
                 # Update sound_most_exact_tfs
                 if res.is_sound() and res.exacts > sound_most_exact_tfs[i][1].exacts:
-                    sound_most_exact_tfs[i] = tmp_tuple
+                    sound_most_exact_tfs[i] = (spl.current.func.clone(), res, rnd)
                 # Update most_exact_tfs
                 if res.unsolved_exacts > most_exact_tfs[i][1].unsolved_exacts:
-                    most_exact_tfs[i] = tmp_tuple
+                    most_exact_tfs[i] = (spl.current.func.clone(), res, rnd)
                 # Update lowest_cost_tfs
                 if proposed_cost < spl.compute_cost(lowest_cost_tfs[i][1]):
-                    lowest_cost_tfs[i] = tmp_tuple
+                    lowest_cost_tfs[i] = (spl.current.func.clone(), res, rnd)
 
             else:
                 spl.reject_proposed()
@@ -621,14 +623,12 @@ def synthesize_transfer_function(
                 sound_most_exact_tfs[i][1].is_sound()
                 and sound_most_exact_tfs[i][1].unsolved_exacts > 0
             ):
-                candidates_sp.append(
-                    FunctionWithCondition(sound_most_exact_tfs[i][0].func.clone())
-                )
+                candidates_sp.append(FunctionWithCondition(sound_most_exact_tfs[i][0]))
             if (
                 not most_exact_tfs[i][1].is_sound()
                 and most_exact_tfs[i][1].unsolved_exacts > 0
             ):
-                candidates_p.append(most_exact_tfs[i][0].func.clone())
+                candidates_p.append(most_exact_tfs[i][0])
         for i in c_range:
             if (
                 sound_most_exact_tfs[i][1].is_sound()
@@ -637,19 +637,15 @@ def synthesize_transfer_function(
                 candidates_c.append(
                     FunctionWithCondition(
                         prec_set_after_distribute[i - sp_size - p_size],
-                        sound_most_exact_tfs[i][0].func.clone(),
+                        sound_most_exact_tfs[i][0],
                     )
                 )
     else:
         for i in range(num_programs):
             if sound_most_exact_tfs[i][1].is_sound():
-                candidates_sp.append(
-                    FunctionWithCondition(sound_most_exact_tfs[i][0].func.clone())
-                )
+                candidates_sp.append(FunctionWithCondition(sound_most_exact_tfs[i][0]))
             if lowest_cost_tfs[i][1].is_sound():
-                candidates_sp.append(
-                    FunctionWithCondition(lowest_cost_tfs[i][0].func.clone())
-                )
+                candidates_sp.append(FunctionWithCondition(lowest_cost_tfs[i][0]))
 
     new_solution_set: SolutionSet = solution_set.construct_new_solution_set(
         candidates_sp, candidates_p, candidates_c, concrete_func, helper_funcs, ctx
