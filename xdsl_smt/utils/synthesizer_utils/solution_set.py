@@ -415,7 +415,9 @@ class UnsizedSolutionSet(SolutionSet):
         result = self.eval_improve(precise_candidates_to_eval)
 
         sorted_pairs = sorted(
-            zip(precise_candidates, result), reverse=True, key=lambda x: x[1].get_improve()
+            zip(precise_candidates, result),
+            reverse=True,
+            key=lambda x: x[1].get_improve(),
         )
         K = 15
         top_k = sorted_pairs[:K]
