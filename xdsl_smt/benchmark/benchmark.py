@@ -1,11 +1,9 @@
 from xdsl_smt.cli.synth_transfer import run
-from os import mkdir, path, environ, listdir, remove
-import pandas as pd
+from os import mkdir, path, listdir, remove
 from math import nan
 from multiprocessing import Pool
 from random import randint
-from io import StringIO
-import telebot
+from json import dump
 
 from xdsl_smt.eval_engine.eval import AbstractDomain
 
@@ -85,14 +83,11 @@ def synth_run(args: tuple[str, str, str, int]) -> dict[str, float | str]:
             outputs_folder=output_folder,
         )
 
-        sound_prop = nan if res is None else res.get_sound_prop() * 100
-        exact_prop = nan if res is None else res.get_exact_prop() * 100
-
         return {
             "Domain": domain,
             "Function": func_name,
-            "Sound Proportion": sound_prop,
-            "Exact Proportion": exact_prop,
+            "Sound Proportion": res.get_sound_prop() * 100,
+            "Exact Proportion": res.get_exact_prop() * 100,
             "Seed": seed,
             "Notes": "",
         }
@@ -105,22 +100,6 @@ def synth_run(args: tuple[str, str, str, int]) -> dict[str, float | str]:
             "Seed": seed,
             "Notes": f"Run was terminated: {e}",
         }
-
-
-def send_resuts(df: pd.DataFrame) -> None:
-    try:
-        bot_token = environ["TG_BOT_TOKEN"]
-        chat_id = environ["TG_CHAT_ID"]
-        bot = telebot.TeleBot(bot_token)
-
-        buf = StringIO()
-        df.to_csv(buf)
-        buf.seek(0)
-        buf.name = "data.csv"
-        bot.send_document(chat_id, buf)
-    except Exception as e:
-        print(f"tried to send date via telegram but ran into an exception:\n{e}")
-        df.to_csv("data.csv")
 
 
 def main() -> None:
@@ -169,9 +148,8 @@ def main() -> None:
     with Pool() as p:
         data = p.map(synth_run, inputs)
 
-    df = pd.DataFrame(data)
-    send_resuts(df)
-    print(df)
+    with open("data.json", "w") as f:
+        dump(data, f, indent=2)
 
 
 if __name__ == "__main__":

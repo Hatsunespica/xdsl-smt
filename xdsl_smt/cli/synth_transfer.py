@@ -145,7 +145,8 @@ def register_all_arguments(arg_parser: argparse.ArgumentParser):
     arg_parser.add_argument(
         "-domain",
         type=str,
-        nargs="?",
+        choices=[str(x) for x in eval_engine.AbstractDomain],
+        required=True,
         help="Abstract Domain to evaluate",
     )
 
