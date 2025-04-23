@@ -363,9 +363,9 @@ class UnsizedSolutionSet(SolutionSet):
         num_cond_solutions = 0
         greedy_by_edit_dis = True  # default
         if greedy_by_edit_dis:
-            key_func = lambda x: x.base_edit_dis - x.unsolved_edit_dis
+            key_func = lambda x=CompareResult: x.base_edit_dis - x.unsolved_edit_dis
         else:
-            key_func = lambda x: x.unsolve_exacts
+            key_func = lambda x=CompareResult: x.unsolve_exacts
 
         while len(candidates) > 0:
             result = self.eval_improve(candidates)
