@@ -361,22 +361,16 @@ class UnsizedSolutionSet(SolutionSet):
         self.solutions = []
         self.logger.info("Reset solution set...")
         num_cond_solutions = 0
-        greedy_by_edit_dis = True  # default
-        if greedy_by_edit_dis:
-            key_func = lambda x=CompareResult: x.base_edit_dis - x.unsolved_edit_dis
-        else:
-            key_func = lambda x=CompareResult: x.unsolve_exacts
 
         while len(candidates) > 0:
             result = self.eval_improve(candidates)
             cand, max_improve_res = max(
-                zip(candidates, result), key=lambda x: key_func(x[1])
+                zip(candidates, result), key=lambda x: x[1].get_improve()
             )
             if max_improve_res.unsolved_cases == 0:
                 self.is_perfect = True
                 break
-            improve = key_func(max_improve_res)
-            if improve == 0:
+            if max_improve_res.get_improve() == 0:
                 break
 
             unsound_bit = verify_function(cand, concrete_op, helper_funcs, ctx)
@@ -421,7 +415,7 @@ class UnsizedSolutionSet(SolutionSet):
         result = self.eval_improve(precise_candidates_to_eval)
 
         sorted_pairs = sorted(
-            zip(precise_candidates, result), reverse=True, key=lambda x: key_func(x[1])
+            zip(precise_candidates, result), reverse=True, key=lambda x: x[1].get_improve()
         )
         K = 15
         top_k = sorted_pairs[:K]
