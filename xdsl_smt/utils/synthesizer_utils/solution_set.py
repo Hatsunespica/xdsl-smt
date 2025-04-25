@@ -373,14 +373,22 @@ class UnsizedSolutionSet(SolutionSet):
             if max_improve_res.get_improve() == 0:
                 break
 
-            unsound_bit = verify_function(cand, concrete_op, helper_funcs, ctx)
-            if unsound_bit != 0:
-                self.logger.info(f"Skip a unsound function at bit width {unsound_bit}")
-                # Todo: Remove hard encoded bitwidth
-                if unsound_bit == 4:
-                    self.handle_inconsistent_result(cand)
-                candidates.remove(cand)
-                continue
+            if (cand in new_candidates_sp) or (cand in new_candidates_c):
+                unsound_bit = verify_function(cand, concrete_op, helper_funcs, ctx)
+                if unsound_bit != 0:
+                    self.logger.info(
+                        f"Skip a unsound function at bit width {unsound_bit}"
+                    )
+                    # Todo: Remove hard encoded bitwidth
+                    if unsound_bit == 4:
+                        self.handle_inconsistent_result(cand)
+                    candidates.remove(cand)
+                    continue
+
+            body_number = cand.func.attributes["number"]
+            cond_number = (
+                "None" if cand.cond is None else cand.cond.attributes["number"]
+            )
 
             if cand in new_candidates_sp:
                 log_str = "Add a new transformer"
@@ -394,7 +402,7 @@ class UnsizedSolutionSet(SolutionSet):
                     log_str = "Add a existing transformer (cond)"
                     num_cond_solutions += 1
             self.logger.info(
-                f"{log_str}. After adding, Exact: {max_improve_res.get_exact_prop() * 100:.2f}%, Precision: {max_improve_res.get_bitwise_precision() * 100:.2f}%"
+                f"{log_str}, body: {body_number}, cond: {cond_number}. After adding, Exact: {max_improve_res.get_exact_prop() * 100:.2f}%, Dis: {max_improve_res.dist}"
             )
             candidates.remove(cand)
             self.solutions.append(cand)
@@ -403,7 +411,7 @@ class UnsizedSolutionSet(SolutionSet):
             f"The number of solutions after reseting: {len(self.solutions)}"
         )
         self.logger.info(f"The number of conditional solutions: {num_cond_solutions}")
-
+        self.solutions_size = len(self.solutions)
         if self.is_perfect:
             return self
 
@@ -417,18 +425,19 @@ class UnsizedSolutionSet(SolutionSet):
         sorted_pairs = sorted(
             zip(precise_candidates, result),
             reverse=True,
-            key=lambda x: x[1].get_improve(),
+            key=lambda x: x[1].unsolved_exacts,
         )
         K = 15
         top_k = sorted_pairs[:K]
         self.logger.info(f"Top {K} Precise candidates:")
         self.precise_set = []
         for cand, res in top_k:
+            body_number = cand.attributes["number"]
             self.logger.info(
-                f"\tunsolved_exact: {res.get_unsolved_exact_prop() * 100:.2f}%, sound: {res.get_sound_prop() * 100:.2f}%"
+                f"{body_number}\tunsolved_exact: {res.get_unsolved_exact_prop() * 100:.2f}%, sound: {res.get_sound_prop() * 100:.2f}%"
             )
             self.precise_set.append(cand)
-        self.solutions_size = len(self.solutions)
+
         return self
 
     """
@@ -453,7 +462,7 @@ class UnsizedSolutionSet(SolutionSet):
             )
             res = cmp_results[0]
             self.logger.info(
-                f"\tfunc {i}: #exact {res.exacts - res.unsolved_exacts} -> {res.exacts}, new exact%: {res.get_new_exact_prop()}, prec: {res.base_edit_dis} -> {res.edit_dis}, prec improve%: {res.get_prec_improve_avg()}, cond?: {self.solutions[i].cond is not None}"
+                f"\tfunc {i}: #exact {res.exacts - res.unsolved_exacts} -> {res.exacts}, new exact%: {res.get_new_exact_prop()}, prec: {res.base_dist} -> {res.dist}, prec improve%: {res.get_improve()}, cond?: {self.solutions[i].cond is not None}"
             )
             if res.get_new_exact_prop() > 0.005:
                 d_int, d_i1 = SynthesizerContext.count_op_frequency(

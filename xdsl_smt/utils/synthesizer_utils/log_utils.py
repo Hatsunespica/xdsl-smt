@@ -45,7 +45,7 @@ def print_func_to_file(
 ):
     with open(f"{path}/tf{c}_{rd}_{i}.mlir", "w") as file:
         file.write(
-            f"Run: {c}_{rd}_{i}\nSound: {res.get_sound_prop()}\nUExact: {res.get_unsolved_exact_prop()}\nUDis: {res.get_unsolved_edit_dis_avg()}\n{res}\n"
+            f"Run: {c}_{rd}_{i}\nSound: {res.get_sound_prop()}\nUExact: {res.get_unsolved_exact_prop()}\nUDis: {res.get_unsolved_dist_avg()}\n{res}\n"
         )
         file.write(str(func))
 
