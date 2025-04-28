@@ -68,7 +68,7 @@ operNameToCpp = {
     "transfer.countr_zero": ".countr_zero",
     "transfer.countl_one": ".countl_one",
     "transfer.countr_one": ".countr_one",
-    "transfer.get_low_bits": ".getLowBits",
+    "transfer.get_low_bits": ".getLoBits",
     "transfer.set_high_bits": ".setHighBits",
     "transfer.set_low_bits": ".setLowBits",
     "transfer.intersects": ".intersects",
