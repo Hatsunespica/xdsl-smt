@@ -10,10 +10,10 @@ class CompareResult:
     exacts: int
     """The number of inputs on which (f MEET F) gets exact"""
 
-    edit_dis: int
+    dist: int
     """The sum of edit distance between the outputs of (f MEET F) and the f_best """
 
-    base_edit_dis: int
+    base_dist: int
     """The sum of edit distance between the outputs of F and the f_best"""
 
     unsolved_cases: int
@@ -25,10 +25,13 @@ class CompareResult:
     unsolved_exacts: int
     """The number of unsolved inputs on which (f MEET F) gets exact"""
 
-    unsolved_edit_dis: int
+    unsolved_dist: int
     """The sum of edit distance between the outputs of (f MEET F) and the f_best on unsolved inputs"""
 
-    # cost: float | None = None
+    MAX_DIS: int = 0
+
+    greedy_by_dist = True  # default
+    """If True, the improvement is calculated by the decrease of distance. Otherwise, it is calculated by the number of new exacts"""
 
     def __init__(
         self,
@@ -46,16 +49,22 @@ class CompareResult:
         self.all_cases = all_cases
         self.sounds = sounds
         self.exacts = exacts
-        self.edit_dis = edit_dis
+        self.dist = edit_dis
         self.unsolved_cases = unsolved_cases
         self.unsolved_sounds = unsolved_sounds
         self.unsolved_exacts = unsolved_exacts
-        self.unsolved_edit_dis = unsolved_edit_dis
-        self.base_edit_dis = base_edit_dis
+        self.unsolved_dist = unsolved_edit_dis
+        self.base_dist = base_edit_dis
         self.bitwidth = bitwidth
 
     def __str__(self):
-        return f"all: {self.all_cases}\ts: {self.sounds}\te: {self.exacts}\tp: {self.edit_dis}\tunsolved:{self.unsolved_cases}\tus: {self.unsolved_sounds}\tue: {self.unsolved_exacts}\tup: {self.unsolved_edit_dis}\tbasep: {self.base_edit_dis}"
+        return f"all: {self.all_cases}\ts: {self.sounds}\te: {self.exacts}\tp: {self.dist}\tunsolved:{self.unsolved_cases}\tus: {self.unsolved_sounds}\tue: {self.unsolved_exacts}\tup: {self.unsolved_dist}\tbasep: {self.base_dist}"
+
+    @classmethod
+    def set_max_dis(cls, max_dis: int):
+        assert cls.MAX_DIS == 0, "MAX_DIS has been set before"
+        assert max_dis > 0, "MAX_DIS should be positive"
+        cls.MAX_DIS = max_dis
 
     def get_sound_prop(self) -> float:
         return self.sounds / self.all_cases
@@ -69,11 +78,14 @@ class CompareResult:
     def get_unsolved_exact_prop(self) -> float:
         return self.unsolved_exacts / self.unsolved_cases
 
-    def get_edit_dis_avg(self) -> float:
-        return self.edit_dis / self.all_cases
+    def get_dist_avg(self) -> float:
+        return self.dist / self.all_cases
 
-    def get_unsolved_edit_dis_avg(self) -> float:
-        return self.unsolved_edit_dis / self.unsolved_cases
+    def get_unsolved_dist_avg(self) -> float:
+        return self.unsolved_dist / self.unsolved_cases
+
+    def get_unsolved_dist_avg_norm(self) -> float:
+        return self.unsolved_dist / (self.unsolved_cases * self.MAX_DIS)
 
     def get_new_exact_prop(self) -> float:
         return self.unsolved_exacts / self.all_cases
@@ -81,17 +93,11 @@ class CompareResult:
     def is_sound(self):
         return self.sounds == self.all_cases
 
-    def get_bitwise_precision(self):
-        return 1 - (self.get_edit_dis_avg() / (self.bitwidth * 2))
-
-    def get_prec_improve_avg(self):
-        return (self.base_edit_dis - self.edit_dis) / (
-            self.bitwidth * 2 * self.all_cases
-        )
+    def get_unsolved_dis_decrease(self):
+        return self.base_dist - self.unsolved_dist
 
     def get_improve(self):
-        greedy_by_edit_dis = True  # default
-        if greedy_by_edit_dis:
-            return self.base_edit_dis - self.unsolved_edit_dis
+        if CompareResult.greedy_by_dist:
+            return self.get_unsolved_dis_decrease()
         else:
             return self.unsolved_exacts

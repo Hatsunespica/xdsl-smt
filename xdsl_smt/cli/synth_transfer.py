@@ -551,15 +551,15 @@ def synthesize_transfer_function(
     cost_data = [[spl.compute_current_cost()] for spl in mcmc_samplers]
 
     # These 3 lists store "good" transformers during the search
-    sound_most_exact_tfs = [
-        (spl.current.func.clone(), spl.current_cmp, 0) for spl in mcmc_samplers
-    ]
-    most_exact_tfs = [
-        (spl.current.func.clone(), spl.current_cmp, 0) for spl in mcmc_samplers
-    ]
-    lowest_cost_tfs = [
-        (spl.current.func.clone(), spl.current_cmp, 0) for spl in mcmc_samplers
-    ]
+    sound_most_improve_tfs: list[tuple[FuncOp, CompareResult, int]] = []
+    most_improve_tfs: list[tuple[FuncOp, CompareResult, int]] = []
+    lowest_cost_tfs: list[tuple[FuncOp, CompareResult, int]] = []
+    for i, spl in enumerate(mcmc_samplers):
+        init_tf = spl.current.func.clone()
+        init_tf.attributes["number"] = StringAttr(f"{ith_iter}_{0}_{i}")
+        sound_most_improve_tfs.append((init_tf, spl.current_cmp, 0))
+        most_improve_tfs.append((init_tf, spl.current_cmp, 0))
+        lowest_cost_tfs.append((init_tf, spl.current_cmp, 0))
 
     # MCMC start
     logger.info(
@@ -584,16 +584,24 @@ def synthesize_transfer_function(
             decision = decide(random.random(), inv_temp, current_cost, proposed_cost)
             if decision:
                 spl.accept_proposed(res)
-                # tmp_tuple = (spl.current.func.clone(), res, rnd)
+                cloned_func = spl.current.func.clone()
+                cloned_func.attributes["number"] = StringAttr(f"{ith_iter}_{rnd}_{i}")
+                # cloned_func.attributes["iter"] = IntegerAttr.from_index_int_value(ith_iter)
+                # cloned_func.attributes["step"] = IntegerAttr.from_index_int_value(rnd)
+                # cloned_func.attributes["proc"] = IntegerAttr.from_index_int_value(i)
+                tmp_tuple = (cloned_func, res, rnd)
                 # Update sound_most_exact_tfs
-                if res.is_sound() and res.exacts > sound_most_exact_tfs[i][1].exacts:
-                    sound_most_exact_tfs[i] = (spl.current.func.clone(), res, rnd)
+                if (
+                    res.is_sound()
+                    and res.get_improve() > sound_most_improve_tfs[i][1].get_improve()
+                ):
+                    sound_most_improve_tfs[i] = tmp_tuple
                 # Update most_exact_tfs
-                if res.unsolved_exacts > most_exact_tfs[i][1].unsolved_exacts:
-                    most_exact_tfs[i] = (spl.current.func.clone(), res, rnd)
+                if res.unsolved_exacts > sound_most_improve_tfs[i][1].unsolved_exacts:
+                    most_improve_tfs[i] = tmp_tuple
                 # Update lowest_cost_tfs
                 if proposed_cost < spl.compute_cost(lowest_cost_tfs[i][1]):
-                    lowest_cost_tfs[i] = (spl.current.func.clone(), res, rnd)
+                    lowest_cost_tfs[i] = tmp_tuple
 
             else:
                 spl.reject_proposed()
@@ -602,10 +610,10 @@ def synthesize_transfer_function(
             res_cost = spl.compute_current_cost()
             sound_prop = spl.current_cmp.get_sound_prop() * 100
             exact_prop = spl.current_cmp.get_unsolved_exact_prop() * 100
-            avg_edit = spl.current_cmp.get_unsolved_edit_dis_avg()
+            avg_dist_norm = spl.current_cmp.get_unsolved_dist_avg_norm()
 
             logger.debug(
-                f"{ith_iter}_{rnd}_{i}\t{sound_prop:.2f}%\t{exact_prop:.2f}%\t{avg_edit:.3f}\t{res_cost:.3f}"
+                f"{ith_iter}_{rnd}_{i}\t{sound_prop:.2f}%\t{exact_prop:.2f}%\t{avg_dist_norm:.3f}\t{res_cost:.3f}"
             )
 
             cost_data[i].append(res_cost)
@@ -615,12 +623,12 @@ def synthesize_transfer_function(
         if rnd % 250 == 100 or rnd == total_rounds - 1:
             logger.debug("Sound transformers with most exact outputs:")
             for i in range(num_programs):
-                res = sound_most_exact_tfs[i][1]
+                res = sound_most_improve_tfs[i][1]
                 if res.is_sound():
-                    logger.debug(f"{i}_{sound_most_exact_tfs[i][2]}\t{res}")
+                    logger.debug(f"{i}_{sound_most_improve_tfs[i][2]}\t{res}")
             logger.debug("Transformers with most unsolved exact outputs:")
             for i in range(num_programs):
-                logger.debug(f"{i}_{most_exact_tfs[i][2]}\t{most_exact_tfs[i][1]}")
+                logger.debug(f"{i}_{most_improve_tfs[i][2]}\t{most_improve_tfs[i][1]}")
             logger.debug("Transformers with lowest cost:")
             for i in range(num_programs):
                 logger.debug(f"{i}_{lowest_cost_tfs[i][2]}\t{lowest_cost_tfs[i][1]}")
@@ -631,30 +639,34 @@ def synthesize_transfer_function(
     if solution_size == 0:
         for i in list(sp_range) + list(p_range):
             if (
-                sound_most_exact_tfs[i][1].is_sound()
-                and sound_most_exact_tfs[i][1].unsolved_exacts > 0
+                sound_most_improve_tfs[i][1].is_sound()
+                and sound_most_improve_tfs[i][1].get_improve() > 0
             ):
-                candidates_sp.append(FunctionWithCondition(sound_most_exact_tfs[i][0]))
+                candidates_sp.append(
+                    FunctionWithCondition(sound_most_improve_tfs[i][0])
+                )
             if (
-                not most_exact_tfs[i][1].is_sound()
-                and most_exact_tfs[i][1].unsolved_exacts > 0
+                not most_improve_tfs[i][1].is_sound()
+                and most_improve_tfs[i][1].unsolved_exacts > 0
             ):
-                candidates_p.append(most_exact_tfs[i][0])
+                candidates_p.append(most_improve_tfs[i][0])
         for i in c_range:
             if (
-                sound_most_exact_tfs[i][1].is_sound()
-                and sound_most_exact_tfs[i][1].unsolved_exacts > 0
+                sound_most_improve_tfs[i][1].is_sound()
+                and sound_most_improve_tfs[i][1].get_improve() > 0
             ):
                 candidates_c.append(
                     FunctionWithCondition(
                         prec_set_after_distribute[i - sp_size - p_size],
-                        sound_most_exact_tfs[i][0],
+                        sound_most_improve_tfs[i][0],
                     )
                 )
     else:
         for i in range(num_programs):
-            if sound_most_exact_tfs[i][1].is_sound():
-                candidates_sp.append(FunctionWithCondition(sound_most_exact_tfs[i][0]))
+            if sound_most_improve_tfs[i][1].is_sound():
+                candidates_sp.append(
+                    FunctionWithCondition(sound_most_improve_tfs[i][0])
+                )
             if lowest_cost_tfs[i][1].is_sound():
                 candidates_sp.append(FunctionWithCondition(lowest_cost_tfs[i][0]))
 
@@ -671,7 +683,7 @@ def synthesize_transfer_function(
 
     final_cmp_res = solution_set.eval_improve([])
     logger.info(
-        f"Iter {ith_iter} Finished. Exact: {final_cmp_res[0].get_exact_prop() * 100:.4f}%   Dis:{final_cmp_res[0].base_edit_dis}"
+        f"Iter {ith_iter} Finished. Exact: {final_cmp_res[0].get_exact_prop() * 100:.4f}%   Dis:{final_cmp_res[0].base_dist}"
     )
     return new_solution_set
 
@@ -724,11 +736,19 @@ def run(
 
     logger = setup_loggers(outputs_folder, VERBOSE)
 
-    logger.debug("Round_ID\tSound%\tUExact%\tUDis\tCost")
+    logger.debug("Round_ID\tSound%\tUExact%\tUDis(Norm)\tCost")
 
     random = Random(random_seed)
     if random_number_file is not None:
         random.read_from_file(random_number_file)
+
+    if domain == eval_engine.AbstractDomain.KnownBits:
+        max_dis = bitwidth * 2
+    elif domain == eval_engine.AbstractDomain.ConstantRange:
+        max_dis = (2**bitwidth - 1) * 2
+    else:
+        raise Exception("Unknown Maximum Distance of the domain")
+    CompareResult.set_max_dis(max_dis)
 
     context = SynthesizerContext(random)
     context.set_cmp_flags([0, 6, 7])
@@ -831,21 +851,26 @@ def run(
             if func_name.endswith("_body"):
                 main_name = func_name[: -len("_body")]
                 if main_name in base_conds:
-                    base_transfers.append(
-                        FunctionWithCondition(func, base_conds.pop(main_name))
-                    )
+                    body = func
+                    cond = base_conds.pop(main_name)
+                    body.attributes["number"] = StringAttr("init")
+                    cond.attributes["number"] = StringAttr("init")
+                    base_transfers.append(FunctionWithCondition(body, cond))
                 else:
                     base_bodys[main_name] = func
             elif func_name.endswith("_cond"):
                 main_name = func_name[: -len("_cond")]
                 if main_name in base_bodys:
-                    base_transfers.append(
-                        FunctionWithCondition(base_bodys.pop(main_name), func)
-                    )
+                    body = base_bodys.pop(main_name)
+                    cond = func
+                    body.attributes["number"] = StringAttr("init")
+                    cond.attributes["number"] = StringAttr("init")
+                    base_transfers.append(FunctionWithCondition(body, func))
                 else:
                     base_conds[main_name] = func
     assert len(base_conds) == 0
     for _, func in base_bodys.items():
+        func.attributes["number"] = StringAttr("init")
         base_transfers.append(FunctionWithCondition(func))
 
     solution_eval_func = solution_set_eval_func(
@@ -876,7 +901,7 @@ def run(
 
     init_cmp_res = solution_set.eval_improve([])
     logger.info(
-        f"Initial Solution. Exact: {init_cmp_res[0].get_exact_prop() * 100:.4f}%   Dis:{init_cmp_res[0].base_edit_dis}"
+        f"Initial Solution. Exact: {init_cmp_res[0].get_exact_prop() * 100:.4f}%   Dis:{init_cmp_res[0].base_dist}"
     )
     print(
         f"init_solution\t{init_cmp_res[0].get_sound_prop() * 100:.4f}%\t{init_cmp_res[0].get_exact_prop() * 100:.4f}%"
