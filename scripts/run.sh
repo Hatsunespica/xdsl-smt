@@ -2,7 +2,7 @@
 #This script runs the synthesizer on all files in the specified input dir.
 inputs_dir="./tests/synth/knownBits/"
 #All outputs will be placed in the outputs_dir folder
-outputs_dir="./outputs"
+outputs_dir="./outputs/knownBits/"
 #Runs in foreground or background
 foreground=0
 
