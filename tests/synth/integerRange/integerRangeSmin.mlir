@@ -41,7 +41,7 @@
     %result="arith.andi"(%cmp1,%cmp2):(i1,i1)->i1
     "func.return"(%result) : (i1) -> ()
   }) {function_type = (!transfer.abs_value<[!transfer.integer,!transfer.integer]>, !transfer.integer) -> i1, sym_name = "getInstanceConstraint"} : () -> ()
-  
+
   "func.func"() ({
   ^bb0(%arg0: !transfer.integer, %arg1: !transfer.integer):
     %result = "transfer.smin"(%arg0, %arg1) : (!transfer.integer, !transfer.integer) -> !transfer.integer
