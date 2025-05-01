@@ -371,8 +371,8 @@ def build_init_module(
 
 
 def check_custom_concrete_func(concrete_func: FuncOp):
-    operandType = concrete_func.args[0].type
-    return isinstance(operandType, TupleType)
+    op = concrete_func.body.block.first_op
+    return not any(isinstance(op, ty) for ty in comb_semantics.keys())
 
 
 def verify_transfer_function(
