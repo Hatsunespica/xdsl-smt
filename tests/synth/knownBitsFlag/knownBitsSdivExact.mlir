@@ -53,7 +53,13 @@
     %arg1_neq_minus1 = "transfer.cmp"(%minus1, %arg1) {predicate=1:i64}: (!transfer.integer, !transfer.integer) -> i1
     %not_ub2 = "arith.ori"(%arg0_neq_smin, %arg1_neq_minus1) : (i1, i1) -> i1
     %not_ub = "arith.andi"(%arg1_neq_0, %ub2) : (i1, i1) -> i1
-    "func.return"(%not_ub) : (i1) -> ()
+
+    %quto = "comb.divs"(%arg0, %arg1) : (!transfer.integer, !transfer.integer) -> !transfer.integer
+    %prod = "transfer.mul"(%quto, %arg1) : (!transfer.integer, !transfer.integer) -> !transfer.integer
+    %exact = "transfer.cmp"(%prod, %arg0) {predicate=0:i64}: (!transfer.integer, !transfer.integer) -> i1
+
+    %check = "arith.andi"(%exact, %not_ub) : (i1, i1) -> i1
+    "func.return"(%check) : (i1) -> ()
   }) {function_type = (!transfer.integer, !transfer.integer) -> i1, sym_name = "op_constraint"} : () -> ()
 
 "func.func"() ({
