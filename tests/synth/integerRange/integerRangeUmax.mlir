@@ -1,6 +1,7 @@
 "builtin.module"() ({
 
-"func.func"() ({
+
+ "func.func"() ({
   ^bb0(%arg0: !transfer.abs_value<[!transfer.integer,!transfer.integer]>):
     %arg00 = "transfer.get"(%arg0) {index=0:index}: (!transfer.abs_value<[!transfer.integer,!transfer.integer]>) -> !transfer.integer
     %const0 = "transfer.constant"(%arg00){value=0:index} : (!transfer.integer) -> !transfer.integer
@@ -20,7 +21,7 @@
     %min0 = "transfer.umax"(%arg00,%arg10): (!transfer.integer,!transfer.integer)->!transfer.integer
     %max0 = "transfer.umin"(%arg01,%arg11): (!transfer.integer,!transfer.integer)->!transfer.integer
     %result = "transfer.make"(%min0, %max0) : (!transfer.integer, !transfer.integer) -> !transfer.abs_value<[!transfer.integer, !transfer.integer]>
-     "func.return"(%result) : (!transfer.abs_value<[!transfer.integer, !transfer.integer]>) -> ()
+    "func.return"(%result) : (!transfer.abs_value<[!transfer.integer, !transfer.integer]>) -> ()
   }) {function_type = (!transfer.abs_value<[!transfer.integer,!transfer.integer]>, !transfer.abs_value<[!transfer.integer,!transfer.integer]>) -> !transfer.abs_value<[!transfer.integer,!transfer.integer]>, sym_name = "meet"} : () -> ()
 
   "func.func"() ({
@@ -41,11 +42,16 @@
     "func.return"(%result) : (i1) -> ()
   }) {function_type = (!transfer.abs_value<[!transfer.integer,!transfer.integer]>, !transfer.integer) -> i1, sym_name = "getInstanceConstraint"} : () -> ()
 
-"func.func"() ({
+    "func.func"() ({
+  ^bb0(%arg0: !transfer.integer, %arg1: !transfer.integer):
+    %result = "transfer.umax"(%arg0, %arg1) : (!transfer.integer, !transfer.integer) -> !transfer.integer
+    "func.return"(%result) : (!transfer.integer) -> ()
+  }) {function_type = (!transfer.integer,!transfer.integer) -> !transfer.integer, sym_name = "concrete_op"} : () -> ()
+
+
+  "func.func"() ({
   ^bb0(%arg0: !transfer.abs_value<[!transfer.integer,!transfer.integer]>, %arg1: !transfer.abs_value<[!transfer.integer,!transfer.integer]>):
     "func.return"(%arg0) : (!transfer.abs_value<[!transfer.integer,!transfer.integer]>) -> ()
-  }) {function_type = (!transfer.abs_value<[!transfer.integer,!transfer.integer]>,!transfer.abs_value<[!transfer.integer,!transfer.integer]>) -> !transfer.abs_value<[!transfer.integer,!transfer.integer]>, sym_name = "SubImpl", applied_to=["comb.sub"], CPPCLASS=["circt::comb::SubOp"], is_forward=true} : () -> ()
+  }) {function_type = (!transfer.abs_value<[!transfer.integer,!transfer.integer]>,!transfer.abs_value<[!transfer.integer,!transfer.integer]>) -> !transfer.abs_value<[!transfer.integer,!transfer.integer]>, sym_name = "UMaxImpl", applied_to=["comb.umax"], CPPCLASS=["circt::comb::UMaxOp"], is_forward=true} : () -> ()
 
-
-
-}): () -> ()
+}) : () -> ()

@@ -64,7 +64,7 @@ from xdsl_smt.semantics.comb_semantics import comb_semantics
 
 
 def solve_vector_width(maximal_bits: int):
-    return list(range(1, maximal_bits))
+    return list(range(1, maximal_bits + 1))
 
 
 def verify_pattern(ctx: MLContext, op: ModuleOp) -> bool:
@@ -371,8 +371,8 @@ def build_init_module(
 
 
 def check_custom_concrete_func(concrete_func: FuncOp):
-    operandType = concrete_func.args[0].type
-    return isinstance(operandType, TupleType)
+    op = concrete_func.body.block.first_op
+    return not any(isinstance(op, ty) for ty in comb_semantics.keys())
 
 
 def verify_transfer_function(

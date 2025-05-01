@@ -1,8 +1,8 @@
 #!/bin/sh
 #This script runs the synthesizer on all files in the specified input dir.
-inputs_dir="./tests/synth/test/"
+inputs_dir="./tests/synth/knownBits/"
 #All outputs will be placed in the outputs_dir folder
-outputs_dir="./outputs/"
+outputs_dir="./outputs/knownBits/"
 #Runs in foreground or background
 foreground=0
 
@@ -10,20 +10,22 @@ foreground=0
 #Synthesizer related arguments
 bitwidth=4
 num_programs=100
-num_iters=20
-total_rounds=1250
-program_length=40
+num_iters=15
+total_rounds=1000
+program_length=24
 solution_size=0
 random_seed=2333
 condition_length=10
-num_abd_procs=50
+num_abd_procs=30
 abs_domain="KnownBits"
-INIT_COST=11
-INV_TEMP=200
 
 for entry in "$inputs_dir"/*
 do
-  echo "$entry"
+  case "$entry" in
+    *.mlir) ;;  # pass
+    *) continue ;;  # skip non-.mlir files
+  esac
+
   filename=$(basename "${entry}")
   file_base_name="${filename%.*}"
 
