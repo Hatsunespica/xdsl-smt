@@ -224,7 +224,9 @@ def get_concrete_function(
 
 def print_concrete_function_to_cpp(func: FuncOp) -> str:
     sio = StringIO()
-    LowerToCpp(sio, True).apply(ctx, cast(ModuleOp, func))
+    # LowerToCpp(sio, True).apply(ctx, cast(ModuleOp, func))
+    # Xuanyu: I set int_to_apint to False, not sure if setting to True was intented
+    LowerToCpp(sio).apply(ctx, cast(ModuleOp, func))
     return sio.getvalue()
 
 
