@@ -31,7 +31,7 @@
     %minus1 = "transfer.get_all_ones"(%arg0) : (!transfer.integer) -> !transfer.integer
     %arg1_neq_minus1 = "transfer.cmp"(%minus1, %arg1) {predicate=1:i64}: (!transfer.integer, !transfer.integer) -> i1
     %not_ub2 = "arith.ori"(%arg0_neq_smin, %arg1_neq_minus1) : (i1, i1) -> i1
-    %not_ub = "arith.andi"(%arg1_neq_0, %ub2) : (i1, i1) -> i1
+    %not_ub = "arith.andi"(%arg1_neq_0, %not_ub2) : (i1, i1) -> i1
     "func.return"(%not_ub) : (i1) -> ()
   }) {function_type = (!transfer.integer, !transfer.integer) -> i1, sym_name = "op_constraint"} : () -> ()
 

@@ -43,11 +43,12 @@
 "func.func"() ({
   ^bb0(%arg0: !transfer.integer, %arg1: !transfer.integer):
     %const0 = "transfer.constant"(%arg1) {value=0:index}:(!transfer.integer)->!transfer.integer
+    %const1 = "transfer.constant"(%arg1) {value=1:index}:(!transfer.integer)->!transfer.integer
     %arg1_neq_0 = "transfer.cmp"(%const0, %arg1) {predicate=1:i64}: (!transfer.integer, !transfer.integer) -> i1
 
-    %quto = "comb.divu"(%arg0, %arg1) : (!transfer.integer, !transfer.integer) -> !transfer.integer
-    %prod = "transfer.mul"(%quto, %arg1) : (!transfer.integer, !transfer.integer) -> !transfer.integer
-    %exact = "transfer.cmp"(%prod, %arg0) {predicate=0:i64}: (!transfer.integer, !transfer.integer) -> i1
+    %safe_arg1 = "transfer.select"(%arg1_neq_0, %arg1, %const1) : (i1, !transfer.integer, !transfer.integer) -> !transfer.integer
+    %rem = "comb.modu"(%arg0, %safe_arg1) : (!transfer.integer, !transfer.integer) -> !transfer.integer
+    %exact = "transfer.cmp"(%rem, %const0) {predicate=0:i64}: (!transfer.integer, !transfer.integer) -> i1
 
     %check = "arith.andi"(%exact, %arg1_neq_0) : (i1, i1) -> i1
     "func.return"(%check) : (i1) -> ()

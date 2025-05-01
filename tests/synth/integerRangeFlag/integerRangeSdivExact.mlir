@@ -33,9 +33,10 @@
     %not_ub2 = "arith.ori"(%arg0_neq_smin, %arg1_neq_minus1) : (i1, i1) -> i1
     %not_ub = "arith.andi"(%arg1_neq_0, %not_ub2) : (i1, i1) -> i1
 
-    %quto = "comb.divs"(%arg0, %arg1) : (!transfer.integer, !transfer.integer) -> !transfer.integer
-    %prod = "transfer.mul"(%quto, %arg1) : (!transfer.integer, !transfer.integer) -> !transfer.integer
-    %exact = "transfer.cmp"(%prod, %arg0) {predicate=0:i64}: (!transfer.integer, !transfer.integer) -> i1
+    %const1 = "transfer.constant"(%arg1) {value=1:index}:(!transfer.integer)->!transfer.integer
+    %safe_arg1 = "transfer.select"(%arg1_neq_0, %arg1, %const1) : (i1, !transfer.integer, !transfer.integer) -> !transfer.integer
+    %rem = "comb.mods"(%arg0, %safe_arg1) : (!transfer.integer, !transfer.integer) -> !transfer.integer
+    %exact = "transfer.cmp"(%rem, %const0) {predicate=0:i64}: (!transfer.integer, !transfer.integer) -> i1
 
     %check = "arith.andi"(%exact, %not_ub) : (i1, i1) -> i1
     "func.return"(%check) : (i1) -> ()
