@@ -56,7 +56,7 @@
     %is_non_neg = "transfer.cmp"(%arg0, %const0) {predicate=5:i64}: (!transfer.integer, !transfer.integer) -> i1
     %shamt_lt_cl0 = "transfer.cmp"(%arg1, %cl0) {predicate=6:i64}: (!transfer.integer, !transfer.integer) -> i1
     %shamt_lt_cl1 = "transfer.cmp"(%arg1, %cl1) {predicate=6:i64}: (!transfer.integer, !transfer.integer) -> i1
-    %nsw = "transfer.select"(%is_non_neg, %shamt_lt_cl0, %shamt_lt_cl1): (i1, !transfer.integer, !transfer.integer) -> !transfer.integer
+    %nsw = "transfer.select"(%is_non_neg, %shamt_lt_cl0, %shamt_lt_cl1): (i1, i1, i1) -> i1
 
     %res = "arith.andi"(%check, %nsw) : (i1, i1) -> i1
     "func.return"(%res) : (i1) -> ()

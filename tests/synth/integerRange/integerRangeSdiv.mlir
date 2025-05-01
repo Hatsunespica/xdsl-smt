@@ -34,7 +34,6 @@
     %not_ub = "arith.andi"(%arg1_neq_0, %ub2) : (i1, i1) -> i1
     "func.return"(%not_ub) : (i1) -> ()
   }) {function_type = (!transfer.integer, !transfer.integer) -> i1, sym_name = "op_constraint"} : () -> ()
- = (!transfer.integer, !transfer.integer) -> i1, sym_name = "op_constraint"} : () -> ()
 
 "func.func"() ({
   ^bb0(%arg0: !transfer.abs_value<[!transfer.integer,!transfer.integer]>):
