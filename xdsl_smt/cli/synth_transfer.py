@@ -222,11 +222,19 @@ def get_concrete_function(
     return result
 
 
+def check_custom_concrete_func(concrete_func: FuncOp):
+    op = concrete_func.body.block.first_op
+    return not any(isinstance(op, ty) for ty in comb_semantics.keys())
+
+
 def print_concrete_function_to_cpp(func: FuncOp) -> str:
     sio = StringIO()
     # [TODO] Xuanyu: Setting int_to_apint to True may cause error if concrete_op is customized.
     # For example, if the concrete_op uses transfer.select, the returned value should be i1 but will be turned into APInt.
-    LowerToCpp(sio, True).apply(ctx, cast(ModuleOp, func))
+    if check_custom_concrete_func(func):
+        LowerToCpp(sio, False).apply(ctx, cast(ModuleOp, func))
+    else:
+        LowerToCpp(sio, True).apply(ctx, cast(ModuleOp, func))
     return sio.getvalue()
 
 

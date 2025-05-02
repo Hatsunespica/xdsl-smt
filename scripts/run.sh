@@ -3,6 +3,8 @@
 inputs_dir="./tests/synth/knownBits/"
 #All outputs will be placed in the outputs_dir folder
 outputs_dir="./outputs/knownBits/"
+#KnownBits or ConstantRange
+abs_domain="KnownBits"
 #Runs in foreground or background
 foreground=0
 
@@ -17,7 +19,7 @@ solution_size=0
 random_seed=2333
 condition_length=10
 num_abd_procs=30
-abs_domain="KnownBits"
+
 
 for entry in "$inputs_dir"/*
 do

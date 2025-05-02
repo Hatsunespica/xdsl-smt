@@ -35,7 +35,7 @@ def plot(file):
     data = filter_file(file)
     data = shrink_data(data, 10, max)
     x = [i for i in range(len(data))]
-    plt.subplot(1, 2, 2)
+    # plt.subplot(1, 2, 2)
     plt.ylabel("Used time(s)")
     plt.xlabel("Steps")
     plt.title("Used time(s)/Steps")
