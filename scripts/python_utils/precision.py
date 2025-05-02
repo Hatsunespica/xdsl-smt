@@ -23,26 +23,27 @@ def filter_file(file):
 
 def plot(file):
     exact_data, dis_data = filter_file(file)
-    print(exact_data)
-    print(dis_data)
     x = list(range(len(exact_data)))
 
-    # Plot with dual y-axis
     fig, ax1 = plt.subplots(figsize=(10, 5))
 
-    # Left y-axis for Exact%
+    # Plot Exact %
     ax1.plot(x, exact_data, color="tab:blue", marker="o", label="Exact %")
     ax1.set_xlabel("Iteration")
     ax1.set_ylabel("Exact %", color="tab:blue")
     ax1.tick_params(axis="y", labelcolor="tab:blue")
+    ax1.set_ylim(0, 100)  # fix range from 0 to 100
 
-    # Right y-axis for Dis
+    # Plot Dis with inverted y-axis and manually aligned
     ax2 = ax1.twinx()
     ax2.plot(x, dis_data, color="tab:red", marker="s", label="Dis")
     ax2.set_ylabel("Dis", color="tab:red")
     ax2.tick_params(axis="y", labelcolor="tab:red")
 
-    # Title and layout
+    dis_max = max(dis_data)
+    ax2.set_ylim(dis_max, 0)  # instead of invert_yaxis, manually set limits
+
     plt.title("Exact % and Dis over Iterations")
     fig.tight_layout()
     plt.grid(True)
+    plt.show()

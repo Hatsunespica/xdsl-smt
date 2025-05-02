@@ -48,7 +48,7 @@ def plot(file, test_name):
     freq = collect_frequency(data)
     print(freq)
     # data=shrink_data(data,100, max)
-    plt.subplot(1, 2, 1)
+    # plt.subplot(1, 2, 1)
 
     bitwidth = list(freq.keys())
     num = list(freq.values())
