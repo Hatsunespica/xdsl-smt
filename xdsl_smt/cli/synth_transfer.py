@@ -226,6 +226,7 @@ def check_custom_concrete_func(concrete_func: FuncOp):
     op = concrete_func.body.block.first_op
     return not any(isinstance(op, ty) for ty in comb_semantics.keys())
 
+
 def print_concrete_function_to_cpp(func: FuncOp) -> str:
     sio = StringIO()
     # [TODO] Xuanyu: Setting int_to_apint to True may cause error if concrete_op is customized.
