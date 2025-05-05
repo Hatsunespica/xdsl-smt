@@ -573,7 +573,7 @@ def synthesize_transfer_function(
 
     # MCMC start
     logger.info(
-        f"Iter {ith_iter}: Start {num_programs} MCMC. Each one is run for {total_rounds} steps..."
+        f"Iter {ith_iter}: Start {num_programs} MCMC to sampling programs of length {program_length}. Each one is run for {total_rounds} steps..."
     )
 
     for rnd in range(total_rounds):
@@ -607,7 +607,7 @@ def synthesize_transfer_function(
                 ):
                     sound_most_improve_tfs[i] = tmp_tuple
                 # Update most_exact_tfs
-                if res.unsolved_exacts > sound_most_improve_tfs[i][1].unsolved_exacts:
+                if res.unsolved_exacts > most_improve_tfs[i][1].unsolved_exacts:
                     most_improve_tfs[i] = tmp_tuple
                 # Update lowest_cost_tfs
                 if proposed_cost < spl.compute_cost(lowest_cost_tfs[i][1]):
@@ -917,20 +917,26 @@ def run(
         f"init_solution\t{init_cmp_res[0].get_sound_prop() * 100:.4f}%\t{init_cmp_res[0].get_exact_prop() * 100:.4f}%"
     )
 
-    # current_prog_len = 10
-    # current_total_rounds = 20
+    current_prog_len = 2
+    current_total_rounds = 0
+    current_num_abd_procs = 0
     for ith_iter in range(num_iters):
         # gradually increase the program length
-        # current_prog_len += (program_length - current_prog_len) // (
-        #     num_iters - ith_iter
-        # )
-        # current_total_rounds += (total_rounds - current_total_rounds) // (
-        #     num_iters - ith_iter
-        # )
+        current_prog_len += (program_length - current_prog_len) // (
+            num_iters - ith_iter
+        )
+        current_total_rounds += (total_rounds - current_total_rounds) // (
+            num_iters - ith_iter
+        )
+        current_num_abd_procs += (num_abd_procs - current_num_abd_procs) // (
+            num_iters - ith_iter
+        )
         print(f"Iteration {ith_iter} starts...")
         if weighted_dsl:
             assert isinstance(solution_set, UnsizedSolutionSet)
-            solution_set.learn_weights(context_weighted)
+            if solution_set.solutions_size > 0:
+                context_weighted.weighted = True
+                solution_set.learn_weights(context_weighted)
         solution_set = synthesize_transfer_function(
             ith_iter,
             transfer_func,
@@ -944,10 +950,10 @@ def run(
             helper_funcs[1:],
             ctx,
             num_programs,
-            program_length,
+            current_prog_len,
             condition_length,
-            num_abd_procs,
-            total_rounds,
+            current_num_abd_procs,
+            current_total_rounds,
             solution_size,
             inv_temp,
             outputs_folder,
