@@ -5,7 +5,7 @@ from xdsl_smt.utils.synthesizer_utils.compare_result import CompareResult
 
 def sound_and_precise_cost(res: CompareResult) -> float:
     a = 1
-    b = 32
+    b = 16
     sound = res.get_sound_prop()
     dis = res.get_unsolved_dist_avg_norm()
     return (a * (1 - sound) + b * dis) / (a + b)
@@ -21,7 +21,7 @@ def precise_cost(res: CompareResult) -> float:
 
 def abduction_cost(res: CompareResult) -> float:
     a = 1
-    b = 4
+    b = 1
     sound = res.get_sound_prop()
     dis = res.get_unsolved_dist_avg_norm()
     return (a * (1 - sound) + b * dis) / (a + b)
