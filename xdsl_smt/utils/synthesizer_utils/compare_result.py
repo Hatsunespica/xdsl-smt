@@ -17,10 +17,10 @@ class PerBitEvalResult:
     """The number of inputs on which (f MEET F) gets exact"""
 
     dist: int
-    """The sum of edit distance between the outputs of (f MEET F) and the f_best """
+    """ dist(f,g) := \sum{a} d(f(a) /\ g(a), best(a)) """
 
     base_dist: int
-    """The sum of edit distance between the outputs of F and the f_best"""
+    """ base_dis(f,g) :=  \sum{a} d(g(a), best(a)) """
 
     unsolved_cases: int
     """The number of unsolved inputs (F do not get exact)"""
@@ -32,7 +32,10 @@ class PerBitEvalResult:
     """The number of unsolved inputs on which (f MEET F) gets exact"""
 
     unsolved_dist: int
-    """The sum of edit distance between the outputs of (f MEET F) and the f_best on unsolved inputs"""
+    """ unsolved_dis(f,g) := \sum{a, g(a) is not exact} d(f(a) /\ g(a), best(a)) """
+
+    sound_dist: int
+    """ sound_dis(f,g) := \sum{a, f(a) is sound} d(f(a) /\ g(a), best(a)) + \sum{a, f(a) is unsound} d(g(a), best(a))"""
 
     greedy_by_dist = True  # default
     """If True, the improvement is calculated by the decrease of distance. Otherwise, it is calculated by the number of new exacts"""
@@ -48,6 +51,7 @@ class PerBitEvalResult:
         unsolved_exacts: int,
         unsolved_edit_dis: int,
         base_edit_dis: int,
+        sound_dist: int,
         bitwidth: int,
     ):
         self.all_cases = all_cases
@@ -59,6 +63,7 @@ class PerBitEvalResult:
         self.unsolved_exacts = unsolved_exacts
         self.unsolved_dist = unsolved_edit_dis
         self.base_dist = base_edit_dis
+        self.sound_dist = sound_dist
         self.bitwidth = bitwidth
 
     def __str__(self):
