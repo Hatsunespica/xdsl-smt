@@ -91,6 +91,7 @@ def eval_transfer_func(
                     unsolved_exact[i],
                     unsolved_precs[i],
                     base_precs[i],
+                    0,
                     bitwidth,
                 )
             }
