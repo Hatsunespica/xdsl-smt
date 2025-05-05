@@ -117,12 +117,12 @@ public:
 
     for (Domain lhs : fullLattice) {
       for (Domain rhs : fullLattice) {
-
-        // If we have an abs_op_constraint and it returns false, we skip this pair
-        if (absOpCon && !absOpCon.value()(lhs, rhs)){
+        // If the abs_op_constraint returns false, skip this pair
+        if (absOpCon && !absOpCon.value()(lhs, rhs))
           continue;
-        }
+
         Domain best_abstract_res = toBestAbst(lhs, rhs);
+
         // we skip a (lhs, rhs) if there are no concrete values that satisfy
         // op_constraint
         if (best_abstract_res.isBottom())

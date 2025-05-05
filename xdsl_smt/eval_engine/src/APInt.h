@@ -749,7 +749,9 @@ public:
   void insertBits(const APInt &SubBits, unsigned bitPosition);
   void insertBits(unsigned long SubBits, unsigned bitPosition,
                   unsigned numBits);
-  APInt extractBits(unsigned numBits, unsigned bitPosition) const;
+  APInt extractBits(unsigned numBits, unsigned bitPosition) const {
+    return APInt(numBits, VAL >> bitPosition);
+  }
   unsigned long extractBitsAsZExtValue(unsigned numBits,
                                        unsigned bitPosition) const;
   unsigned getBitWidth() const { return BitWidth; }
@@ -1018,6 +1020,20 @@ inline APInt avgCeilS(const APInt &C1, const APInt &C2) {
 inline APInt avgCeilU(const APInt &C1, const APInt &C2) {
   // Return ceil((C1 + C2) / 2)
   return (C1 | C2) - (C1 ^ C2).lshr(1);
+}
+
+inline APInt mulhs(const APInt &C1, const APInt &C2) {
+  unsigned FullWidth = C1.getBitWidth() * 2;
+  APInt C1Ext = C1.sext(FullWidth);
+  APInt C2Ext = C2.sext(FullWidth);
+  return (C1Ext * C2Ext).extractBits(C1.getBitWidth(), C1.getBitWidth());
+}
+
+inline APInt mulhu(const APInt &C1, const APInt &C2) {
+  unsigned FullWidth = C1.getBitWidth() * 2;
+  APInt C1Ext = C1.zext(FullWidth);
+  APInt C2Ext = C2.zext(FullWidth);
+  return (C1Ext * C2Ext).extractBits(C1.getBitWidth(), C1.getBitWidth());
 }
 
 } // namespace APIntOps
