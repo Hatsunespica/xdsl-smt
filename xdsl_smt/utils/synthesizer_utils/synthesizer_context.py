@@ -15,10 +15,10 @@ from xdsl_smt.dialects.transfer import (
     CountRZeroOp,
     # GetBitWidthOp,
     # UMulOverflowOp,
-    # SMinOp,
-    # SMaxOp,
-    # UMinOp,
-    # UMaxOp,
+    SMinOp,
+    SMaxOp,
+    UMinOp,
+    UMaxOp,
     ShlOp,
     LShrOp,
     SelectOp,
@@ -34,6 +34,11 @@ from xdsl_smt.dialects.transfer import (
 from typing import TypeVar, Generic, Callable
 from xdsl.ir import Operation, SSAValue
 import xdsl.dialects.arith as arith
+
+from xdsl_smt.utils.synthesizer_utils.prior import (
+    i1_prior_uniform,
+    int_prior_uniform_stronger,
+)
 from xdsl_smt.utils.synthesizer_utils.random import Random
 
 T = TypeVar("T")
@@ -118,6 +123,8 @@ full_int_ops: list[type[Operation]] = [
     SelectOp,
     LShrOp,
     ShlOp,
+    UMinOp,
+    UMaxOp,
     MulOp,
     CountLOneOp,
     CountLZeroOp,
@@ -206,6 +213,8 @@ optimize_operands_selection: dict[type[Operation], Callable[[SSAValue], bool]] =
     CountROneOp: is_zero_or_one_or_allones,
     ShlOp: is_zero_or_allones,
     LShrOp: is_zero_or_allones,
+    UMaxOp: is_zero_or_allones,
+    UMinOp: is_zero_or_allones,
     # arith operations
     arith.AndIOp: is_constant_bool,
     arith.OrIOp: is_constant_bool,
@@ -237,6 +246,8 @@ idempotent_operations: set[type[Operation]] = {
     OrOp,
     XorOp,
     CmpOp,
+    UMaxOp,
+    UMinOp,
     # Special case for true and false branch
     SelectOp,
     # arith operations
@@ -261,6 +272,7 @@ class SynthesizerContext:
     def __init__(
         self,
         random: Random,
+        weighted: bool = False,
     ):
         self.random = random
         self.cmp_flags = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
@@ -268,7 +280,7 @@ class SynthesizerContext:
         self.int_ops = Collection(basic_int_ops, self.random)
         self.i1_weights = {key: 1 for key in basic_i1_ops}
         self.int_weights = {key: 1 for key in basic_int_ops}
-        self.weighted = True
+        self.weighted = weighted
 
     def use_basic_int_ops(self):
         self.int_ops = Collection(basic_int_ops, self.random)
@@ -293,16 +305,21 @@ class SynthesizerContext:
         return self.int_ops.get_all_elements()
 
     def update_i1_weights(self, frequency: dict[type[Operation], int]):
-        self.i1_weights = {key: 1 for key in self.i1_ops.get_all_elements()}
+        self.i1_weights = {
+            key: i1_prior_uniform[key] for key in self.i1_ops.get_all_elements()
+        }
         for key in frequency:
             assert key in self.i1_weights
-            self.i1_weights[key] = frequency[key] + 1
+            self.i1_weights[key] += frequency[key]
 
     def update_int_weights(self, frequency: dict[type[Operation], int]):
-        self.int_weights = {key: 1 for key in self.int_ops.get_all_elements()}
+        self.int_weights = {
+            key: int_prior_uniform_stronger[key]
+            for key in self.int_ops.get_all_elements()
+        }
         for key in frequency:
             assert key in self.int_weights
-            self.int_weights[key] = frequency[key] + 1
+            self.int_weights[key] += frequency[key]
 
     def set_cmp_flags(self, cmp_flags: list[int]):
         assert len(cmp_flags) != 0
@@ -465,29 +482,29 @@ class SynthesizerContext:
         assert result_type is not None
         return self.build_int_op(result_type, int_vals, i1_vals)
 
-    def get_random_i1_op_except(
-        self,
-        int_vals: list[SSAValue],
-        i1_vals: list[SSAValue],
-        except_op: Operation,
-    ) -> Operation | None:
-        result_type = self.i1_ops.get_random_element_if(
-            lambda op_ty=type[Operation]: op_ty != type(except_op)
-        )
-        assert result_type is not None
-        return self.build_i1_op(result_type, int_vals, i1_vals)
-
-    def get_random_int_op_except(
-        self,
-        int_vals: list[SSAValue],
-        i1_vals: list[SSAValue],
-        except_op: Operation,
-    ) -> Operation | None:
-        result_type = self.int_ops.get_random_element_if(
-            lambda op_ty=type[Operation]: op_ty != type(except_op)
-        )
-        assert result_type is not None
-        return self.build_int_op(result_type, int_vals, i1_vals)
+    # def get_random_i1_op_except(
+    #     self,
+    #     int_vals: list[SSAValue],
+    #     i1_vals: list[SSAValue],
+    #     except_op: Operation,
+    # ) -> Operation | None:
+    #     result_type = self.i1_ops.get_random_element_if(
+    #         lambda op_ty=type[Operation]: op_ty != type(except_op)
+    #     )
+    #     assert result_type is not None
+    #     return self.build_i1_op(result_type, int_vals, i1_vals)
+    #
+    # def get_random_int_op_except(
+    #     self,
+    #     int_vals: list[SSAValue],
+    #     i1_vals: list[SSAValue],
+    #     except_op: Operation,
+    # ) -> Operation | None:
+    #     result_type = self.int_ops.get_random_element_if(
+    #         lambda op_ty=type[Operation]: op_ty != type(except_op)
+    #     )
+    #     assert result_type is not None
+    #     return self.build_int_op(result_type, int_vals, i1_vals)
 
     def replace_operand(
         self, op: Operation, int_vals: list[SSAValue], i1_vals: list[SSAValue]
