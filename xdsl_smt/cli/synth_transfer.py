@@ -13,7 +13,7 @@ from io import StringIO
 from xdsl.utils.hints import isa
 
 from xdsl_smt.passes.transfer_inline import FunctionCallInline
-from xdsl_smt.utils.synthesizer_utils.compare_result import CompareResult
+from xdsl_smt.utils.synthesizer_utils.compare_result import EvalResult
 from ..dialects.smt_dialect import SMTDialect
 from ..dialects.smt_bitvector_dialect import SMTBitVectorDialect
 from xdsl_smt.dialects.transfer import TransIntegerType
@@ -337,7 +337,7 @@ def eval_transfer_func_helper(
     domain: eval_engine.AbstractDomain,
     bitwidth: int,
     helper_funcs: list[str],
-) -> list[CompareResult]:
+) -> list[EvalResult]:
     """
     This function is a helper of eval_transfer_func that prints the mlir func as cpp code
     When transfer is [], this function fill it into [top]
@@ -383,7 +383,7 @@ def solution_set_eval_func(
         list[FunctionWithCondition],
         list[FunctionWithCondition],
     ],
-    list[CompareResult],
+    list[EvalResult],
 ]:
     """
     This function returns a simplified eval_func receiving transfer functions and base functions
@@ -398,7 +398,7 @@ def main_eval_func(
     domain: eval_engine.AbstractDomain,
     bitwidth: int,
     helper_funcs: list[str],
-) -> Callable[[list[FunctionWithCondition]], list[CompareResult]]:
+) -> Callable[[list[FunctionWithCondition]], list[EvalResult]]:
     """
     This function returns a simplified eval_func only receiving transfer names and sources
     """
@@ -561,9 +561,9 @@ def synthesize_transfer_function(
     cost_data = [[spl.compute_current_cost()] for spl in mcmc_samplers]
 
     # These 3 lists store "good" transformers during the search
-    sound_most_improve_tfs: list[tuple[FuncOp, CompareResult, int]] = []
-    most_improve_tfs: list[tuple[FuncOp, CompareResult, int]] = []
-    lowest_cost_tfs: list[tuple[FuncOp, CompareResult, int]] = []
+    sound_most_improve_tfs: list[tuple[FuncOp, EvalResult, int]] = []
+    most_improve_tfs: list[tuple[FuncOp, EvalResult, int]] = []
+    lowest_cost_tfs: list[tuple[FuncOp, EvalResult, int]] = []
     for i, spl in enumerate(mcmc_samplers):
         init_tf = spl.current.func.clone()
         init_tf.attributes["number"] = StringAttr(f"{ith_iter}_{0}_{i}")
@@ -607,7 +607,10 @@ def synthesize_transfer_function(
                 ):
                     sound_most_improve_tfs[i] = tmp_tuple
                 # Update most_exact_tfs
-                if res.unsolved_exacts > sound_most_improve_tfs[i][1].unsolved_exacts:
+                if (
+                    res.get_unsolved_exacts()
+                    > most_improve_tfs[i][1].get_unsolved_exacts()
+                ):
                     most_improve_tfs[i] = tmp_tuple
                 # Update lowest_cost_tfs
                 if proposed_cost < spl.compute_cost(lowest_cost_tfs[i][1]):
@@ -657,7 +660,7 @@ def synthesize_transfer_function(
                 )
             if (
                 not most_improve_tfs[i][1].is_sound()
-                and most_improve_tfs[i][1].unsolved_exacts > 0
+                and most_improve_tfs[i][1].get_unsolved_exacts() > 0
             ):
                 candidates_p.append(most_improve_tfs[i][0])
         for i in c_range:
@@ -693,7 +696,7 @@ def synthesize_transfer_function(
 
     final_cmp_res = solution_set.eval_improve([])
     logger.info(
-        f"Iter {ith_iter} Finished. Exact: {final_cmp_res[0].get_exact_prop() * 100:.4f}%   Dis:{final_cmp_res[0].base_dist}"
+        f"Iter {ith_iter} Finished. Exact: {final_cmp_res[0].get_exact_prop() * 100:.4f}%   Dis:{final_cmp_res[0].get_base_dist()}"
     )
     return new_solution_set
 
@@ -723,7 +726,7 @@ def run(
     transfer_functions: str | None = None,
     weighted_dsl: bool = False,
     outputs_folder: str = OUTPUTS_FOLDER,
-) -> CompareResult:
+) -> EvalResult:
     global ctx
     ctx = MLContext()
     ctx.load_dialect(Arith)
@@ -753,12 +756,11 @@ def run(
         random.read_from_file(random_number_file)
 
     if domain == eval_engine.AbstractDomain.KnownBits:
-        max_dis = bitwidth * 2
+        EvalResult.get_max_dis = lambda x: x * 2
     elif domain == eval_engine.AbstractDomain.ConstantRange:
-        max_dis = (2**bitwidth - 1) * 2
+        EvalResult.get_max_dis = lambda x: (2**x - 1) * 2
     else:
         raise Exception("Unknown Maximum Distance of the domain")
-    CompareResult.set_max_dis(max_dis)
 
     context = SynthesizerContext(random)
     context.set_cmp_flags([0, 6, 7])
@@ -911,7 +913,7 @@ def run(
 
     init_cmp_res = solution_set.eval_improve([])
     logger.info(
-        f"Initial Solution. Exact: {init_cmp_res[0].get_exact_prop() * 100:.4f}%   Dis:{init_cmp_res[0].base_dist}"
+        f"Initial Solution. Exact: {init_cmp_res[0].get_exact_prop() * 100:.4f}%   Dis:{init_cmp_res[0].get_base_dist()}"
     )
     print(
         f"init_solution\t{init_cmp_res[0].get_sound_prop() * 100:.4f}%\t{init_cmp_res[0].get_exact_prop() * 100:.4f}%"
@@ -965,7 +967,7 @@ def run(
         raise Exception("Found no solutions")
     solution_module, solution_str = solution_set.generate_solution_and_cpp()
     save_solution(solution_module, solution_str, outputs_folder)
-    cmp_results: list[CompareResult] = eval_engine.eval_transfer_func(
+    cmp_results: list[EvalResult] = eval_engine.eval_transfer_func(
         ["solution"],
         [solution_str],
         [],

@@ -3,7 +3,7 @@ from typing import List
 
 from xdsl.dialects.func import FuncOp
 
-from xdsl_smt.utils.synthesizer_utils.compare_result import CompareResult
+from xdsl_smt.utils.synthesizer_utils.compare_result import EvalResult
 
 
 def setup_loggers(output_dir: str, verbose: int):
@@ -41,7 +41,7 @@ def setup_loggers(output_dir: str, verbose: int):
 
 
 def print_func_to_file(
-    res: CompareResult, func: FuncOp, c: int, rd: int, i: int, path: str
+    res: EvalResult, func: FuncOp, c: int, rd: int, i: int, path: str
 ):
     with open(f"{path}/tf{c}_{rd}_{i}.mlir", "w") as file:
         file.write(

@@ -2,7 +2,7 @@ from os import path
 from subprocess import run, PIPE
 from enum import Enum, auto
 
-from xdsl_smt.utils.synthesizer_utils.compare_result import CompareResult
+from xdsl_smt.utils.synthesizer_utils.compare_result import EvalResult, PerBitEvalResult
 
 
 class AbstractDomain(Enum):
@@ -22,7 +22,7 @@ def eval_transfer_func(
     helper_srcs: list[str],
     domain: AbstractDomain,
     bitwidth: int,
-) -> list[CompareResult]:
+) -> list[EvalResult]:
     base_dir = path.join("xdsl_smt", "eval_engine")
     engine_path = path.join(base_dir, "build", "eval_engine")
     if not path.exists(engine_path):
@@ -78,18 +78,22 @@ def eval_transfer_func(
         == len(base_precs)
     ), f"EvalEngine output mismatch: {eval_output}"
 
-    cmp_results: list[CompareResult] = [
-        CompareResult(
-            num_cases[i],
-            sounds[i],
-            exact[i],
-            precs[i],
-            unsolved_num_cases[i],
-            unsolved_sounds[i],
-            unsolved_exact[i],
-            unsolved_precs[i],
-            base_precs[i],
-            bitwidth,
+    cmp_results: list[EvalResult] = [
+        EvalResult(
+            {
+                bitwidth: PerBitEvalResult(
+                    num_cases[i],
+                    sounds[i],
+                    exact[i],
+                    precs[i],
+                    unsolved_num_cases[i],
+                    unsolved_sounds[i],
+                    unsolved_exact[i],
+                    unsolved_precs[i],
+                    base_precs[i],
+                    bitwidth,
+                )
+            }
         )
         for i in range(len(sounds))
     ]
