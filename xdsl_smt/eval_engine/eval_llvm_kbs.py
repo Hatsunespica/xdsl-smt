@@ -1,5 +1,6 @@
 from os import path
 from subprocess import run, PIPE
+
 # from xdsl_smt.utils.synthesizer_utils.compare_result import CompareResult
 
 bitwidth = 4
