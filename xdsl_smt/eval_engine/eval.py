@@ -54,51 +54,56 @@ def eval_transfer_func(
     def get_floats(s: str) -> list[int]:
         return eval(s)
 
-    eval_output_lines = eval_output.stdout.split("\n")
-    sounds = get_floats(eval_output_lines[1])
-    precs = get_floats(eval_output_lines[3])
-    exact = get_floats(eval_output_lines[5])
-    num_cases = get_floats(eval_output_lines[7])
-    unsolved_sounds = get_floats(eval_output_lines[9])
-    unsolved_precs = get_floats(eval_output_lines[11])
-    unsolved_exact = get_floats(eval_output_lines[13])
-    unsolved_num_cases = get_floats(eval_output_lines[15])
-    base_precs = get_floats(eval_output_lines[17])
-    sound_distance = get_floats(eval_output_lines[19])
+    def get_per_bit(x: list[str]) -> tuple[int, list[PerBitEvalResult]]:
+        bw = int(x[0][4:])
+        sounds = get_floats(x[2])
+        precs = get_floats(x[4])
+        exact = get_floats(x[6])
+        num_cases = get_floats(x[8])
+        unsolved_sounds = get_floats(x[10])
+        unsolved_precs = get_floats(x[12])
+        unsolved_exact = get_floats(x[14])
+        unsolved_num_cases = get_floats(x[16])
+        base_precs = get_floats(x[18])
+        sound_distance = get_floats(x[20])
 
-    assert len(sounds) > 0, f"No output from EvalEngine: {eval_output}"
-    assert (
-        len(sounds)
-        == len(precs)
-        == len(exact)
-        == len(num_cases)
-        == len(unsolved_sounds)
-        == len(unsolved_precs)
-        == len(unsolved_exact)
-        == len(unsolved_num_cases)
-        == len(base_precs)
-        == len(sound_distance)
-    ), f"EvalEngine output mismatch: {eval_output}"
+        assert len(sounds) > 0, f"No output from EvalEngine: {eval_output}"
+        assert (
+            len(sounds)
+            == len(precs)
+            == len(exact)
+            == len(num_cases)
+            == len(unsolved_sounds)
+            == len(unsolved_precs)
+            == len(unsolved_exact)
+            == len(unsolved_num_cases)
+            == len(base_precs)
+            == len(sound_distance)
+        ), f"EvalEngine output mismatch: {eval_output}"
 
-    cmp_results: list[EvalResult] = [
-        EvalResult(
-            {
-                bitwidth: PerBitEvalResult(
-                    num_cases[i],
-                    sounds[i],
-                    exact[i],
-                    precs[i],
-                    unsolved_num_cases[i],
-                    unsolved_sounds[i],
-                    unsolved_exact[i],
-                    unsolved_precs[i],
-                    base_precs[i],
-                    sound_distance[i],
-                    bitwidth,
-                )
-            }
-        )
-        for i in range(len(sounds))
-    ]
+        return bw, [
+            PerBitEvalResult(
+                num_cases[i],
+                sounds[i],
+                exact[i],
+                precs[i],
+                unsolved_num_cases[i],
+                unsolved_sounds[i],
+                unsolved_exact[i],
+                unsolved_precs[i],
+                base_precs[i],
+                sound_distance[i],
+                bw,
+            )
+            for i in range(len(sounds))
+        ]
 
-    return cmp_results
+    bw_evals = eval_output.stdout.split("---\n")
+    per_bits = [get_per_bit(x.split("\n")) for x in bw_evals if x != ""]
+
+    ds: list[dict[int, PerBitEvalResult]] = [{} for _ in range(len(per_bits[0][1]))]
+    for bw, es in per_bits:
+        for i, e in enumerate(es):
+            ds[i][bw] = e
+
+    return [EvalResult(x) for x in ds]

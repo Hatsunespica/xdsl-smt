@@ -17,10 +17,10 @@ class PerBitEvalResult:
     """The number of inputs on which (f MEET F) gets exact"""
 
     dist: int
-    """ dist(f,g) := \sum{a} d(f(a) /\ g(a), best(a)) """
+    r"""dist(f,g) := \sum{a} d(f(a) /\ g(a), best(a))"""
 
     base_dist: int
-    """ base_dis(f,g) :=  \sum{a} d(g(a), best(a)) """
+    r"""base_dis(f,g) := \sum{a} d(g(a), best(a))"""
 
     unsolved_cases: int
     """The number of unsolved inputs (F do not get exact)"""
@@ -32,10 +32,10 @@ class PerBitEvalResult:
     """The number of unsolved inputs on which (f MEET F) gets exact"""
 
     unsolved_dist: int
-    """ unsolved_dis(f,g) := \sum{a, g(a) is not exact} d(f(a) /\ g(a), best(a)) """
+    r"""unsolved_dis(f,g) := \sum{a, g(a) is not exact} d(f(a) /\ g(a), best(a))"""
 
     sound_dist: int
-    """ sound_dis(f,g) := \sum{a, f(a) is sound} d(f(a) /\ g(a), best(a)) + \sum{a, f(a) is unsound} d(g(a), best(a))"""
+    r"""sound_dis(f,g) := \sum{a, f(a) is sound} d(f(a) /\ g(a), best(a)) + \sum{a, f(a) is unsound} d(g(a), best(a))"""
 
     greedy_by_dist = True  # default
     """If True, the improvement is calculated by the decrease of distance. Otherwise, it is calculated by the number of new exacts"""
@@ -103,7 +103,7 @@ class PerBitEvalResult:
 class EvalResult:
     per_bit: dict[int, PerBitEvalResult]
     max_bit: int
-    get_max_dis: Callable[[int], int] = lambda x: 0
+    get_max_dis: Callable[[int], int] = lambda _: 0
 
     def __init__(self, per_bit: dict[int, PerBitEvalResult]):
         self.per_bit = per_bit
