@@ -573,7 +573,7 @@ def synthesize_transfer_function(
 
     # MCMC start
     logger.info(
-        f"Iter {ith_iter}: Start {num_programs} MCMC to sampling programs of length {program_length}. Each one is run for {total_rounds} steps..."
+        f"Iter {ith_iter}: Start {num_programs - len(c_range)} MCMC to sampling programs of length {program_length}. Start {len(c_range)} MCMC to sample abductions. Each one is run for {total_rounds} steps..."
     )
 
     for rnd in range(total_rounds):
@@ -934,9 +934,9 @@ def run(
         print(f"Iteration {ith_iter} starts...")
         if weighted_dsl:
             assert isinstance(solution_set, UnsizedSolutionSet)
-            if solution_set.solutions_size > 0:
-                context_weighted.weighted = True
-                solution_set.learn_weights(context_weighted)
+            # if solution_set.solutions_size > 0:
+            context_weighted.weighted = True
+            solution_set.learn_weights(context_weighted)
         solution_set = synthesize_transfer_function(
             ith_iter,
             transfer_func,
