@@ -8,7 +8,7 @@ from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.func import FuncOp, CallOp, ReturnOp
 from xdsl.ir import Operation
 
-from xdsl_smt.utils.synthesizer_utils.compare_result import CompareResult
+from xdsl_smt.utils.synthesizer_utils.compare_result import EvalResult
 from abc import ABC, abstractmethod
 import logging
 from xdsl_smt.utils.synthesizer_utils.verifier_utils import verify_transfer_function
@@ -62,7 +62,7 @@ class SolutionSet(ABC):
     list of base functions
     """
     eval_func: Callable[
-        [list[FunctionWithCondition], list[FunctionWithCondition]], list[CompareResult]
+        [list[FunctionWithCondition], list[FunctionWithCondition]], list[EvalResult]
     ]
     logger: logging.Logger
 
@@ -76,7 +76,7 @@ class SolutionSet(ABC):
                 list[FunctionWithCondition],
                 list[FunctionWithCondition],
             ],
-            list[CompareResult],
+            list[EvalResult],
         ],
         logger: logging.Logger,
         is_perfect: bool = False,
@@ -91,9 +91,7 @@ class SolutionSet(ABC):
         self.precise_set = []
         self.is_perfect = is_perfect
 
-    def eval_improve(
-        self, transfers: list[FunctionWithCondition]
-    ) -> list[CompareResult]:
+    def eval_improve(self, transfers: list[FunctionWithCondition]) -> list[EvalResult]:
         return self.eval_func(transfers, self.solutions)
 
     @abstractmethod
@@ -211,7 +209,7 @@ class SizedSolutionSet(SolutionSet):
                 list[FunctionWithCondition],
                 list[FunctionWithCondition],
             ],
-            list[CompareResult],
+            list[EvalResult],
         ],
         logger: logging.Logger,
         is_perfect: bool = False,
@@ -249,14 +247,14 @@ class SizedSolutionSet(SolutionSet):
         ref_funcs: list[FunctionWithCondition] = []
 
         # First select a function with maximal precise
-        result: list[CompareResult] = self.eval_func(candidates, ref_funcs)
+        result: list[EvalResult] = self.eval_func(candidates, ref_funcs)
         index = 0
         num_exacts = 0
         # cost = 2
         for i in range(len(result)):
-            if result[i].exacts > num_exacts:
+            if result[i].get_exacts() > num_exacts:
                 index = i
-                num_exacts = result[i].exacts
+                num_exacts = result[i].get_exacts()
             # temporarily comment this out since (1) now the cost depends on both synthcontext and cmpresult (2) I think #exacts is enough to rank tfs
             #     cost = result[i].get_cost()
             # elif result[i].exacts == num_exacts and result[i].get_cost() > cost:
@@ -271,14 +269,14 @@ class SizedSolutionSet(SolutionSet):
             index = 0
             num_exacts = 0
             # cost = 2
-            result: list[CompareResult] = self.eval_func(candidates, ref_funcs)
+            result: list[EvalResult] = self.eval_func(candidates, ref_funcs)
             for ith_result in range(len(result)):
-                if result[ith_result].unsolved_cases == 0:
+                if result[ith_result].get_unsolved_cases() == 0:
                     is_perfect = True
                     break
-                if result[ith_result].unsolved_exacts > num_exacts:
+                if result[ith_result].get_unsolved_exacts() > num_exacts:
                     index = ith_result
-                    num_exacts = result[ith_result].unsolved_exacts
+                    num_exacts = result[ith_result].get_unsolved_exacts()
             # Xuanyu: temporarily comment this out since (1) now the cost depends on both mcmc_sampler and cmp_result (2) I think #exacts is enough to rank tfs
             #     cost = result[ith_result].get_cost()
             # elif (
@@ -310,7 +308,7 @@ class UnsizedSolutionSet(SolutionSet):
                 list[FunctionWithCondition],
                 list[FunctionWithCondition],
             ],
-            list[CompareResult],
+            list[EvalResult],
         ],
         logger: logging.Logger,
         eliminate_dead_code: Callable[[FuncOp], FuncOp],
@@ -367,9 +365,6 @@ class UnsizedSolutionSet(SolutionSet):
             cand, max_improve_res = max(
                 zip(candidates, result), key=lambda x: x[1].get_improve()
             )
-            if max_improve_res.unsolved_cases == 0:
-                self.is_perfect = True
-                break
             if max_improve_res.get_improve() == 0:
                 break
 
@@ -402,7 +397,7 @@ class UnsizedSolutionSet(SolutionSet):
                     log_str = "Add a existing transformer (cond)"
                     num_cond_solutions += 1
             self.logger.info(
-                f"{log_str}, body: {body_number}, cond: {cond_number}. After adding, Exact: {max_improve_res.get_exact_prop() * 100:.2f}%, Dis: {max_improve_res.dist}"
+                f"{log_str}, body: {body_number}, cond: {cond_number}. After adding, Exact: {max_improve_res.get_exact_prop() * 100:.2f}%, Dis: {max_improve_res.get_dist()}"
             )
             candidates.remove(cand)
             self.solutions.append(cand)
@@ -412,7 +407,10 @@ class UnsizedSolutionSet(SolutionSet):
         )
         self.logger.info(f"The number of conditional solutions: {num_cond_solutions}")
         self.solutions_size = len(self.solutions)
-        if self.is_perfect:
+
+        final_result = self.eval_improve([])[0]
+        if final_result.get_unsolved_cases() == 0:
+            self.is_perfect = True
             return self
 
         precise_candidates = self.precise_set + new_candidates_p
@@ -425,7 +423,7 @@ class UnsizedSolutionSet(SolutionSet):
         sorted_pairs = sorted(
             zip(precise_candidates, result),
             reverse=True,
-            key=lambda x: x[1].unsolved_exacts,
+            key=lambda x: x[1].get_unsolved_exacts(),
         )
         K = 15
         top_k = sorted_pairs[:K]
@@ -456,13 +454,13 @@ class UnsizedSolutionSet(SolutionSet):
 
         self.logger.info(f"Improvement by each individual function")
         for i in range(len(self.solutions)):
-            cmp_results: list[CompareResult] = self.eval_func(
+            cmp_results: list[EvalResult] = self.eval_func(
                 [self.solutions[i]],
                 self.solutions[:i] + self.solutions[i + 1 :],
             )
             res = cmp_results[0]
             self.logger.info(
-                f"\tfunc {i}: #exact {res.exacts - res.unsolved_exacts} -> {res.exacts}, new exact%: {res.get_new_exact_prop()}, prec: {res.base_dist} -> {res.dist}, prec improve%: {res.get_improve()}, cond?: {self.solutions[i].cond is not None}"
+                f"\tfunc {i}: #exact {res.get_exacts() - res.get_unsolved_exacts()} -> {res.get_exacts()}, new exact%: {res.get_new_exact_prop()}, prec: {res.get_base_dist()} -> {res.get_dist()}, prec improve%: {res.get_improve()}, cond?: {self.solutions[i].cond is not None}"
             )
             if res.get_new_exact_prop() > 0.005:
                 d_int, d_i1 = SynthesizerContext.count_op_frequency(

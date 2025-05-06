@@ -7,7 +7,7 @@ from xdsl.dialects.builtin import i1, IntegerAttr, FunctionType
 from xdsl.parser import Parser
 
 from xdsl.utils.exceptions import VerifyException
-from xdsl_smt.utils.synthesizer_utils.compare_result import CompareResult
+from xdsl_smt.utils.synthesizer_utils.compare_result import EvalResult
 from xdsl_smt.utils.synthesizer_utils.mutation_program import MutationProgram
 from xdsl_smt.utils.synthesizer_utils.synthesizer_context import SynthesizerContext
 from xdsl_smt.utils.synthesizer_utils.random import Random
@@ -47,21 +47,20 @@ def parse_file(ctx: MLContext, file: str | None) -> Operation:
 class MCMCSampler:
     last_make_op: MakeOp
     current: MutationProgram
-    current_cmp: CompareResult
+    current_cmp: EvalResult
     context: SynthesizerContext
     random: Random
-    compute_cost: Callable[[CompareResult], float]
+    compute_cost: Callable[[EvalResult], float]
     is_cond: bool
 
     def __init__(
         self,
         func: FuncOp,
         context: SynthesizerContext,
-        compute_cost: Callable[[CompareResult], float],
+        compute_cost: Callable[[EvalResult], float],
         length: int,
         random_init_program: bool = True,
         is_cond: bool = False,
-        init_cmp_res: CompareResult = CompareResult(0, 0, 0, 0, 0, 0, 0, 0, 0, 4),
     ):
         self.is_cond = is_cond
         if is_cond:
@@ -72,7 +71,6 @@ class MCMCSampler:
             func = FuncOp("cond", cond_type)
 
         self.current = self.construct_init_program(func, length)
-        self.current_cmp = init_cmp_res
         self.context = context
         self.compute_cost = compute_cost
         self.random = context.get_random_class()
@@ -85,7 +83,7 @@ class MCMCSampler:
     def get_current(self):
         return self.current.func
 
-    def accept_proposed(self, proposed_cmp: CompareResult):
+    def accept_proposed(self, proposed_cmp: EvalResult):
         self.current.remove_history()
         self.current_cmp = proposed_cmp
 

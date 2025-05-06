@@ -1,9 +1,9 @@
 import math
 
-from xdsl_smt.utils.synthesizer_utils.compare_result import CompareResult
+from xdsl_smt.utils.synthesizer_utils.compare_result import EvalResult
 
 
-def sound_and_precise_cost(res: CompareResult) -> float:
+def sound_and_precise_cost(res: EvalResult) -> float:
     a = 1
     b = 32
     sound = res.get_sound_prop()
@@ -11,7 +11,7 @@ def sound_and_precise_cost(res: CompareResult) -> float:
     return (a * (1 - sound) + b * dis) / (a + b)
 
 
-def precise_cost(res: CompareResult) -> float:
+def precise_cost(res: EvalResult) -> float:
     a = 0
     b = 1
     sound = res.get_sound_prop()
@@ -19,7 +19,7 @@ def precise_cost(res: CompareResult) -> float:
     return (a * (1 - sound) + b * dis) / (a + b)
 
 
-def abduction_cost(res: CompareResult) -> float:
+def abduction_cost(res: EvalResult) -> float:
     a = 1
     b = 4
     sound = res.get_sound_prop()
