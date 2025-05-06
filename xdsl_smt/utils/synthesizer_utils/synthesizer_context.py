@@ -38,6 +38,8 @@ import xdsl.dialects.arith as arith
 from xdsl_smt.utils.synthesizer_utils.prior import (
     i1_prior_uniform,
     int_prior_uniform_stronger,
+    int_prior_uniform,
+    int_prior_bias,
 )
 from xdsl_smt.utils.synthesizer_utils.random import Random
 
@@ -314,7 +316,7 @@ class SynthesizerContext:
 
     def update_int_weights(self, frequency: dict[type[Operation], int]):
         self.int_weights = {
-            key: int_prior_uniform_stronger[key]
+            key: int_prior_bias[key]
             for key in self.int_ops.get_all_elements()
         }
         for key in frequency:

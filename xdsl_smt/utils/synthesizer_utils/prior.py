@@ -82,17 +82,17 @@ int_prior_uniform_stronger: dict[type[Operation], int] = {
 }
 
 int_prior_bias: dict[type[Operation], int] = {
-    NegOp: 5,
+    NegOp: 10,
     AndOp: 10,
     OrOp: 10,
     XorOp: 10,
     AddOp: 10,
     SubOp: 10,
     SelectOp: 5,
-    LShrOp: 5,
-    ShlOp: 5,
-    UMinOp: 5,
-    UMaxOp: 5,
+    LShrOp: 3,
+    ShlOp: 3,
+    UMinOp: 3,
+    UMaxOp: 3,
     MulOp: 2,
     CountLOneOp: 2,
     CountLZeroOp: 2,
