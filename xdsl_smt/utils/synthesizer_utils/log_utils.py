@@ -1,10 +1,6 @@
 import logging
 from typing import List
 
-from xdsl.dialects.func import FuncOp
-
-from xdsl_smt.utils.synthesizer_utils.compare_result import EvalResult
-
 
 def setup_loggers(output_dir: str, verbose: int):
     """Sets up loggers to write INFO+DEBUG to one file, and only INFO to another."""
