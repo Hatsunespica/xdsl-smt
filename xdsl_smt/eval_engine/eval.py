@@ -64,6 +64,7 @@ def eval_transfer_func(
     unsolved_exact = get_floats(eval_output_lines[13])
     unsolved_num_cases = get_floats(eval_output_lines[15])
     base_precs = get_floats(eval_output_lines[17])
+    sound_distance = get_floats(eval_output_lines[19])
 
     assert len(sounds) > 0, f"No output from EvalEngine: {eval_output}"
     assert (
@@ -76,6 +77,7 @@ def eval_transfer_func(
         == len(unsolved_exact)
         == len(unsolved_num_cases)
         == len(base_precs)
+        == len(sound_distance)
     ), f"EvalEngine output mismatch: {eval_output}"
 
     cmp_results: list[EvalResult] = [
@@ -91,7 +93,7 @@ def eval_transfer_func(
                     unsolved_exact[i],
                     unsolved_precs[i],
                     base_precs[i],
-                    0,
+                    sound_distance[i],
                     bitwidth,
                 )
             }

@@ -118,13 +118,13 @@ public:
     for (Domain lhs : fullLattice) {
       for (Domain rhs : fullLattice) {
 
-        // If we have an abs_op_constraint and it returns false, we skip this pair
-        if (absOpCon && !absOpCon.value()(lhs, rhs)){
+        // If abs_op_constraint returns false, we skip this pair
+        if (absOpCon && !absOpCon.value()(lhs, rhs))
           continue;
-        }
+
         Domain best_abstract_res = toBestAbst(lhs, rhs);
-        // we skip a (lhs, rhs) if there are no concrete values that satisfy
-        // op_constraint
+
+        // skip the pair if no concrete values satisfy op_constraint
         if (best_abstract_res.isBottom())
           continue;
 
@@ -132,16 +132,18 @@ public:
         std::vector<Domain> ref_kbs(base_function_wrapper(lhs, rhs));
         Domain cur_kb = Domain::meetAll(ref_kbs, bw);
         bool solved = cur_kb == best_abstract_res;
+        unsigned int baseDis = cur_kb.distance(best_abstract_res);
         for (unsigned int i = 0; i < synth_kbs.size(); ++i) {
           Domain synth_after_meet = cur_kb.meet(synth_kbs[i]);
           bool sound = synth_after_meet.isSuperset(best_abstract_res);
           bool exact = synth_after_meet == best_abstract_res;
           unsigned int dis = synth_after_meet.distance(best_abstract_res);
+          unsigned int soundDis = sound ? dis : baseDis;
 
-          r.incResult(Result(sound, dis, exact, solved), i);
+          r.incResult(Result(sound, dis, exact, solved, soundDis), i);
         }
 
-        r.incCases(solved, cur_kb.distance(best_abstract_res));
+        r.incCases(solved, baseDis);
       }
     }
 

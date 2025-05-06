@@ -10,8 +10,9 @@ class Result {
 public:
   Result() = default;
 
-  Result(unsigned int s, unsigned int p, unsigned int e, bool solved)
-      : sound(s), precise(p), exact(e) {
+  Result(unsigned int s, unsigned int p, unsigned int e, bool solved,
+         unsigned int sd)
+      : sound(s), precise(p), exact(e), soundDistance(sd) {
     unsolvedSound = !solved ? s : 0;
     unsolvedPrecise = !solved ? p : 0;
     unsolvedExact = !solved ? e : 0;
@@ -24,6 +25,7 @@ public:
     unsolvedSound += rhs.unsolvedSound;
     unsolvedPrecise += rhs.unsolvedPrecise;
     unsolvedExact += rhs.unsolvedExact;
+    soundDistance += rhs.soundDistance;
 
     return *this;
   }
@@ -37,6 +39,7 @@ private:
   unsigned int unsolvedSound;
   unsigned int unsolvedPrecise;
   unsigned int unsolvedExact;
+  unsigned int soundDistance;
 };
 
 class Results {
@@ -80,6 +83,8 @@ public:
       (void)x;
       return basePrecise;
     });
+    printMember("sound_distance",
+                [](const Result &x) { return x.soundDistance; });
   }
 
   void incResult(const Result &newR, unsigned int i) { r[i] += newR; }
