@@ -55,19 +55,19 @@ private:
     return r;
   }
 
-  const Domain toBestAbst(const Domain &lhs, const Domain &rhs) {
+  const Domain toBestAbst(const Domain &lhs, const Domain &rhs, unsigned int ebw) {
     std::vector<Domain> crtVals;
     const std::vector<unsigned int> rhss = rhs.toConcrete();
 
     for (unsigned int lhs_v : lhs.toConcrete()) {
       for (unsigned int rhs_v : rhss) {
-        if (!opCon || opCon.value()(A::APInt(bw, lhs_v), A::APInt(bw, rhs_v)))
+        if (!opCon || opCon.value()(A::APInt(ebw, lhs_v), A::APInt(ebw, rhs_v)))
           crtVals.push_back(Domain::fromConcrete(
-              concOp(A::APInt(bw, lhs_v), A::APInt(bw, rhs_v))));
+              concOp(A::APInt(ebw, lhs_v), A::APInt(ebw, rhs_v))));
       }
     }
 
-    return Domain::joinAll(crtVals, bw);
+    return Domain::joinAll(crtVals, ebw);
   }
 
 public:
@@ -123,7 +123,7 @@ public:
           if (absOpCon && !absOpCon.value()(lhs, rhs))
             continue;
 
-          Domain best_abstract_res = toBestAbst(lhs, rhs);
+          Domain best_abstract_res = toBestAbst(lhs, rhs, ebw);
 
           // skip the pair if no concrete values satisfy op_constraint
           if (best_abstract_res.isBottom())
