@@ -61,11 +61,44 @@ target_compile_options(eval_engine PRIVATE
     -Wno-unused-command-line-argument
 )
 
+add_executable(eval_llvm
+  src/llvmKBs.cpp
+)
+
+target_include_directories(eval_llvm PRIVATE
+  ${CMAKE_BINARY_DIR}
+  ${LLVM_INCLUDE_DIRS}
+  ${CLANG_INCLUDE_DIRS}
+)
+
+target_compile_options(eval_llvm PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Werror
+    -Wshadow
+    -Wconversion
+    -Wsign-conversion
+    -Wold-style-cast
+    -Wcast-qual
+    -Wformat=2
+    -O3
+    -march=native
+    -flto
+    -DNDEBUG
+    -fstrict-enums
+    -Wno-unused-command-line-argument
+)
+
 add_custom_target(generate_header DEPENDS ${GENERATED_HEADER})
 add_dependencies(eval_engine generate_header)
 
 # Link against LLVM and Clang
+target_link_libraries(eval_llvm PRIVATE ${LLVM_LIBS} ${CLANG_LIBS})
 target_link_libraries(eval_engine PRIVATE ${LLVM_LIBS} ${CLANG_LIBS})
 target_link_options(eval_engine PRIVATE
+    -Wl,--copy-dt-needed-entries
+)
+target_link_options(eval_llvm PRIVATE
     -Wl,--copy-dt-needed-entries
 )

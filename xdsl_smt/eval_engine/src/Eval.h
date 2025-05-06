@@ -61,7 +61,8 @@ private:
 
     for (unsigned int lhs_v : lhs.toConcrete()) {
       for (unsigned int rhs_v : rhss) {
-        if (!opCon || opCon.value()(A::APInt(lhs.bw(), lhs_v), A::APInt(lhs.bw(), rhs_v)))
+        if (!opCon ||
+            opCon.value()(A::APInt(lhs.bw(), lhs_v), A::APInt(lhs.bw(), rhs_v)))
           crtVals.push_back(Domain::fromConcrete(
               concOp(A::APInt(lhs.bw(), lhs_v), A::APInt(lhs.bw(), rhs_v))));
       }

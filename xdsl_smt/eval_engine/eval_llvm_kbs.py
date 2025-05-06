@@ -1,19 +1,21 @@
 from os import path
 from subprocess import run, PIPE
 
-# from xdsl_smt.utils.synthesizer_utils.compare_result import CompareResult
+from xdsl_smt.utils.synthesizer_utils.compare_result import EvalResult, PerBitEvalResult
 
+# todo parameterize by bw
 bitwidth = 4
 
 
 def main():
     base_dir = path.join("xdsl_smt", "eval_engine")
-    engine_path = path.join(base_dir, "build", "eval_engine")
+    engine_path = path.join(base_dir, "build", "eval_llvm")
     if not path.exists(engine_path):
-        raise FileExistsError(f"Eval Engine not found at: {engine_path}")
+        raise FileExistsError(f"Executable not found at: {engine_path}")
 
     eval_output = run(
         [engine_path],
+        input="\n4\n",
         text=True,
         stdout=PIPE,
         stderr=PIPE,
@@ -24,39 +26,54 @@ def main():
         print(eval_output.stderr, end="")
         exit(eval_output.returncode)
 
-    # def get_float(s: str) -> int:
-    #     return eval(s)[0]
+    def get_floats(s: str) -> list[int]:
+        return eval(s)
 
-    # def get_data(out: str):
-    #     eval_output_lines = out.split("\n")
-    #     name = eval_output_lines[0]
-    #     sounds = get_float(eval_output_lines[2])
-    #     precs = get_float(eval_output_lines[4])
-    #     exact = get_float(eval_output_lines[6])
-    #     num_cases = get_float(eval_output_lines[8])
-    #     unsolved_sounds = get_float(eval_output_lines[10])
-    #     unsolved_precs = get_float(eval_output_lines[12])
-    #     unsolved_exact = get_float(eval_output_lines[14])
-    #     unsolved_num_cases = get_float(eval_output_lines[16])
-    #     base_precs = get_float(eval_output_lines[18])
-    #
-    #     return name, CompareResult(
-    #         num_cases,
-    #         sounds,
-    #         exact,
-    #         precs,
-    #         unsolved_num_cases,
-    #         unsolved_sounds,
-    #         unsolved_exact,
-    #         unsolved_precs,
-    #         base_precs,
-    #         bitwidth,
-    #     )
+    def get_data(out: str):
+        eval_output_lines = out.split("\n")
+        name = eval_output_lines[0]
+        sounds = get_floats(eval_output_lines[2])
+        precs = get_floats(eval_output_lines[4])
+        exact = get_floats(eval_output_lines[6])
+        num_cases = get_floats(eval_output_lines[8])
+        unsolved_sounds = get_floats(eval_output_lines[10])
+        unsolved_precs = get_floats(eval_output_lines[12])
+        unsolved_exact = get_floats(eval_output_lines[14])
+        unsolved_num_cases = get_floats(eval_output_lines[16])
+        base_precs = get_floats(eval_output_lines[18])
+        sound_distance = get_floats(eval_output_lines[20])
 
-    eval_output.stdout.split("---\n")
-    # eval_outputs = eval_output.stdout.split("---\n")
-    # results = [get_data(x) for x in eval_outputs if x != ""]
-    # [print(f"{name:<10}", cp.get_exact_prop()) for name, cp in results]
+        return name, [
+            PerBitEvalResult(
+                num_cases[i],
+                sounds[i],
+                exact[i],
+                precs[i],
+                unsolved_num_cases[i],
+                unsolved_sounds[i],
+                unsolved_exact[i],
+                unsolved_precs[i],
+                base_precs[i],
+                sound_distance[i],
+                bitwidth,
+            )
+            for i in range(2)
+        ]
+
+    eval_outputs = eval_output.stdout.split("---\n")
+    results = [get_data(x) for x in eval_outputs if x != ""]
+
+    r = [
+        (n, EvalResult({bitwidth: cps[0]}), EvalResult({bitwidth: cps[1]}))
+        for n, cps in results
+    ]
+
+    output = [
+        f"{n:<12}| llvm: {llvm.get_exact_prop():.4f} | top: {top.get_exact_prop():.4f}"
+        for n, llvm, top in r
+    ]
+
+    [print(x) for x in output]
 
 
 if __name__ == "__main__":

@@ -1,3 +1,4 @@
+#include <cassert>
 #include <functional>
 #include <iostream>
 #include <optional>
@@ -19,10 +20,8 @@ typedef std::function<const llvm::KnownBits(const llvm::KnownBits &,
     xferFn;
 typedef std::tuple<std::string, concFn, std::optional<opConFn>, xferFn> Fn;
 
-const unsigned int BW = 4;
-
 llvm::KnownBits make_llvm(const KnownBits &x) {
-  llvm::KnownBits llvm_kbs = llvm::KnownBits(BW);
+  llvm::KnownBits llvm_kbs = llvm::KnownBits(x.bw());
   llvm_kbs.Zero = x.v[0].getZExtValue();
   llvm_kbs.One = x.v[1].getZExtValue();
   return llvm_kbs;
@@ -31,8 +30,8 @@ llvm::KnownBits make_llvm(const KnownBits &x) {
 const KnownBits xfer_wrapper(const KnownBits &lhs, const KnownBits &rhs,
                              const xferFn &fn) {
   llvm::KnownBits x = fn(make_llvm(lhs), make_llvm(rhs));
-  return KnownBits({A::APInt(BW, x.Zero.getZExtValue()),
-                    A::APInt(BW, x.One.getZExtValue())});
+  return KnownBits({A::APInt(lhs.bw(), x.Zero.getZExtValue()),
+                    A::APInt(lhs.bw(), x.One.getZExtValue())});
 }
 
 const KnownBits toBestAbst(const KnownBits &lhs, const KnownBits &rhs,
@@ -43,45 +42,44 @@ const KnownBits toBestAbst(const KnownBits &lhs, const KnownBits &rhs,
 
   for (unsigned int lhs_v : lhs.toConcrete()) {
     for (unsigned int rhs_v : rhss) {
-      if (!opCon || opCon.value()(A::APInt(BW, lhs_v), A::APInt(BW, rhs_v)))
+      if (!opCon ||
+          opCon.value()(A::APInt(lhs.bw(), lhs_v), A::APInt(lhs.bw(), rhs_v)))
         crtVals.push_back(KnownBits::fromConcrete(
-            fn(A::APInt(BW, lhs_v), A::APInt(BW, rhs_v))));
+            fn(A::APInt(lhs.bw(), lhs_v), A::APInt(lhs.bw(), rhs_v))));
     }
   }
 
-  return KnownBits::joinAll(crtVals, BW);
+  return KnownBits::joinAll(crtVals, lhs.bw());
 }
 
-// Fn get(std::string name, bool nsw, bool nuw) {
-//   name = nsw ? name + " nsw" : name;
-//   name = nuw ? name + " nuw" : name;
-//   bool uov = false;
-//   bool sov = false;
-//   auto a = [&uov](const A::APInt l, const A::APInt r) {
-//     return l.umul_ov(r, uov);
-//   };
-//
-//   Fn fn = {
-//       name,
-//       [](const A::APInt l, const A::APInt r) { return l * r; },
-//       std::nullopt,
-//       [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
-//         return llvm::KnownBits::mul(lhs, rhs);
-//       },
-//   };
-//
-//   return fn;
-// }
-
 bool nonZeroRhs(const A::APInt &_, const A::APInt &rhs) { return !rhs == 0; }
-// opConFn nsw(const concFn &fn) {
-//   return [&fn](const A::APInt &lhs, const A::APInt &rhs) {
-//     return fn(lhs, rhs) == 0;
-//   };
-// }
 
-void tmp() {
+void eval(unsigned int bw) {
   std::vector<Fn> fns{
+      {
+          "and",
+          [](const A::APInt lhs, const A::APInt rhs) { return lhs & rhs; },
+          std::nullopt,
+          [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
+            return lhs & rhs;
+          },
+      },
+      {
+          "or",
+          [](const A::APInt lhs, const A::APInt rhs) { return lhs | rhs; },
+          std::nullopt,
+          [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
+            return lhs | rhs;
+          },
+      },
+      {
+          "xor",
+          [](const A::APInt lhs, const A::APInt rhs) { return lhs ^ rhs; },
+          std::nullopt,
+          [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
+            return lhs ^ rhs;
+          },
+      },
       {
           "add",
           [](const A::APInt lhs, const A::APInt rhs) { return lhs + rhs; },
@@ -91,12 +89,148 @@ void tmp() {
           },
       },
       {
+          "add nsw",
+          [](const A::APInt lhs, const A::APInt rhs) { return lhs + rhs; },
+          [](const A::APInt lhs, const A::APInt rhs) {
+            bool ov = false;
+            A::APInt _ = lhs.sadd_ov(rhs, ov);
+            return !ov;
+          },
+          [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
+            return llvm::KnownBits::add(lhs, rhs, true, false);
+          },
+      },
+      {
+          "add nuw",
+          [](const A::APInt lhs, const A::APInt rhs) { return lhs + rhs; },
+          [](const A::APInt lhs, const A::APInt rhs) {
+            bool ov = false;
+            A::APInt _ = lhs.uadd_ov(rhs, ov);
+            return !ov;
+          },
+          [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
+            return llvm::KnownBits::add(lhs, rhs, false, true);
+          },
+      },
+      {
+          "add nsw nuw",
+          [](const A::APInt lhs, const A::APInt rhs) { return lhs + rhs; },
+          [](const A::APInt lhs, const A::APInt rhs) {
+            bool sov = false;
+            bool uov = false;
+            A::APInt _ = lhs.sadd_ov(rhs, sov);
+            _ = lhs.uadd_ov(rhs, uov);
+            return !(sov | uov);
+          },
+          [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
+            return llvm::KnownBits::add(lhs, rhs, true, true);
+          },
+      },
+      {
 
           "sub",
           [](const A::APInt lhs, const A::APInt rhs) { return lhs - rhs; },
           std::nullopt,
           [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
             return llvm::KnownBits::sub(lhs, rhs);
+          },
+      },
+      {
+          "sub nsw",
+          [](const A::APInt lhs, const A::APInt rhs) { return lhs - rhs; },
+          [](const A::APInt lhs, const A::APInt rhs) {
+            bool ov = false;
+            A::APInt _ = lhs.ssub_ov(rhs, ov);
+            return !ov;
+          },
+          [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
+            return llvm::KnownBits::sub(lhs, rhs, true, false);
+          },
+      },
+      {
+          "sub nuw",
+          [](const A::APInt lhs, const A::APInt rhs) { return lhs - rhs; },
+          [](const A::APInt lhs, const A::APInt rhs) {
+            bool ov = false;
+            A::APInt _ = lhs.usub_ov(rhs, ov);
+            return !ov;
+          },
+          [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
+            return llvm::KnownBits::sub(lhs, rhs, false, true);
+          },
+      },
+      {
+          "sub nsw nuw",
+          [](const A::APInt lhs, const A::APInt rhs) { return lhs - rhs; },
+          [](const A::APInt lhs, const A::APInt rhs) {
+            bool sov = false;
+            bool uov = false;
+            A::APInt _ = lhs.ssub_ov(rhs, sov);
+            _ = lhs.usub_ov(rhs, uov);
+            return !(sov | uov);
+          },
+          [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
+            return llvm::KnownBits::sub(lhs, rhs, true, true);
+          },
+      },
+      {
+          "umax",
+          [](const A::APInt lhs, const A::APInt rhs) {
+            return A::APIntOps::umax(lhs, rhs);
+          },
+          std::nullopt,
+          [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
+            return llvm::KnownBits::umax(lhs, rhs);
+          },
+      },
+      {
+          "umin",
+          [](const A::APInt lhs, const A::APInt rhs) {
+            return A::APIntOps::umin(lhs, rhs);
+          },
+          std::nullopt,
+          [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
+            return llvm::KnownBits::umin(lhs, rhs);
+          },
+      },
+      {
+          "smax",
+          [](const A::APInt lhs, const A::APInt rhs) {
+            return A::APIntOps::smax(lhs, rhs);
+          },
+          std::nullopt,
+          [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
+            return llvm::KnownBits::smax(lhs, rhs);
+          },
+      },
+      {
+          "smin",
+          [](const A::APInt lhs, const A::APInt rhs) {
+            return A::APIntOps::smin(lhs, rhs);
+          },
+          std::nullopt,
+          [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
+            return llvm::KnownBits::smin(lhs, rhs);
+          },
+      },
+      {
+          "abdu",
+          [](const A::APInt lhs, const A::APInt rhs) {
+            return A::APIntOps::abdu(lhs, rhs);
+          },
+          std::nullopt,
+          [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
+            return llvm::KnownBits::abdu(lhs, rhs);
+          },
+      },
+      {
+          "abds",
+          [](const A::APInt lhs, const A::APInt rhs) {
+            return A::APIntOps::abds(lhs, rhs);
+          },
+          std::nullopt,
+          [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
+            return llvm::KnownBits::abds(lhs, rhs);
           },
       },
       {
@@ -178,10 +312,11 @@ void tmp() {
       },
   };
 
-  const std::vector<KnownBits> fullLattice = KnownBits::enumVals(BW);
+  const std::vector<KnownBits> fullLattice = KnownBits::enumVals(bw);
+  KnownBits top = KnownBits::top(bw);
 
   for (auto [name, conc, opCon, xfer] : fns) {
-    Results r{1};
+    Results r{2};
 
     for (KnownBits lhs : fullLattice) {
       for (KnownBits rhs : fullLattice) {
@@ -191,15 +326,12 @@ void tmp() {
           continue;
 
         KnownBits xfer_res = xfer_wrapper(lhs, rhs, xfer);
-        KnownBits top_res = KnownBits::meetAll({}, BW);
-        bool solved = top_res == best_abstract_res;
-        KnownBits synth_after_meet = top_res.meet(xfer_res);
-        bool sound = synth_after_meet.isSuperset(best_abstract_res);
-        bool exact = synth_after_meet == best_abstract_res;
-        unsigned int dis = synth_after_meet.distance(best_abstract_res);
+        bool exact = xfer_res == best_abstract_res;
+        bool topExact = top == best_abstract_res;
 
-        r.incResult(Result(sound, dis, exact, solved), 0);
-        r.incCases(solved, top_res.distance(best_abstract_res));
+        r.incResult(Result(0, 0, exact, 0, 0), 0);
+        r.incResult(Result(0, 0, topExact, 0, 0), 1);
+        r.incCases(0, 0);
       }
     }
 
@@ -207,4 +339,14 @@ void tmp() {
     r.print();
     std::cout << "---\n";
   }
+}
+
+int main() {
+  std::string tmpStr;
+  std::string domain;
+  std::getline(std::cin, domain);
+  std::getline(std::cin, tmpStr);
+  unsigned int bw = static_cast<unsigned int>(std::stoul(tmpStr));
+
+  eval(bw);
 }
