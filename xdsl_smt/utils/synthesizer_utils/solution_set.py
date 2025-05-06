@@ -401,8 +401,9 @@ class UnsizedSolutionSet(SolutionSet):
                 else:
                     log_str = "Add a existing transformer (cond)"
                     num_cond_solutions += 1
+            from_weighted_dsl = "from_weighted_dsl" in cand.func.attributes
             self.logger.info(
-                f"{log_str}, body: {body_number}, cond: {cond_number}. After adding, Exact: {max_improve_res.get_exact_prop() * 100:.2f}%, Dis: {max_improve_res.dist}"
+                f"{log_str}, body: {body_number}, cond: {cond_number}. After adding, Exact: {max_improve_res.get_exact_prop() * 100:.2f}%, Dis: {max_improve_res.dist}, weighted?: {from_weighted_dsl}"
             )
             candidates.remove(cand)
             self.solutions.append(cand)
