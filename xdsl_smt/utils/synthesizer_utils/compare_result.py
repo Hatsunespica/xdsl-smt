@@ -67,7 +67,54 @@ class PerBitEvalResult:
         self.bitwidth = bitwidth
 
     def __str__(self):
-        return f"all: {self.all_cases}\ts: {self.sounds}\te: {self.exacts}\tp: {self.dist}\tunsolved:{self.unsolved_cases}\tus: {self.unsolved_sounds}\tue: {self.unsolved_exacts}\tup: {self.unsolved_dist}\tbasep: {self.base_dist}"
+        return f"all: {self.all_cases}\ts: {self.sounds}\te: {self.exacts}\tdis: {self.dist}\tuall:{self.unsolved_cases}\tus: {self.unsolved_sounds}\tue: {self.unsolved_exacts}\tudis: {self.unsolved_dist}\tbdis: {self.base_dist}\tsdis: {self.sound_dist}"
+
+
+class EvalResult:
+    per_bit: dict[int, PerBitEvalResult]
+    max_bit: int
+    get_max_dis: Callable[[int], int] = lambda _: 0
+    all_cases: int
+    sounds: int
+    exacts: int
+    dist: int
+    base_dist: int
+    unsolved_cases: int
+    unsolved_sounds: int
+    unsolved_exacts: int
+    unsolved_dist: int
+    sound_dist: int
+
+    def __init__(self, per_bit: dict[int, PerBitEvalResult]):
+        self.per_bit = per_bit
+        self.max_bit = max(per_bit.keys())
+        self.all_cases = sum(res.all_cases for res in per_bit.values())
+        self.sounds = sum(res.sounds for res in per_bit.values())
+        self.exacts = sum(res.exacts for res in per_bit.values())
+        self.dist = sum(res.dist for res in per_bit.values())
+        self.base_dist = sum(res.base_dist for res in per_bit.values())
+        self.unsolved_cases = sum(res.unsolved_cases for res in per_bit.values())
+        self.unsolved_sounds = sum(res.unsolved_sounds for res in per_bit.values())
+        self.unsolved_exacts = sum(res.unsolved_exacts for res in per_bit.values())
+        self.unsolved_dist = sum(res.unsolved_dist for res in per_bit.values())
+
+    def __str__(self):
+        return "\n".join(f"bw: {bw}\t{res}" for bw, res in self.per_bit.items())
+
+    def get_unsolved_cases(self) -> int:
+        return self.unsolved_cases
+
+    def get_unsolved_exacts(self) -> int:
+        return self.unsolved_exacts
+
+    def get_exacts(self) -> int:
+        return self.exacts
+
+    def get_dist(self) -> int:
+        return self.dist
+
+    def get_base_dist(self) -> int:
+        return self.base_dist
 
     def get_sound_prop(self) -> float:
         return self.sounds / self.all_cases
@@ -78,11 +125,17 @@ class PerBitEvalResult:
     def get_unsolved_exact_prop(self) -> float:
         return self.unsolved_exacts / self.unsolved_cases
 
-    def get_unsolved_dist_avg(self) -> float:
-        return self.unsolved_dist / self.unsolved_cases
-
-    # def get_unsolved_dist_avg_norm(self) -> float:
-    #     return self.unsolved_dist / (self.unsolved_cases * self.MAX_DIS)
+    def get_unsolved_dist_avg_norm(self) -> float:
+        # return self.per_bit[
+        #     self.max_bit
+        # ].get_unsolved_dist_avg() / EvalResult.get_max_dis(self.max_bit)
+        return (
+            sum(
+                res.unsolved_dist / EvalResult.get_max_dis(bw)
+                for bw, res in self.per_bit.items()
+            )
+            / self.unsolved_cases
+        )
 
     def get_new_exact_prop(self) -> float:
         return self.unsolved_exacts / self.all_cases
@@ -98,60 +151,3 @@ class PerBitEvalResult:
             return self.get_unsolved_dis_decrease()
         else:
             return self.unsolved_exacts
-
-
-class EvalResult:
-    per_bit: dict[int, PerBitEvalResult]
-    max_bit: int
-    get_max_dis: Callable[[int], int] = lambda _: 0
-
-    def __init__(self, per_bit: dict[int, PerBitEvalResult]):
-        self.per_bit = per_bit
-        self.max_bit = max(per_bit.keys())
-
-    def __str__(self):
-        return "\n".join(f"bw: {bw}\t{res}" for bw, res in self.per_bit.items())
-
-    def get_unsolved_cases(self) -> int:
-        return self.per_bit[self.max_bit].unsolved_cases
-
-    def get_unsolved_exacts(self) -> int:
-        return self.per_bit[self.max_bit].unsolved_exacts
-
-    def get_exacts(self) -> int:
-        return self.per_bit[self.max_bit].exacts
-
-    def get_dist(self) -> int:
-        return self.per_bit[self.max_bit].dist
-
-    def get_base_dist(self) -> int:
-        return self.per_bit[self.max_bit].base_dist
-
-    def get_sound_prop(self) -> float:
-        return self.per_bit[self.max_bit].get_sound_prop()
-
-    def get_exact_prop(self) -> float:
-        return self.per_bit[self.max_bit].get_exact_prop()
-
-    def get_unsolved_exact_prop(self) -> float:
-        return self.per_bit[self.max_bit].get_unsolved_exact_prop()
-
-    def get_unsolved_dist_avg(self) -> float:
-        return self.per_bit[self.max_bit].get_unsolved_dist_avg()
-
-    def get_unsolved_dist_avg_norm(self) -> float:
-        return self.per_bit[
-            self.max_bit
-        ].get_unsolved_dist_avg() / EvalResult.get_max_dis(self.max_bit)
-
-    def get_new_exact_prop(self) -> float:
-        return self.per_bit[self.max_bit].get_new_exact_prop()
-
-    def is_sound(self):
-        return self.per_bit[self.max_bit].is_sound()
-
-    def get_unsolved_dis_decrease(self):
-        return self.per_bit[self.max_bit].get_unsolved_dis_decrease()
-
-    def get_improve(self):
-        return self.per_bit[self.max_bit].get_improve()

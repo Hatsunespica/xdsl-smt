@@ -40,16 +40,6 @@ def setup_loggers(output_dir: str, verbose: int):
     return logger
 
 
-def print_func_to_file(
-    res: EvalResult, func: FuncOp, c: int, rd: int, i: int, path: str
-):
-    with open(f"{path}/tf{c}_{rd}_{i}.mlir", "w") as file:
-        file.write(
-            f"Run: {c}_{rd}_{i}\nSound: {res.get_sound_prop()}\nUExact: {res.get_unsolved_exact_prop()}\nUDis: {res.get_unsolved_dist_avg()}\n{res}\n"
-        )
-        file.write(str(func))
-
-
 def print_set_of_funcs_to_file(funcs: List[str], iter: int, path: str):
     with open(f"{path}/res_after_iter{iter}.mlir", "w") as file:
         # file.write(
