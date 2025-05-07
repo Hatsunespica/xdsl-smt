@@ -61,17 +61,18 @@ target_compile_options(eval_engine PRIVATE
     -Wno-unused-command-line-argument
 )
 
-add_executable(eval_llvm
-  src/llvmKBs.cpp
+add_executable(llvm_eval
+  src/llvm_eval/llvm_eval.cpp
+  src/llvm_eval/kb_tests.h
 )
 
-target_include_directories(eval_llvm PRIVATE
+target_include_directories(llvm_eval PRIVATE
   ${CMAKE_BINARY_DIR}
   ${LLVM_INCLUDE_DIRS}
   ${CLANG_INCLUDE_DIRS}
 )
 
-target_compile_options(eval_llvm PRIVATE
+target_compile_options(llvm_eval PRIVATE
     -Wall
     -Wextra
     -Wpedantic
@@ -94,11 +95,11 @@ add_custom_target(generate_header DEPENDS ${GENERATED_HEADER})
 add_dependencies(eval_engine generate_header)
 
 # Link against LLVM and Clang
-target_link_libraries(eval_llvm PRIVATE ${LLVM_LIBS} ${CLANG_LIBS})
+target_link_libraries(llvm_eval PRIVATE ${LLVM_LIBS} ${CLANG_LIBS})
 target_link_libraries(eval_engine PRIVATE ${LLVM_LIBS} ${CLANG_LIBS})
 target_link_options(eval_engine PRIVATE
     -Wl,--copy-dt-needed-entries
 )
-target_link_options(eval_llvm PRIVATE
+target_link_options(llvm_eval PRIVATE
     -Wl,--copy-dt-needed-entries
 )
