@@ -919,8 +919,8 @@ def run(
         f"init_solution\t{init_cmp_res[0].get_sound_prop() * 100:.4f}%\t{init_cmp_res[0].get_exact_prop() * 100:.4f}%"
     )
 
-    current_prog_len = 2
-    current_total_rounds = 0
+    current_prog_len = program_length
+    current_total_rounds = min(500, total_rounds)
     current_num_abd_procs = 0
     for ith_iter in range(num_iters):
         # gradually increase the program length
