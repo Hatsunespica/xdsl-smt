@@ -316,8 +316,7 @@ class SynthesizerContext:
 
     def update_int_weights(self, frequency: dict[type[Operation], int]):
         self.int_weights = {
-            key: int_prior_uniform[key]
-            for key in self.int_ops.get_all_elements()
+            key: int_prior_uniform[key] for key in self.int_ops.get_all_elements()
         }
         for key in frequency:
             assert key in self.int_weights
