@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #This script runs the synthesizer on all files in the specified input dir.
 inputs_dir="./tests/synth/knownBits/"
 #All outputs will be placed in the outputs_dir folder
@@ -7,18 +7,37 @@ outputs_dir="./outputs/knownBits/"
 abs_domain="KnownBits"
 #Runs in foreground or background
 foreground=0
+# Set to 1 to only run representative entries
+run_representatives_only=1
 
+# List of representative entry base names (no .mlir extension)
+representatives=(
+  "knownBitsAnd"
+  "knownBitsAdd"
+  "knownBitsUmax"
+  "knownBitsSmax"
+  "knownBitsShl"
+  "knownBitsLshr"
+  "knownBitsMul"
+  "knownBitsUdiv"
+  "knownBitsAvgFloorU"
+  "knownBitsAddNuw"
+  "knownBitsAddNsw"
+  "knownBitsShlNuw"
+  "knownBitsShlNsw"
+  "knownBitsLshrExact"
+)
 
 #Synthesizer related arguments
 bitwidth=4
 num_programs=100
-num_iters=15
-total_rounds=1000
-program_length=24
+num_iters=10
+total_rounds=2500
+program_length=28
 solution_size=0
 random_seed=2333
 condition_length=10
-num_abd_procs=30
+num_abd_procs=50
 
 
 for entry in "$inputs_dir"/*
@@ -30,6 +49,19 @@ do
 
   filename=$(basename "${entry}")
   file_base_name="${filename%.*}"
+
+  if [ "$run_representatives_only" -eq 1 ]; then
+    found=0
+    for rep in "${representatives[@]}"; do
+      if [ "$file_base_name" = "$rep" ]; then
+        found=1
+        break
+      fi
+    done
+    if [ "$found" -eq 0 ]; then
+      continue
+    fi
+  fi
 
   output_dir="${outputs_dir}${file_base_name}"
   mkdir -p "${output_dir}"

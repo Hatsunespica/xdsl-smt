@@ -368,22 +368,22 @@ class UnsizedSolutionSet(SolutionSet):
             if max_improve_res.get_improve() == 0:
                 break
 
+            body_number = cand.func.attributes["number"]
+            cond_number = (
+                "None" if cand.cond is None else cand.cond.attributes["number"]
+            )
+
             if (cand in new_candidates_sp) or (cand in new_candidates_c):
                 unsound_bit = verify_function(cand, concrete_op, helper_funcs, ctx)
                 if unsound_bit != 0:
                     self.logger.info(
-                        f"Skip a unsound function at bit width {unsound_bit}"
+                        f"Skip a unsound function at bit width {unsound_bit}, body: {body_number}, cond: {cond_number}"
                     )
                     # Todo: Remove hard encoded bitwidth
                     if unsound_bit == 4:
                         self.handle_inconsistent_result(cand)
                     candidates.remove(cand)
                     continue
-
-            body_number = cand.func.attributes["number"]
-            cond_number = (
-                "None" if cand.cond is None else cand.cond.attributes["number"]
-            )
 
             if cand in new_candidates_sp:
                 log_str = "Add a new transformer"
@@ -396,8 +396,9 @@ class UnsizedSolutionSet(SolutionSet):
                 else:
                     log_str = "Add a existing transformer (cond)"
                     num_cond_solutions += 1
+            from_weighted_dsl = "from_weighted_dsl" in cand.func.attributes
             self.logger.info(
-                f"{log_str}, body: {body_number}, cond: {cond_number}. After adding, Exact: {max_improve_res.get_exact_prop() * 100:.2f}%, Dis: {max_improve_res.get_dist()}"
+                f"{log_str}, body: {body_number}, cond: {cond_number}. After adding, Exact: {max_improve_res.get_exact_prop() * 100:.2f}%, Dis: {max_improve_res.get_dist()}, weighted?: {from_weighted_dsl}"
             )
             candidates.remove(cand)
             self.solutions.append(cand)
@@ -453,18 +454,19 @@ class UnsizedSolutionSet(SolutionSet):
                 dict1[k] = dict1.get(k, 0) + v
 
         self.logger.info(f"Improvement by each individual function")
-        for i in range(len(self.solutions)):
+        for i, sol in enumerate(self.solutions):
             cmp_results: list[EvalResult] = self.eval_func(
-                [self.solutions[i]],
+                [sol],
                 self.solutions[:i] + self.solutions[i + 1 :],
             )
             res = cmp_results[0]
+            to_learn = res.get_new_exact_prop() > 0.005
             self.logger.info(
-                f"\tfunc {i}: #exact {res.get_exacts() - res.get_unsolved_exacts()} -> {res.get_exacts()}, new exact%: {res.get_new_exact_prop()}, prec: {res.get_base_dist()} -> {res.get_dist()}, prec improve%: {res.get_improve()}, cond?: {self.solutions[i].cond is not None}"
+                f"\tfunc {i}: #exact {res.get_exacts() - res.get_unsolved_exacts()} -> {res.get_exacts()}, new exact%: {res.get_new_exact_prop()}, prec: {res.get_base_dist()} -> {res.get_dist()}, prec improve%: {res.get_improve()}, cond?: {self.solutions[i].cond is not None}, learn?: {to_learn}"
             )
-            if res.get_new_exact_prop() > 0.005:
+            if to_learn:
                 d_int, d_i1 = SynthesizerContext.count_op_frequency(
-                    self.eliminate_dead_code(self.solutions[i].func)
+                    self.eliminate_dead_code(sol.func)
                 )
                 add_another_dict(freq_int, d_int)
                 add_another_dict(freq_i1, d_i1)
@@ -474,4 +476,6 @@ class UnsizedSolutionSet(SolutionSet):
 
         self.logger.info("Current Weights:")
         for key, value in context.int_weights.items():
+            self.logger.info(f"\t{key}: {value}")
+        for key, value in context.i1_weights.items():
             self.logger.info(f"\t{key}: {value}")

@@ -3,7 +3,7 @@ import sys
 from typing import Callable
 
 from xdsl.context import MLContext
-from xdsl.dialects.builtin import i1, IntegerAttr, FunctionType
+from xdsl.dialects.builtin import i1, IntegerAttr, FunctionType, UnitAttr
 from xdsl.parser import Parser
 
 from xdsl.utils.exceptions import VerifyException
@@ -70,8 +70,8 @@ class MCMCSampler:
             )
             func = FuncOp("cond", cond_type)
 
-        self.current = self.construct_init_program(func, length)
         self.context = context
+        self.current = self.construct_init_program(func, length)
         self.compute_cost = compute_cost
         self.random = context.get_random_class()
         if random_init_program:
@@ -134,6 +134,9 @@ class MCMCSampler:
         block = func.body.block
         for op in block.ops:
             block.detach_op(op)
+
+        if self.context.weighted:
+            func.attributes["from_weighted_dsl"] = UnitAttr()
 
         # Part I: GetOp
         for arg in block.args:
