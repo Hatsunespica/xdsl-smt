@@ -573,7 +573,7 @@ def synthesize_transfer_function(
 
     # MCMC start
     logger.info(
-        f"Iter {ith_iter}: Start {num_programs} MCMC. Each one is run for {total_rounds} steps..."
+        f"Iter {ith_iter}: Start {num_programs - len(c_range)} MCMC to sampling programs of length {program_length}. Start {len(c_range)} MCMC to sample abductions. Each one is run for {total_rounds} steps..."
     )
 
     for rnd in range(total_rounds):
@@ -919,19 +919,25 @@ def run(
         f"init_solution\t{init_cmp_res[0].get_sound_prop() * 100:.4f}%\t{init_cmp_res[0].get_exact_prop() * 100:.4f}%"
     )
 
-    # current_prog_len = 10
-    # current_total_rounds = 20
+    current_prog_len = program_length
+    current_total_rounds = min(500, total_rounds)
+    current_num_abd_procs = 0
     for ith_iter in range(num_iters):
         # gradually increase the program length
-        # current_prog_len += (program_length - current_prog_len) // (
-        #     num_iters - ith_iter
-        # )
-        # current_total_rounds += (total_rounds - current_total_rounds) // (
-        #     num_iters - ith_iter
-        # )
+        current_prog_len += (program_length - current_prog_len) // (
+            num_iters - ith_iter
+        )
+        current_total_rounds += (total_rounds - current_total_rounds) // (
+            num_iters - ith_iter
+        )
+        current_num_abd_procs += (num_abd_procs - current_num_abd_procs) // (
+            num_iters - ith_iter
+        )
         print(f"Iteration {ith_iter} starts...")
         if weighted_dsl:
             assert isinstance(solution_set, UnsizedSolutionSet)
+            # if solution_set.solutions_size > 0:
+            context_weighted.weighted = True
             solution_set.learn_weights(context_weighted)
         solution_set = synthesize_transfer_function(
             ith_iter,
@@ -946,10 +952,10 @@ def run(
             helper_funcs[1:],
             ctx,
             num_programs,
-            program_length,
+            current_prog_len,
             condition_length,
-            num_abd_procs,
-            total_rounds,
+            current_num_abd_procs,
+            current_total_rounds,
             solution_size,
             inv_temp,
             outputs_folder,

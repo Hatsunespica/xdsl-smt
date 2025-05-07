@@ -107,7 +107,7 @@ def parse_file(ctx: MLContext, file: str | None) -> Operation:
 
 
 def solve_vector_width(maximal_bits: int):
-    return list(range(4, 5))
+    return list(range(4, maximal_bits + 1))
 
 
 def fix_bit_width_in_verify_pattern(module: ModuleOp):
