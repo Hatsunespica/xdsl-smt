@@ -37,9 +37,9 @@ import xdsl.dialects.arith as arith
 
 from xdsl_smt.utils.synthesizer_utils.prior import (
     i1_prior_uniform,
-    int_prior_uniform_stronger,
+    # int_prior_uniform_stronger,
     int_prior_uniform,
-    int_prior_bias,
+    # int_prior_bias,
 )
 from xdsl_smt.utils.synthesizer_utils.random import Random
 
