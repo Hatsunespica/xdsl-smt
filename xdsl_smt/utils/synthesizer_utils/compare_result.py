@@ -67,7 +67,19 @@ class PerBitEvalResult:
         self.bitwidth = bitwidth
 
     def __str__(self):
-        return f"all: {self.all_cases}\ts: {self.sounds}\te: {self.exacts}\tdis: {self.dist}\tuall:{self.unsolved_cases}\tus: {self.unsolved_sounds}\tue: {self.unsolved_exacts}\tudis: {self.unsolved_dist}\tbdis: {self.base_dist}\tsdis: {self.sound_dist}"
+        s = ""
+        s += f"bw: {self.bitwidth:<2}"
+        s += f"all: {self.all_cases:<6}"
+        s += f"s: {self.sounds:<6}"
+        s += f"e: {self.exacts:<6}"
+        s += f"uall: {self.unsolved_cases:<6}"
+        s += f"us: {self.unsolved_sounds:<6}"
+        s += f"ue: {self.unsolved_exacts:<6}"
+        s += f"dis: {self.dist:<6}"
+        s += f"udis: {self.unsolved_dist:<6}"
+        s += f"bdis: {self.base_dist:<6}"
+        s += f"sdis: {self.sound_dist:<6}"
+        return s
 
 
 class EvalResult:
@@ -99,7 +111,7 @@ class EvalResult:
         self.unsolved_dist = sum(res.unsolved_dist for res in per_bit.values())
 
     def __str__(self):
-        return "\n".join(f"bw: {bw}\t{res}" for bw, res in self.per_bit.items())
+        return "\n".join(str(res) for res in self.per_bit.values())
 
     def get_unsolved_cases(self) -> int:
         return self.unsolved_cases
