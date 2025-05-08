@@ -400,7 +400,12 @@ def solution_set_eval_func(
     """
     return lambda transfer=list[FunctionWithCondition], base=list[
         FunctionWithCondition
-    ]: (eval_transfer_func_helper(transfer, base, domain, bitwidth, num_random_tests, helper_funcs))
+    ]: (
+        eval_transfer_func_helper(
+            transfer, base, domain, bitwidth, num_random_tests, helper_funcs
+        )
+    )
+
 
 def build_eval_list(
     mcmc_proposals: list[FuncOp],
@@ -1004,7 +1009,9 @@ def main() -> None:
         CONDITION_LENGTH if args.condition_length is None else args.condition_length
     )
     num_abd_procs = NUM_ABD_PROCS if args.num_abd_procs is None else args.num_abd_procs
-    num_random_tests = NUM_RANDOM_TESTS if args.num_random_tests is None else args.num_random_tests
+    num_random_tests = (
+        NUM_RANDOM_TESTS if args.num_random_tests is None else args.num_random_tests
+    )
     outputs_folder = (
         OUTPUTS_FOLDER if args.outputs_folder is None else args.outputs_folder
     )
