@@ -268,6 +268,104 @@ public:
   }
 };
 
+class SConstRange : public AbstVal<SConstRange, 2> {
+private:
+  A::APInt lower() const { return v[0]; }
+  A::APInt upper() const { return v[1]; }
+
+  bool isConstant() const { return lower() == upper(); }
+
+  const A::APInt getConstant() const {
+    assert(isConstant());
+    return lower();
+  }
+
+public:
+  explicit SConstRange(const Vec<2> &vC)
+      : AbstVal<SConstRange, 2>(vC) {}
+
+  const std::string display() const {
+    if (SConstRange::isBottom()) {
+      return "(bottom)";
+    }
+
+    std::stringstream ss;
+    ss << '[' << lower().getSExtValue() << ", " << upper().getSExtValue()
+       << ']';
+
+    if (SConstRange::isTop())
+      ss << " (top)";
+
+    return ss.str();
+  }
+
+  const SConstRange meet(const SConstRange &rhs) const {
+    A::APInt l = rhs.lower().sgt(lower()) ? rhs.lower() : lower();
+    A::APInt u = rhs.upper().slt(upper()) ? rhs.upper() : upper();
+    if (l.sgt(u))
+      return bottom(bw());
+    return SConstRange({std::move(l), std::move(u)});
+  }
+
+  const SConstRange join(const SConstRange &rhs) const {
+    const A::APInt l = rhs.lower().slt(lower()) ? rhs.lower() : lower();
+    const A::APInt u = rhs.upper().sgt(upper()) ? rhs.upper() : upper();
+    return SConstRange({std::move(l), std::move(u)});
+  }
+
+  const std::vector<long> toConcrete() const {
+    long l = lower().getSExtValue();
+    long u = upper().getSExtValue() + 1;
+
+    if (l > u)
+      return {};
+
+    std::vector<long> ret(static_cast<unsigned long>(u - l));
+    std::iota(ret.begin(), ret.end(), l);
+    return ret;
+  }
+
+  unsigned int distance(const SConstRange &rhs) const {
+    unsigned long ld = A::APIntOps::abds(lower(), rhs.lower()).getZExtValue();
+    unsigned long ud = A::APIntOps::abds(upper(), rhs.upper()).getZExtValue();
+    return static_cast<unsigned int>(ld + ud);
+  }
+
+  static SConstRange fromConcrete(const A::APInt &x) {
+    return SConstRange({x, x});
+  }
+
+  static SConstRange bottom(unsigned int bw) {
+    A::APInt min = A::APInt::getSignedMinValue(bw);
+    A::APInt max = A::APInt::getSignedMaxValue(bw);
+    return SConstRange({max, min});
+  }
+
+  static SConstRange top(unsigned int bw) {
+    A::APInt min = A::APInt::getSignedMinValue(bw);
+    A::APInt max = A::APInt::getSignedMaxValue(bw);
+    return SConstRange({min, max});
+  }
+
+  static std::vector<SConstRange> const enumVals(unsigned int bw) {
+    const long min = A::APInt::getSignedMinValue(bw).getSExtValue();
+    const long max = A::APInt::getSignedMaxValue(bw).getSExtValue();
+    A::APInt l = A::APInt(bw, 0);
+    A::APInt u = A::APInt(bw, 0);
+    std::vector<SConstRange> ret = {top(bw)};
+
+    for (long i = min; i <= max; ++i) {
+      for (long j = i; j <= max; ++j) {
+        l = static_cast<unsigned long>(i);
+        u = static_cast<unsigned long>(j);
+        ret.push_back(SConstRange({l, u}));
+      }
+    }
+
+    return ret;
+  }
+};
+
 template <unsigned int N>
 class IntegerModulo : public AbstVal<IntegerModulo<N>, N> {
 private:
