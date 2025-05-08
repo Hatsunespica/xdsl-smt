@@ -1,4 +1,3 @@
-#include <cassert>
 #include <functional>
 #include <optional>
 #include <vector>
@@ -6,11 +5,13 @@
 #include "../APInt.h"
 #include "../AbstVal.h"
 #include "../warning_suppresor.h"
+#include "common.h"
 
 SUPPRESS_WARNINGS_BEGIN
 #include <llvm/Support/KnownBits.h>
 SUPPRESS_WARNINGS_END
 
+// TODO pull these typedefs out into another file
 typedef std::function<const A::APInt(const A::APInt, const A::APInt)> concFn;
 typedef std::function<bool(const A::APInt, const A::APInt)> opConFn;
 typedef std::function<const llvm::KnownBits(const llvm::KnownBits &,
@@ -19,28 +20,24 @@ typedef std::function<const llvm::KnownBits(const llvm::KnownBits &,
 typedef std::tuple<std::string, concFn, std::optional<opConFn>, kbXferFn>
     kbTest;
 
-inline bool nonZeroRhs(const A::APInt &_, const A::APInt &rhs) {
-  return !rhs == 0;
-}
-
-inline llvm::KnownBits make_llvm_kbs(const KnownBits &x) {
-  llvm::KnownBits llvm_kbs = llvm::KnownBits(x.bw());
-  llvm_kbs.Zero = x.v[0].getZExtValue();
-  llvm_kbs.One = x.v[1].getZExtValue();
-  return llvm_kbs;
+inline llvm::KnownBits make_llvm_kb(const KnownBits &x) {
+  llvm::KnownBits llvm = llvm::KnownBits(x.bw());
+  llvm.Zero = x.v[0].getZExtValue();
+  llvm.One = x.v[1].getZExtValue();
+  return llvm;
 }
 
 inline const KnownBits kb_xfer_wrapper(const KnownBits &lhs,
                                        const KnownBits &rhs,
                                        const kbXferFn &fn) {
-  llvm::KnownBits x = fn(make_llvm_kbs(lhs), make_llvm_kbs(rhs));
+  llvm::KnownBits x = fn(make_llvm_kb(lhs), make_llvm_kb(rhs));
   return KnownBits({A::APInt(lhs.bw(), x.Zero.getZExtValue()),
                     A::APInt(lhs.bw(), x.One.getZExtValue())});
 }
 
-inline const KnownBits to_best_kb_abst(const KnownBits &lhs, const KnownBits &rhs,
-                           const concFn &fn,
-                           const std::optional<opConFn> &opCon) {
+inline const KnownBits to_best_kb_abst(const KnownBits &lhs,
+                                       const KnownBits &rhs, const concFn &fn,
+                                       const std::optional<opConFn> &opCon) {
   std::vector<KnownBits> crtVals;
   const std::vector<unsigned int> rhss = rhs.toConcrete();
 
@@ -56,7 +53,7 @@ inline const KnownBits to_best_kb_abst(const KnownBits &lhs, const KnownBits &rh
   return KnownBits::joinAll(crtVals, lhs.bw());
 }
 
-const std::vector<kbTest> tests{
+const std::vector<kbTest> kb_tests{
     {
         "and",
         [](const A::APInt lhs, const A::APInt rhs) { return lhs & rhs; },

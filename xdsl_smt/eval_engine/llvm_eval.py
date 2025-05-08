@@ -9,7 +9,7 @@ bitwidth = 4
 
 def main():
     base_dir = path.join("xdsl_smt", "eval_engine")
-    engine_path = path.join(base_dir, "build", "eval_llvm")
+    engine_path = path.join(base_dir, "build", "llvm_eval")
     if not path.exists(engine_path):
         raise FileExistsError(f"Executable not found at: {engine_path}")
 

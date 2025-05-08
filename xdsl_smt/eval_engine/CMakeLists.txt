@@ -63,7 +63,9 @@ target_compile_options(eval_engine PRIVATE
 
 add_executable(llvm_eval
   src/llvm_eval/llvm_eval.cpp
+  src/llvm_eval/cr_tests.h
   src/llvm_eval/kb_tests.h
+  src/llvm_eval/common.cpp
 )
 
 target_include_directories(llvm_eval PRIVATE
