@@ -56,15 +56,6 @@ void eval_cr(unsigned int bw) {
         bool exact = xfer_res == best_abstract_res;
         bool topExact = top == best_abstract_res;
 
-        if (!exact) {
-          std::cout << "lhs:  " << lhs.display() << "\n";
-          std::cout << "rhs:  " << rhs.display() << "\n";
-          std::cout << "llvm: " << xfer_res.display() << "\n";
-          std::cout << "best: " << best_abstract_res.display() << "\n";
-          // to_best_cr_abst_v(lhs, rhs, conc, opCon);
-          exit(0);
-        }
-
         r.incResult(Result(0, 0, exact, 0, 0), 0);
         r.incResult(Result(0, 0, topExact, 0, 0), 1);
         r.incCases(0, 0);

@@ -1,5 +1,4 @@
 #include <functional>
-#include <iostream>
 #include <optional>
 #include <vector>
 
@@ -49,61 +48,18 @@ to_best_cr_abst(const ConstantRange &lhs, const ConstantRange &rhs,
   return ConstantRange::joinAll(crtVals, lhs.bw());
 }
 
-// inline const ConstantRange
-// to_best_cr_abst_v(const ConstantRange &lhs, const ConstantRange &rhs,
-//                   const concFn &fn, const std::optional<opConFn> &opCon) {
-//   std::vector<ConstantRange> crtVals;
-//   const std::vector<unsigned int> rhss = rhs.toConcrete();
-//
-//   for (unsigned int lhs_v : lhs.toConcrete()) {
-//     for (unsigned int rhs_v : rhss) {
-//       if (!opCon ||
-//           opCon.value()(A::APInt(lhs.bw(), lhs_v), A::APInt(lhs.bw(),
-//           rhs_v))) {
-//         auto lhs_ = A::APInt(lhs.bw(), lhs_v);
-//         auto rhs_ = A::APInt(lhs.bw(), rhs_v);
-//         std::cout << "lhs: " << lhs_.getZExtValue() << " | "
-//                   << lhs_.getSExtValue() << "\n";
-//         std::cout << "rhs: " << rhs_.getZExtValue() << " | "
-//                   << rhs_.getSExtValue() << "\n";
-//         std::cout << "res: " << fn(lhs_, rhs_).getZExtValue() << " | "
-//                   << fn(lhs_, rhs_).getSExtValue() << "\n";
-//         std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$\n";
-//         crtVals.push_back(ConstantRange::fromConcrete(
-//             fn(A::APInt(lhs.bw(), lhs_v), A::APInt(lhs.bw(), rhs_v))));
-//       }
-//     }
-//   }
-//
-//   return ConstantRange::joinAll(crtVals, lhs.bw());
-// }
-
 inline const ConstantRange cr_xfer_wrapper(const ConstantRange &lhs,
                                            const ConstantRange &rhs,
                                            const crXferFn &fn) {
   llvm::ConstantRange x = fn(make_llvm_cr(lhs), make_llvm_cr(rhs));
 
-  if (x.isWrappedSet()) {
-    std::cout << "wrapped\n";
-    std::cout << x.getLower().getSExtValue() << " "
-              << x.getLower().getZExtValue() << "\n";
-    std::cout << x.getUpper().getSExtValue() << " "
-              << x.getUpper().getZExtValue() << "\n";
-    auto a = ConstantRange({A::APInt(lhs.bw(), x.getUpper().getZExtValue()),
-                        A::APInt(lhs.bw(), x.getLower().getZExtValue()) - 1});
-    std::cout << "A: " << a.display() << "\n";
+  if (x.isWrappedSet())
     return ConstantRange::top(lhs.bw());
-  }
-  if (x.isFullSet()) {
-    std::cout << "full\n";
+  if (x.isFullSet())
     return ConstantRange::top(lhs.bw());
-  }
-  if (x.isEmptySet()) {
-    std::cout << "empty\n";
+  if (x.isEmptySet())
     return ConstantRange::bottom(lhs.bw());
-  }
 
-  std::cout << "normal\n";
   return ConstantRange({A::APInt(lhs.bw(), x.getLower().getZExtValue()),
                         A::APInt(lhs.bw(), x.getUpper().getZExtValue()) - 1});
 }
