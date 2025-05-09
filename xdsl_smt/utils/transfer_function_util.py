@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Callable
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.utils.hints import isa
 from ..dialects.smt_dialect import (
     DefineFunOp,
@@ -23,6 +23,7 @@ from xdsl.ir import Operation, SSAValue, Attribute, Block
 from xdsl.dialects.builtin import (
     FunctionType,
 )
+from xdsl.rewriter import Rewriter
 
 
 def call_function(func: DefineFunOp, args: list[SSAValue]) -> CallOp:
@@ -310,7 +311,7 @@ def fix_defining_op_return_type(func: DefineFunOp) -> DefineFunOp:
         new_smt_func_type = FunctionType.from_lists(
             smt_func_type.inputs.data, ret_val_type
         )
-        func.ret.type = new_smt_func_type
+        Rewriter.replace_value_with_new_type(func.ret, new_smt_func_type)
     return func
 
 
@@ -325,9 +326,9 @@ class FunctionCollection:
     """
 
     main_func: FuncOp
-    create_smt: Callable[[FuncOp, int, MLContext], DefineFunOp]
-    ctx: MLContext
-    smt_funcs: dict[int, DefineFunOp] = field(default_factory=dict)
+    create_smt: Callable[[FuncOp, int, Context], DefineFunOp]
+    ctx: Context
+    smt_funcs: dict[int, DefineFunOp] = field(default_factory=dict[int, DefineFunOp])
 
     def getFunctionByWidth(self, width: int) -> DefineFunOp:
         if width not in self.smt_funcs:

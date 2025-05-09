@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from xdsl.passes import ModulePass
 
 from xdsl.ir import Operation
-from xdsl.context import MLContext
+from xdsl.context import Context
 from ..utils.lower_utils import (
     lowerOperation,
     CPP_CLASS_KEY,
@@ -99,7 +99,7 @@ class LowerToCpp(ModulePass):
     fout: TextIO = None
     int_to_apint: bool = False
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         global autogen
         autogen = 0
         set_int_to_apint(self.int_to_apint)
