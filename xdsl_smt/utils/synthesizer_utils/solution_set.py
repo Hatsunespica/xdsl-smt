@@ -103,7 +103,7 @@ class SolutionSet(ABC):
         # Parameters used by SMT verifier
         concrete_op: FuncOp,
         helper_funcs: list[FuncOp],
-        ctx: MLContext,
+        ctx: Context,
     ) -> SolutionSet:
         ...
 
@@ -173,7 +173,7 @@ class SolutionSet(ABC):
         return final_module, solution_str
 
     def remove_unsound_solutions(
-        self, concrete_op: FuncOp, helper_funcs: list[FuncOp], ctx: MLContext
+        self, concrete_op: FuncOp, helper_funcs: list[FuncOp], ctx: Context
     ):
         unsound_lst: list[int] = []
         for i, sol in enumerate(self.solutions):
@@ -231,7 +231,7 @@ class SizedSolutionSet(SolutionSet):
         new_candidates_c: list[FunctionWithCondition],
         concrete_op: FuncOp,
         helper_funcs: list[FuncOp],
-        ctx: MLContext,
+        ctx: Context,
     ) -> SolutionSet:
         candidates = self.solutions + new_candidates_sp
         if len(candidates) <= self.size:
@@ -349,7 +349,7 @@ class UnsizedSolutionSet(SolutionSet):
         new_candidates_c: list[FunctionWithCondition],
         concrete_op: FuncOp,
         helper_funcs: list[FuncOp],
-        ctx: MLContext,
+        ctx: Context,
     ) -> SolutionSet:
         candidates = self.solutions + new_candidates_sp + new_candidates_c
         rename_functions(candidates, "part_solution_")
