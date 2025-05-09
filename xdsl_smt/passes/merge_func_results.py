@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from xdsl.passes import ModulePass
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp, FunctionType
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -25,10 +25,13 @@ class LowerFunctionPattern(RewritePattern):
         func_type = op.ret.type
         assert isinstance(func_type, FunctionType)
 
+        if len(func_type.outputs) == 1:
+            return
+
         new_type = FunctionType.from_lists(
             func_type.inputs.data, [pair_type_from_list(*func_type.outputs.data)]
         )
-        op.ret.type = new_type
+        rewriter.replace_value_with_new_type(op.ret, new_type)
 
 
 class ReturnPattern(RewritePattern):
@@ -50,7 +53,7 @@ class MergeFuncResultsPass(ModulePass):
 
     name = "merge-func-results"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         walker = PatternRewriteWalker(
             GreedyRewritePatternApplier([LowerFunctionPattern(), ReturnPattern()])
         )
