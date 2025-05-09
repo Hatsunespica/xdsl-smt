@@ -2,9 +2,10 @@ from os import path
 from subprocess import run, PIPE
 
 from xdsl_smt.utils.synthesizer_utils.compare_result import EvalResult, PerBitEvalResult
+from xdsl_smt.eval_engine.eval import AbstractDomain
 
-# todo parameterize by bw
 bitwidth = 4
+domain = AbstractDomain.KnownBits
 
 
 def main():
@@ -15,7 +16,7 @@ def main():
 
     eval_output = run(
         [engine_path],
-        input="\n4\n",
+        input=f"{domain}\n{bitwidth}\n",
         text=True,
         stdout=PIPE,
         stderr=PIPE,

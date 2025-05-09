@@ -1,4 +1,3 @@
-#include <functional>
 #include <optional>
 #include <vector>
 
@@ -12,14 +11,6 @@ SUPPRESS_WARNINGS_BEGIN
 #include <llvm/IR/ConstantRange.h>
 SUPPRESS_WARNINGS_END
 
-typedef std::function<const A::APInt(const A::APInt, const A::APInt)> concFn;
-typedef std::function<bool(const A::APInt, const A::APInt)> opConFn;
-typedef std::function<const llvm::ConstantRange(const llvm::ConstantRange &,
-                                                const llvm::ConstantRange &)>
-    crXferFn;
-typedef std::tuple<std::string, concFn, std::optional<opConFn>, crXferFn>
-    crTest;
-
 inline llvm::ConstantRange make_llvm_cr(const ConstantRange &x) {
   if (x.isTop())
     return llvm::ConstantRange::getFull(x.bw());
@@ -31,26 +22,8 @@ inline llvm::ConstantRange make_llvm_cr(const ConstantRange &x) {
 }
 
 inline const ConstantRange
-to_best_cr_abst(const ConstantRange &lhs, const ConstantRange &rhs,
-                const concFn &fn, const std::optional<opConFn> &opCon) {
-  std::vector<ConstantRange> crtVals;
-  const std::vector<unsigned int> rhss = rhs.toConcrete();
-
-  for (unsigned int lhs_v : lhs.toConcrete()) {
-    for (unsigned int rhs_v : rhss) {
-      if (!opCon ||
-          opCon.value()(A::APInt(lhs.bw(), lhs_v), A::APInt(lhs.bw(), rhs_v)))
-        crtVals.push_back(ConstantRange::fromConcrete(
-            fn(A::APInt(lhs.bw(), lhs_v), A::APInt(lhs.bw(), rhs_v))));
-    }
-  }
-
-  return ConstantRange::joinAll(crtVals, lhs.bw());
-}
-
-inline const ConstantRange cr_xfer_wrapper(const ConstantRange &lhs,
-                                           const ConstantRange &rhs,
-                                           const crXferFn &fn) {
+cr_xfer_wrapper(const ConstantRange &lhs, const ConstantRange &rhs,
+                const XferFn<llvm::ConstantRange> &fn) {
   llvm::ConstantRange x = fn(make_llvm_cr(lhs), make_llvm_cr(rhs));
 
   if (x.isWrappedSet())
@@ -64,7 +37,7 @@ inline const ConstantRange cr_xfer_wrapper(const ConstantRange &lhs,
                         A::APInt(lhs.bw(), x.getUpper().getZExtValue()) - 1});
 }
 
-const std::vector<crTest> cr_tests{
+const std::vector<Test<llvm::ConstantRange>> cr_tests{
     {
         "smax",
         [](const A::APInt lhs, const A::APInt rhs) {
@@ -76,7 +49,7 @@ const std::vector<crTest> cr_tests{
         },
     },
 };
-const std::vector<crTest> cr_tests_{
+const std::vector<Test<llvm::ConstantRange>> cr_tests_{
     // TODO add nsw
     // TODO add nuw
     // TODO add nsw nuw

@@ -1,4 +1,3 @@
-#include <functional>
 #include <optional>
 #include <vector>
 
@@ -11,15 +10,6 @@ SUPPRESS_WARNINGS_BEGIN
 #include <llvm/Support/KnownBits.h>
 SUPPRESS_WARNINGS_END
 
-// TODO pull these typedefs out into another file
-typedef std::function<const A::APInt(const A::APInt, const A::APInt)> concFn;
-typedef std::function<bool(const A::APInt, const A::APInt)> opConFn;
-typedef std::function<const llvm::KnownBits(const llvm::KnownBits &,
-                                            const llvm::KnownBits &)>
-    kbXferFn;
-typedef std::tuple<std::string, concFn, std::optional<opConFn>, kbXferFn>
-    kbTest;
-
 inline llvm::KnownBits make_llvm_kb(const KnownBits &x) {
   llvm::KnownBits llvm = llvm::KnownBits(x.bw());
   llvm.Zero = x.v[0].getZExtValue();
@@ -29,31 +19,13 @@ inline llvm::KnownBits make_llvm_kb(const KnownBits &x) {
 
 inline const KnownBits kb_xfer_wrapper(const KnownBits &lhs,
                                        const KnownBits &rhs,
-                                       const kbXferFn &fn) {
+                                       const XferFn<llvm::KnownBits> &fn) {
   llvm::KnownBits x = fn(make_llvm_kb(lhs), make_llvm_kb(rhs));
   return KnownBits({A::APInt(lhs.bw(), x.Zero.getZExtValue()),
                     A::APInt(lhs.bw(), x.One.getZExtValue())});
 }
 
-inline const KnownBits to_best_kb_abst(const KnownBits &lhs,
-                                       const KnownBits &rhs, const concFn &fn,
-                                       const std::optional<opConFn> &opCon) {
-  std::vector<KnownBits> crtVals;
-  const std::vector<unsigned int> rhss = rhs.toConcrete();
-
-  for (unsigned int lhs_v : lhs.toConcrete()) {
-    for (unsigned int rhs_v : rhss) {
-      if (!opCon ||
-          opCon.value()(A::APInt(lhs.bw(), lhs_v), A::APInt(lhs.bw(), rhs_v)))
-        crtVals.push_back(KnownBits::fromConcrete(
-            fn(A::APInt(lhs.bw(), lhs_v), A::APInt(lhs.bw(), rhs_v))));
-    }
-  }
-
-  return KnownBits::joinAll(crtVals, lhs.bw());
-}
-
-const std::vector<kbTest> kb_tests{
+const std::vector<Test<llvm::KnownBits>> kb_tests{
     {
         "and",
         [](const A::APInt lhs, const A::APInt rhs) { return lhs & rhs; },
