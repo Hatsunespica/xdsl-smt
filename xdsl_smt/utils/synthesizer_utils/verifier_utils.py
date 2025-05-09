@@ -1,6 +1,6 @@
 import subprocess
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 
 from io import StringIO
 
@@ -67,7 +67,7 @@ def solve_vector_width(maximal_bits: int):
     return list(range(1, maximal_bits + 1))
 
 
-def verify_pattern(ctx: MLContext, op: ModuleOp) -> bool:
+def verify_pattern(ctx: Context, op: ModuleOp) -> bool:
     cloned_op = op.clone()
     stream = StringIO()
     LowerPairs().apply(ctx, cloned_op)
@@ -136,7 +136,7 @@ def get_concrete_function(
     return result
 
 
-def lower_to_smt_module(module: ModuleOp, width: int, ctx: MLContext):
+def lower_to_smt_module(module: ModuleOp, width: int, ctx: Context):
     # lower to SMT
     SMTLowerer.rewrite_patterns = {
         **func_to_smt_patterns,
@@ -233,7 +233,7 @@ def add_poison_to_concrete_function(concrete_func: FuncOp) -> FuncOp:
     return result_func
 
 
-def create_smt_function(func: FuncOp, width: int, ctx: MLContext) -> DefineFunOp:
+def create_smt_function(func: FuncOp, width: int, ctx: Context) -> DefineFunOp:
     """
     Input: a function with type FuncOp
     Return: the function lowered to SMT dialect with specified width
@@ -255,7 +255,7 @@ def soundness_check(
     domain_constraint: FunctionCollection,
     instance_constraint: FunctionCollection,
     int_attr: dict[int, int],
-    ctx: MLContext,
+    ctx: Context,
 ) -> bool:
     query_module = ModuleOp([])
     if smt_transfer_function.is_forward:
@@ -283,7 +283,7 @@ def verify_smt_transfer_function(
     smt_transfer_function: SMTTransferFunction,
     domain_constraint: FunctionCollection,
     instance_constraint: FunctionCollection,
-    ctx: MLContext,
+    ctx: Context,
 ) -> bool:
     # Soundness check
     int_attr = generate_int_attr_arg(smt_transfer_function.int_attr_arg)
@@ -309,7 +309,7 @@ def build_init_module(
     transfer_function: FuncOp,
     concrete_func: FuncOp,
     helper_funcs: list[FuncOp],
-    ctx: MLContext,
+    ctx: Context,
     is_custom_concrete_func: bool,
 ):
     func_name_to_func: dict[str, FuncOp] = {}
@@ -379,7 +379,7 @@ def verify_transfer_function(
     transfer_function: FuncOp,
     concrete_func: FuncOp,
     helper_funcs: list[FuncOp],
-    ctx: MLContext,
+    ctx: Context,
     maximal_verify_bits: int = 32,
 ) -> int:
     is_custom_concrete_func = check_custom_concrete_func(concrete_func)

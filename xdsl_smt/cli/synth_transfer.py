@@ -5,7 +5,7 @@ import time
 import sys
 from typing import cast, Callable
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.parser import Parser
 
 from io import StringIO
@@ -152,7 +152,7 @@ def register_all_arguments(arg_parser: argparse.ArgumentParser):
     )
 
 
-def parse_file(ctx: MLContext, file: str | None) -> Operation:
+def parse_file(ctx: Context, file: str | None) -> Operation:
     if file is None:
         f = sys.stdin
         file = "<stdin>"
@@ -278,7 +278,7 @@ CONCRETE_OP_FUNC = "concrete_op"
 get_top_func_op: FuncOp | None = None
 ret_top_func: FunctionWithCondition
 TMP_MODULE: list[ModuleOp] = []
-ctx: MLContext
+ctx: Context
 
 OUTPUTS_FOLDER = "outputs"
 VERBOSE = 1  # todo: make it a cmd line arg
@@ -493,7 +493,7 @@ def synthesize_transfer_function(
     logger: logging.Logger,
     concrete_func: FuncOp,
     helper_funcs: list[FuncOp],
-    ctx: MLContext,
+    ctx: Context,
     # Global arguments
     num_programs: int,
     program_length: int,
@@ -728,7 +728,7 @@ def run(
     outputs_folder: str = OUTPUTS_FOLDER,
 ) -> EvalResult:
     global ctx
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Arith)
     ctx.load_dialect(Builtin)
     ctx.load_dialect(Func)
