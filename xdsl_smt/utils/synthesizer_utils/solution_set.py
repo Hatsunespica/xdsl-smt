@@ -3,7 +3,7 @@ from __future__ import annotations
 import io
 from typing import Callable
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.func import FuncOp, CallOp, ReturnOp
 from xdsl.ir import Operation
@@ -31,7 +31,7 @@ def verify_function(
     func: FunctionWithCondition,
     concrete_op: FuncOp,
     helper_funcs: list[FuncOp],
-    ctx: MLContext,
+    ctx: Context,
 ) -> int:
     cur_helper = [func.func]
     if func.cond is not None:
