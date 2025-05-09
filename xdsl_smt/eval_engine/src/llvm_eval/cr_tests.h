@@ -38,18 +38,6 @@ cr_xfer_wrapper(const ConstantRange &lhs, const ConstantRange &rhs,
 }
 
 const std::vector<Test<llvm::ConstantRange>> cr_tests{
-    {
-        "smax",
-        [](const A::APInt lhs, const A::APInt rhs) {
-          return A::APIntOps::smax(lhs, rhs);
-        },
-        std::nullopt,
-        [](const llvm::ConstantRange &lhs, const llvm::ConstantRange &rhs) {
-          return lhs.smax(rhs);
-        },
-    },
-};
-const std::vector<Test<llvm::ConstantRange>> cr_tests_{
     // TODO add nsw
     // TODO add nuw
     // TODO add nsw nuw

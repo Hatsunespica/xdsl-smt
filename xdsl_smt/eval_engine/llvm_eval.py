@@ -6,6 +6,7 @@ from xdsl_smt.eval_engine.eval import AbstractDomain
 
 bitwidth = 4
 domain = AbstractDomain.KnownBits
+# domain = AbstractDomain.ConstantRange
 
 
 def main():
@@ -69,8 +70,11 @@ def main():
         for n, cps in results
     ]
 
+    def fmt_llvm(x: EvalResult) -> str:
+        return "n/a   " if x.get_exact_prop() == 0 else f"{x.get_exact_prop():.4f}"
+
     output = [
-        f"{n:<12}| llvm: {llvm.get_exact_prop():.4f} | top: {top.get_exact_prop():.4f}"
+        f"{n:<12}| llvm: {fmt_llvm(llvm)} | top: {top.get_exact_prop():.4f}"
         for n, llvm, top in r
     ]
 

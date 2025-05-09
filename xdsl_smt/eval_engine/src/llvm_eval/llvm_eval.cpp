@@ -42,8 +42,11 @@ eval(unsigned int bw, const std::vector<Test<D2>> &tests,
         if (best_abstract_res.isBottom())
           continue;
 
-        D xfer_res = xfer_wrapper(lhs, rhs, xfer);
-        bool exact = xfer_res == best_abstract_res;
+        bool exact = false;
+        if (xfer) {
+          D xfer_res = xfer_wrapper(lhs, rhs, xfer.value());
+          exact = xfer_res == best_abstract_res;
+        }
         bool topExact = top == best_abstract_res;
 
         r.back().second.incResult(Result(0, 0, exact, 0, 0), 0);

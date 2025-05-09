@@ -61,11 +61,7 @@ const std::vector<Test<llvm::KnownBits>> kb_tests{
     {
         "add nsw",
         [](const A::APInt lhs, const A::APInt rhs) { return lhs + rhs; },
-        [](const A::APInt lhs, const A::APInt rhs) {
-          bool ov = false;
-          A::APInt _ = lhs.sadd_ov(rhs, ov);
-          return !ov;
-        },
+        getNW(&A::APInt::sadd_ov),
         [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
           return llvm::KnownBits::add(lhs, rhs, true, false);
         },
@@ -73,11 +69,7 @@ const std::vector<Test<llvm::KnownBits>> kb_tests{
     {
         "add nuw",
         [](const A::APInt lhs, const A::APInt rhs) { return lhs + rhs; },
-        [](const A::APInt lhs, const A::APInt rhs) {
-          bool ov = false;
-          A::APInt _ = lhs.uadd_ov(rhs, ov);
-          return !ov;
-        },
+        getNW(&A::APInt::uadd_ov),
         [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
           return llvm::KnownBits::add(lhs, rhs, false, true);
         },
@@ -85,13 +77,7 @@ const std::vector<Test<llvm::KnownBits>> kb_tests{
     {
         "add nsw nuw",
         [](const A::APInt lhs, const A::APInt rhs) { return lhs + rhs; },
-        [](const A::APInt lhs, const A::APInt rhs) {
-          bool sov = false;
-          bool uov = false;
-          A::APInt _ = lhs.sadd_ov(rhs, sov);
-          _ = lhs.uadd_ov(rhs, uov);
-          return !(sov | uov);
-        },
+        combine(getNW(&A::APInt::sadd_ov), getNW(&A::APInt::uadd_ov)),
         [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
           return llvm::KnownBits::add(lhs, rhs, true, true);
         },
@@ -108,11 +94,7 @@ const std::vector<Test<llvm::KnownBits>> kb_tests{
     {
         "sub nsw",
         [](const A::APInt lhs, const A::APInt rhs) { return lhs - rhs; },
-        [](const A::APInt lhs, const A::APInt rhs) {
-          bool ov = false;
-          A::APInt _ = lhs.ssub_ov(rhs, ov);
-          return !ov;
-        },
+        getNW(&A::APInt::ssub_ov),
         [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
           return llvm::KnownBits::sub(lhs, rhs, true, false);
         },
@@ -120,11 +102,7 @@ const std::vector<Test<llvm::KnownBits>> kb_tests{
     {
         "sub nuw",
         [](const A::APInt lhs, const A::APInt rhs) { return lhs - rhs; },
-        [](const A::APInt lhs, const A::APInt rhs) {
-          bool ov = false;
-          A::APInt _ = lhs.usub_ov(rhs, ov);
-          return !ov;
-        },
+        getNW(&A::APInt::usub_ov),
         [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
           return llvm::KnownBits::sub(lhs, rhs, false, true);
         },
@@ -132,13 +110,7 @@ const std::vector<Test<llvm::KnownBits>> kb_tests{
     {
         "sub nsw nuw",
         [](const A::APInt lhs, const A::APInt rhs) { return lhs - rhs; },
-        [](const A::APInt lhs, const A::APInt rhs) {
-          bool sov = false;
-          bool uov = false;
-          A::APInt _ = lhs.ssub_ov(rhs, sov);
-          _ = lhs.usub_ov(rhs, uov);
-          return !(sov | uov);
-        },
+        combine(getNW(&A::APInt::ssub_ov), getNW(&A::APInt::usub_ov)),
         [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
           return llvm::KnownBits::sub(lhs, rhs, true, true);
         },
