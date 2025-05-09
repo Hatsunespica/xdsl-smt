@@ -25,14 +25,14 @@ const D to_best_abst(const D &lhs, const D &rhs, const concFn &fn,
 
 template <typename D, typename D2>
 std::vector<std::pair<std::string, Results>>
-eval(unsigned int bw, const std::vector<Test<D2>> &tests,
+eval(unsigned int bw, const std::vector<Test<D2>> &tsts,
      XferWrap<D, D2> &xfer_wrapper) {
 
   std::vector<std::pair<std::string, Results>> r;
   const std::vector<D> fullLattice = D::enumVals(bw);
   D top = D::top(bw);
 
-  for (auto [name, conc, opCon, xfer] : tests) {
+  for (auto [name, conc, opCon, xfer] : tsts) {
     r.push_back({name, Results{2}});
 
     for (D lhs : fullLattice) {
@@ -69,9 +69,9 @@ int main() {
 
   if (domain == "ConstantRange")
     results =
-        eval<ConstantRange, llvm::ConstantRange>(bw, cr_tests, cr_xfer_wrapper);
+        eval<ConstantRange, llvm::ConstantRange>(bw, cr_tests(), cr_xfer_wrapper);
   else if (domain == "KnownBits")
-    results = eval<KnownBits, llvm::KnownBits>(bw, kb_tests, kb_xfer_wrapper);
+    results = eval<KnownBits, llvm::KnownBits>(bw, kb_tests(), kb_xfer_wrapper);
   else
     std::cerr << "Unknown Domain: " << domain << "\n";
 

@@ -78,6 +78,7 @@ def main():
         for n, llvm, top in r
     ]
 
+    print(domain)
     [print(x) for x in output]
 
 

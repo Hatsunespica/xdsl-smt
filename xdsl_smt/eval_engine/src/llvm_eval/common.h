@@ -21,4 +21,7 @@ using XferWrap =
 
 bool nonZeroRhs(const A::APInt &, const A::APInt &);
 opConFn getNW(ovFn);
-opConFn combine(const opConFn &, const opConFn &);
+opConFn getNW(ovFn, ovFn);
+
+extern const std::vector<std::tuple<std::string, concFn, std::optional<opConFn>>>
+    tests;

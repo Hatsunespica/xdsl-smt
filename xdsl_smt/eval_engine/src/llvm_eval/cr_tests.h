@@ -1,4 +1,5 @@
 #include <optional>
+#include <ranges>
 #include <vector>
 
 #include "../APInt.h"
@@ -37,137 +38,31 @@ cr_xfer_wrapper(const ConstantRange &lhs, const ConstantRange &rhs,
                         A::APInt(lhs.bw(), x.getUpper().getZExtValue()) - 1});
 }
 
-const std::vector<Test<llvm::ConstantRange>> cr_tests{
-    // TODO add nsw
-    // TODO add nuw
-    // TODO add nsw nuw
-    // TODO sub nsw
-    // TODO sub nuw
-    // TODO sub nsw nuw
-    // TODO mul nsw
-    // TODO mul nuw
-    // TODO mul nsw nuw
-    {
-        "and",
-        [](const A::APInt lhs, const A::APInt rhs) { return lhs & rhs; },
-        std::nullopt,
-        [](const llvm::ConstantRange &lhs, const llvm::ConstantRange &rhs) {
-          return lhs.binaryAnd(rhs);
-        },
-    },
-    {
-        "or",
-        [](const A::APInt lhs, const A::APInt rhs) { return lhs | rhs; },
-        std::nullopt,
-        [](const llvm::ConstantRange &lhs, const llvm::ConstantRange &rhs) {
-          return lhs.binaryOr(rhs);
-        },
-    },
-    {
-        "xor",
-        [](const A::APInt lhs, const A::APInt rhs) { return lhs ^ rhs; },
-        std::nullopt,
-        [](const llvm::ConstantRange &lhs, const llvm::ConstantRange &rhs) {
-          return lhs.binaryXor(rhs);
-        },
-    },
-    {
-        "add",
-        [](const A::APInt lhs, const A::APInt rhs) { return lhs + rhs; },
-        std::nullopt,
-        [](const llvm::ConstantRange &lhs, const llvm::ConstantRange &rhs) {
-          return lhs.add(rhs);
-        },
-    },
-    {
+#define CR_OP(e)                                                               \
+  [](const llvm::ConstantRange &l, const llvm::ConstantRange &r) { return e; }
 
-        "sub",
-        [](const A::APInt lhs, const A::APInt rhs) { return lhs - rhs; },
-        std::nullopt,
-        [](const llvm::ConstantRange &lhs, const llvm::ConstantRange &rhs) {
-          return lhs.sub(rhs);
-        },
-    },
-    {
-        "umax",
-        [](const A::APInt lhs, const A::APInt rhs) {
-          return A::APIntOps::umax(lhs, rhs);
-        },
-        std::nullopt,
-        [](const llvm::ConstantRange &lhs, const llvm::ConstantRange &rhs) {
-          return lhs.umax(rhs);
-        },
-    },
-    {
-        "umin",
-        [](const A::APInt lhs, const A::APInt rhs) {
-          return A::APIntOps::umin(lhs, rhs);
-        },
-        std::nullopt,
-        [](const llvm::ConstantRange &lhs, const llvm::ConstantRange &rhs) {
-          return lhs.umin(rhs);
-        },
-    },
-    {
-        "smax",
-        [](const A::APInt lhs, const A::APInt rhs) {
-          return A::APIntOps::smax(lhs, rhs);
-        },
-        std::nullopt,
-        [](const llvm::ConstantRange &lhs, const llvm::ConstantRange &rhs) {
-          return lhs.smax(rhs);
-        },
-    },
-    {
-        "smin",
-        [](const A::APInt lhs, const A::APInt rhs) {
-          return A::APIntOps::smin(lhs, rhs);
-        },
-        std::nullopt,
-        [](const llvm::ConstantRange &lhs, const llvm::ConstantRange &rhs) {
-          return lhs.smin(rhs);
-        },
-    },
-    {
-        "udiv",
-        [](const A::APInt l, const A::APInt r) { return l.udiv(r); },
-        nonZeroRhs,
-        [](const llvm::ConstantRange &lhs, const llvm::ConstantRange &rhs) {
-          return lhs.udiv(rhs);
-        },
-    },
-    {
-        "sdiv",
-        [](const A::APInt l, const A::APInt r) { return l.sdiv(r); },
-        nonZeroRhs,
-        [](const llvm::ConstantRange &lhs, const llvm::ConstantRange &rhs) {
-          return lhs.sdiv(rhs);
-        },
-    },
-    {
+inline const std::vector<Test<llvm::ConstantRange>> cr_tests() {
+  const std::vector<
+      std::tuple<std::string, std::optional<XferFn<llvm::ConstantRange>>>>
+      cr_tests{
+          {"and", CR_OP(l.binaryAnd(r))}, {"or", CR_OP(l.binaryOr(r))},
+          {"xor", CR_OP(l.binaryXor(r))}, {"add", CR_OP(l.add(r))},
+          {"sub", CR_OP(l.sub(r))},       {"umax", CR_OP(l.umax(r))},
+          {"umin", CR_OP(l.umin(r))},     {"smax", CR_OP(l.smax(r))},
+          {"smin", CR_OP(l.smin(r))},     {"udiv", CR_OP(l.udiv(r))},
+          {"sdiv", CR_OP(l.sdiv(r))},     {"urem", CR_OP(l.urem(r))},
+          {"srem", CR_OP(l.srem(r))},     {"mul", CR_OP(l.multiply(r))},
+      };
 
-        "urem",
-        [](const A::APInt l, const A::APInt r) { return l.urem(r); },
-        nonZeroRhs,
-        [](const llvm::ConstantRange &lhs, const llvm::ConstantRange &rhs) {
-          return lhs.urem(rhs);
-        },
-    },
-    {
-        "srem",
-        [](const A::APInt l, const A::APInt r) { return l.srem(r); },
-        nonZeroRhs,
-        [](const llvm::ConstantRange &lhs, const llvm::ConstantRange &rhs) {
-          return lhs.srem(rhs);
-        },
-    },
-    {
-        "mul",
-        [](const A::APInt l, const A::APInt r) { return l * r; },
-        std::nullopt,
-        [](const llvm::ConstantRange &lhs, const llvm::ConstantRange &rhs) {
-          return lhs.multiply(rhs);
-        },
-    },
-    // TODO add to the end of the table here and for kb
-};
+  std::vector<Test<llvm::ConstantRange>> v;
+  std::ranges::for_each(std::ranges::views::zip(tests, cr_tests),
+                        [&v](const auto &pair) {
+                          const auto &[test, kbTest] = pair;
+                          const auto &[tName, concFn, opConFn] = test;
+                          const auto &[kbName, kbOp] = kbTest;
+                          assert(tName == kbName);
+                          v.emplace_back(tName, concFn, opConFn, kbOp);
+                        });
+
+  return v;
+}

@@ -1,4 +1,6 @@
+#include <algorithm>
 #include <optional>
+#include <ranges>
 #include <vector>
 
 #include "../APInt.h"
@@ -25,231 +27,53 @@ inline const KnownBits kb_xfer_wrapper(const KnownBits &lhs,
                     A::APInt(lhs.bw(), x.One.getZExtValue())});
 }
 
-const std::vector<Test<llvm::KnownBits>> kb_tests{
-    {
-        "and",
-        [](const A::APInt lhs, const A::APInt rhs) { return lhs & rhs; },
-        std::nullopt,
-        [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
-          return lhs & rhs;
-        },
-    },
-    {
-        "or",
-        [](const A::APInt lhs, const A::APInt rhs) { return lhs | rhs; },
-        std::nullopt,
-        [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
-          return lhs | rhs;
-        },
-    },
-    {
-        "xor",
-        [](const A::APInt lhs, const A::APInt rhs) { return lhs ^ rhs; },
-        std::nullopt,
-        [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
-          return lhs ^ rhs;
-        },
-    },
-    {
-        "add",
-        [](const A::APInt lhs, const A::APInt rhs) { return lhs + rhs; },
-        std::nullopt,
-        [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
-          return llvm::KnownBits::add(lhs, rhs);
-        },
-    },
-    {
-        "add nsw",
-        [](const A::APInt lhs, const A::APInt rhs) { return lhs + rhs; },
-        getNW(&A::APInt::sadd_ov),
-        [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
-          return llvm::KnownBits::add(lhs, rhs, true, false);
-        },
-    },
-    {
-        "add nuw",
-        [](const A::APInt lhs, const A::APInt rhs) { return lhs + rhs; },
-        getNW(&A::APInt::uadd_ov),
-        [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
-          return llvm::KnownBits::add(lhs, rhs, false, true);
-        },
-    },
-    {
-        "add nsw nuw",
-        [](const A::APInt lhs, const A::APInt rhs) { return lhs + rhs; },
-        combine(getNW(&A::APInt::sadd_ov), getNW(&A::APInt::uadd_ov)),
-        [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
-          return llvm::KnownBits::add(lhs, rhs, true, true);
-        },
-    },
-    {
+#define KB_OP(e)                                                               \
+  [](const llvm::KnownBits &l, const llvm::KnownBits &r) { return e; }
 
-        "sub",
-        [](const A::APInt lhs, const A::APInt rhs) { return lhs - rhs; },
-        std::nullopt,
-        [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
-          return llvm::KnownBits::sub(lhs, rhs);
-        },
-    },
-    {
-        "sub nsw",
-        [](const A::APInt lhs, const A::APInt rhs) { return lhs - rhs; },
-        getNW(&A::APInt::ssub_ov),
-        [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
-          return llvm::KnownBits::sub(lhs, rhs, true, false);
-        },
-    },
-    {
-        "sub nuw",
-        [](const A::APInt lhs, const A::APInt rhs) { return lhs - rhs; },
-        getNW(&A::APInt::usub_ov),
-        [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
-          return llvm::KnownBits::sub(lhs, rhs, false, true);
-        },
-    },
-    {
-        "sub nsw nuw",
-        [](const A::APInt lhs, const A::APInt rhs) { return lhs - rhs; },
-        combine(getNW(&A::APInt::ssub_ov), getNW(&A::APInt::usub_ov)),
-        [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
-          return llvm::KnownBits::sub(lhs, rhs, true, true);
-        },
-    },
-    {
-        "umax",
-        [](const A::APInt lhs, const A::APInt rhs) {
-          return A::APIntOps::umax(lhs, rhs);
-        },
-        std::nullopt,
-        [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
-          return llvm::KnownBits::umax(lhs, rhs);
-        },
-    },
-    {
-        "umin",
-        [](const A::APInt lhs, const A::APInt rhs) {
-          return A::APIntOps::umin(lhs, rhs);
-        },
-        std::nullopt,
-        [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
-          return llvm::KnownBits::umin(lhs, rhs);
-        },
-    },
-    {
-        "smax",
-        [](const A::APInt lhs, const A::APInt rhs) {
-          return A::APIntOps::smax(lhs, rhs);
-        },
-        std::nullopt,
-        [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
-          return llvm::KnownBits::smax(lhs, rhs);
-        },
-    },
-    {
-        "smin",
-        [](const A::APInt lhs, const A::APInt rhs) {
-          return A::APIntOps::smin(lhs, rhs);
-        },
-        std::nullopt,
-        [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
-          return llvm::KnownBits::smin(lhs, rhs);
-        },
-    },
-    {
-        "abdu",
-        [](const A::APInt lhs, const A::APInt rhs) {
-          return A::APIntOps::abdu(lhs, rhs);
-        },
-        std::nullopt,
-        [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
-          return llvm::KnownBits::abdu(lhs, rhs);
-        },
-    },
-    {
-        "abds",
-        [](const A::APInt lhs, const A::APInt rhs) {
-          return A::APIntOps::abds(lhs, rhs);
-        },
-        std::nullopt,
-        [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
-          return llvm::KnownBits::abds(lhs, rhs);
-        },
-    },
-    {
-        "udiv",
-        [](const A::APInt l, const A::APInt r) { return l.udiv(r); },
-        nonZeroRhs,
-        [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
-          return llvm::KnownBits::udiv(lhs, rhs);
-        },
-    },
-    {
-        "udiv exact",
-        [](const A::APInt l, const A::APInt r) { return l.udiv(r); },
-        nonZeroRhs,
-        [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
-          return llvm::KnownBits::udiv(lhs, rhs, true);
-        },
-    },
-    {
-        "sdiv",
-        [](const A::APInt l, const A::APInt r) { return l.sdiv(r); },
-        nonZeroRhs,
-        [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
-          return llvm::KnownBits::sdiv(lhs, rhs);
-        },
-    },
-    {
-        "sdiv exact",
-        [](const A::APInt l, const A::APInt r) { return l.sdiv(r); },
-        nonZeroRhs,
-        [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
-          return llvm::KnownBits::sdiv(lhs, rhs, true);
-        },
-    },
-    {
+inline const std::vector<Test<llvm::KnownBits>> kb_tests() {
+  const std::vector<
+      std::tuple<std::string, std::optional<XferFn<llvm::KnownBits>>>>
+      kb_tests{
+          {"and", KB_OP(l & r)},
+          {"or", KB_OP(l | r)},
+          {"xor", KB_OP(l ^ r)},
+          {"add", KB_OP(llvm::KnownBits::add(l, r))},
+          {"add nsw", KB_OP(llvm::KnownBits::add(l, r, true, false))},
+          {"add nuw", KB_OP(llvm::KnownBits::add(l, r, false, true))},
+          {"add nsuw", KB_OP(llvm::KnownBits::add(l, r, true, true))},
+          {"sub", KB_OP(llvm::KnownBits::sub(l, r))},
+          {"sub nsw", KB_OP(llvm::KnownBits::sub(l, r, true, false))},
+          {"sub nuw", KB_OP(llvm::KnownBits::sub(l, r, false, true))},
+          {"sub nsuw", KB_OP(llvm::KnownBits::sub(l, r, true, true))},
+          {"umax", KB_OP(llvm::KnownBits::umax(l, r))},
+          {"umin", KB_OP(llvm::KnownBits::umin(l, r))},
+          {"smax", KB_OP(llvm::KnownBits::smax(l, r))},
+          {"smin", KB_OP(llvm::KnownBits::smin(l, r))},
+          {"abdu", KB_OP(llvm::KnownBits::abdu(l, r))},
+          {"abds", KB_OP(llvm::KnownBits::abds(l, r))},
+          {"udiv", KB_OP(llvm::KnownBits::udiv(l, r))},
+          {"udiv exact", KB_OP(llvm::KnownBits::udiv(l, r, true))},
+          {"sdiv", KB_OP(llvm::KnownBits::sdiv(l, r))},
+          {"sdiv exact", KB_OP(llvm::KnownBits::sdiv(l, r, true))},
+          {"urem", KB_OP(llvm::KnownBits::urem(l, r))},
+          {"srem", KB_OP(llvm::KnownBits::srem(l, r))},
+          {"mul", KB_OP(llvm::KnownBits::mul(l, r))},
+          {"mul nsw", std::nullopt},
+          {"mul nuw", std::nullopt},
+          {"mul nsuw", std::nullopt},
+          {"mulhs", KB_OP(llvm::KnownBits::mulhs(l, r))},
+          {"mulhu", KB_OP(llvm::KnownBits::mulhu(l, r))},
+      };
 
-        "urem",
-        [](const A::APInt l, const A::APInt r) { return l.urem(r); },
-        nonZeroRhs,
-        [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
-          return llvm::KnownBits::urem(lhs, rhs);
-        },
-    },
-    {
-        "srem",
-        [](const A::APInt l, const A::APInt r) { return l.srem(r); },
-        nonZeroRhs,
-        [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
-          return llvm::KnownBits::srem(lhs, rhs);
-        },
-    },
-    {
-        "mul",
-        [](const A::APInt l, const A::APInt r) { return l * r; },
-        std::nullopt,
-        [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
-          return llvm::KnownBits::mul(lhs, rhs);
-        },
-    },
-    {
-        "mulhs",
-        [](const A::APInt l, const A::APInt r) {
-          return A::APIntOps::mulhs(l, r);
-        },
-        std::nullopt,
-        [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
-          return llvm::KnownBits::mulhs(lhs, rhs);
-        },
-    },
-    {
-        "mulhu",
-        [](const A::APInt l, const A::APInt r) {
-          return A::APIntOps::mulhu(l, r);
-        },
-        std::nullopt,
-        [](const llvm::KnownBits &lhs, const llvm::KnownBits &rhs) {
-          return llvm::KnownBits::mulhu(lhs, rhs);
-        },
-    },
-};
+  std::vector<Test<llvm::KnownBits>> v;
+  std::ranges::for_each(std::ranges::views::zip(tests, kb_tests),
+                        [&v](const auto &pair) {
+                          const auto &[test, kbTest] = pair;
+                          const auto &[tName, concFn, opConFn] = test;
+                          const auto &[kbName, kbOp] = kbTest;
+                          assert(tName == kbName);
+                          v.emplace_back(tName, concFn, opConFn, kbOp);
+                        });
+
+  return v;
+}
