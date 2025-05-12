@@ -2,6 +2,9 @@
 #include "../APInt.h"
 
 bool nonZeroRhs(const A::APInt &_, const A::APInt &rhs) { return !rhs == 0; }
+bool validShftAmnt(const A::APInt &l, const A::APInt &r) {
+  return r.getZExtValue() < l.getBitWidth();
+}
 
 opConFn getNW(ovFn fn) {
   return [fn](const A::APInt lhs, const A::APInt rhs) {
@@ -54,25 +57,25 @@ const std::vector<std::tuple<std::string, concFn, std::optional<opConFn>>>
         {"mul nsuw", OP(l *r), getNW(&A::APInt::smul_ov, &A::APInt::umul_ov)},
         {"mulhs", OP(A::APIntOps::mulhs(l, r)), std::nullopt},
         {"mulhu", OP(A::APIntOps::mulhu(l, r)), std::nullopt},
-        // TODO impl all of these
-        // shl
-        // shl nsw
-        // shl nuw
-        // shl nsuw
-        // lshr
-        // lshr exact
-        // ashr
-        // ashr exact
-        // avgfloors
-        // avgflooru
-        // avgceils
-        // avgceilu
-        // uadd_sat
-        // usub_sat
-        // sadd_sat
-        // ssub_sat
-        // umul_sat
-        // smul_sat
-        // ushl_sat
-        // sshl_sat
+        {"shl", OP(l.shl(r)), validShftAmnt},
+        {"shl nsw", OP(l.shl(r)), getNW(&A::APInt::sshl_ov)},
+        {"shl nuw", OP(l.shl(r)), getNW(&A::APInt::ushl_ov)},
+        {"shl nsuw", OP(l.shl(r)),
+         getNW(&A::APInt::sshl_ov, &A::APInt::ushl_ov)},
+        {"lshr", OP(l.lshr(r)), validShftAmnt},
+        {"lshr exact", OP(l.lshr(r)), validShftAmnt},
+        {"ashr", OP(l.ashr(r)), validShftAmnt},
+        {"ashr exact", OP(l.ashr(r)), validShftAmnt},
+        {"avgfloors", OP(A::APIntOps::avgFloorS(l, r)), std::nullopt},
+        {"avgflooru", OP(A::APIntOps::avgFloorU(l, r)), std::nullopt},
+        {"avgceils", OP(A::APIntOps::avgCeilS(l, r)), std::nullopt},
+        {"avgceilu", OP(A::APIntOps::avgCeilU(l, r)), std::nullopt},
+        {"uadd sat", OP(l.uadd_sat(r)), std::nullopt},
+        {"usub sat", OP(l.usub_sat(r)), std::nullopt},
+        {"sadd sat", OP(l.sadd_sat(r)), std::nullopt},
+        {"ssub sat", OP(l.ssub_sat(r)), std::nullopt},
+        {"umul sat", OP(l.umul_sat(r)), std::nullopt},
+        {"smul sat", OP(l.smul_sat(r)), std::nullopt},
+        {"ushl sat", OP(l.ushl_sat(r)), std::nullopt},
+        {"sshl sat", OP(l.sshl_sat(r)), std::nullopt},
     };

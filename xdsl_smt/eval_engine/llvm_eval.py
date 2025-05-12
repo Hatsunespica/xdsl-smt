@@ -74,11 +74,11 @@ def main():
         return "n/a   " if x.get_exact_prop() == 0 else f"{x.get_exact_prop():.4f}"
 
     output = [
-        f"{n:<12}| llvm: {fmt_llvm(llvm)} | top: {top.get_exact_prop():.4f}"
+        f"{n:<11}| llvm: {fmt_llvm(llvm)} | top: {top.get_exact_prop():.4f}"
         for n, llvm, top in r
     ]
 
-    print(domain)
+    print(f"Domain: {domain}, BitWidth: {bitwidth}")
     [print(x) for x in output]
 
 

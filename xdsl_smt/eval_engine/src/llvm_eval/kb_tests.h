@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <iostream>
 #include <optional>
 #include <ranges>
 #include <vector>
@@ -63,7 +64,33 @@ inline const std::vector<Test<llvm::KnownBits>> kb_tests() {
           {"mul nsuw", std::nullopt},
           {"mulhs", KB_OP(llvm::KnownBits::mulhs(l, r))},
           {"mulhu", KB_OP(llvm::KnownBits::mulhu(l, r))},
+          {"shl", KB_OP(llvm::KnownBits::shl(l, r))},
+          {"shl nsw", KB_OP(llvm::KnownBits::shl(l, r, false, true))},
+          {"shl nuw", KB_OP(llvm::KnownBits::shl(l, r, true, false))},
+          {"shl nsuw", KB_OP(llvm::KnownBits::shl(l, r, true, true))},
+          {"lshr", KB_OP(llvm::KnownBits::lshr(l, r))},
+          {"lshr exact", KB_OP(llvm::KnownBits::lshr(l, r, false, true))},
+          {"ashr", KB_OP(llvm::KnownBits::ashr(l, r))},
+          {"ashr exact", KB_OP(llvm::KnownBits::ashr(l, r, false, true))},
+          {"avgfloors", KB_OP(llvm::KnownBits::avgFloorS(l, r))},
+          {"avgflooru", KB_OP(llvm::KnownBits::avgFloorU(l, r))},
+          {"avgceils", KB_OP(llvm::KnownBits::avgCeilS(l, r))},
+          {"avgceilu", KB_OP(llvm::KnownBits::avgCeilU(l, r))},
+          {"uadd sat", KB_OP(llvm::KnownBits::uadd_sat(l, r))},
+          {"usub sat", KB_OP(llvm::KnownBits::usub_sat(l, r))},
+          {"sadd sat", KB_OP(llvm::KnownBits::sadd_sat(l, r))},
+          {"ssub sat", KB_OP(llvm::KnownBits::ssub_sat(l, r))},
+          {"umul sat", std::nullopt},
+          {"smul sat", std::nullopt},
+          {"ushl sat", std::nullopt},
+          {"sshl sat", std::nullopt},
       };
+
+  if (tests.size() != kb_tests.size()) {
+    std::cerr << "Test size mismatch: " << tests.size() << " | "
+              << kb_tests.size() << "\n";
+    exit(1);
+  }
 
   std::vector<Test<llvm::KnownBits>> v;
   std::ranges::for_each(std::ranges::views::zip(tests, kb_tests),
@@ -71,7 +98,11 @@ inline const std::vector<Test<llvm::KnownBits>> kb_tests() {
                           const auto &[test, kbTest] = pair;
                           const auto &[tName, concFn, opConFn] = test;
                           const auto &[kbName, kbOp] = kbTest;
-                          assert(tName == kbName);
+                          if (tName != kbName) {
+                            std::cerr << "Function name mismatch: " << tName
+                                      << " | " << kbName << "\n";
+                            exit(1);
+                          }
                           v.emplace_back(tName, concFn, opConFn, kbOp);
                         });
 
