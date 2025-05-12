@@ -4,12 +4,8 @@ from subprocess import run, PIPE
 from xdsl_smt.utils.synthesizer_utils.compare_result import EvalResult, PerBitEvalResult
 from xdsl_smt.eval_engine.eval import AbstractDomain
 
-bitwidth = 4
-domain = AbstractDomain.KnownBits
-# domain = AbstractDomain.ConstantRange
 
-
-def main():
+def eval_llvm(domain: AbstractDomain, bitwidth: int) -> list[str]:
     base_dir = path.join("xdsl_smt", "eval_engine")
     engine_path = path.join(base_dir, "build", "llvm_eval")
     if not path.exists(engine_path):
@@ -73,13 +69,19 @@ def main():
     def fmt_llvm(x: EvalResult) -> str:
         return "n/a   " if x.get_exact_prop() == 0 else f"{x.get_exact_prop():.4f}"
 
-    output = [
+    return [
         f"{n:<11}| llvm: {fmt_llvm(llvm)} | top: {top.get_exact_prop():.4f}"
         for n, llvm, top in r
     ]
 
-    print(f"Domain: {domain}, BitWidth: {bitwidth}")
-    [print(x) for x in output]
+
+def main():
+    bitwidth = 4
+    for domain in AbstractDomain:
+        output = eval_llvm(domain, bitwidth)
+        print(f"Domain: {domain}, BitWidth: {bitwidth}")
+        [print(x) for x in output]
+        print("")
 
 
 if __name__ == "__main__":
