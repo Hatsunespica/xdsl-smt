@@ -531,10 +531,15 @@ public:
   }
 
   const std::vector<A::APInt> toConcrete() const {
-    bool ov = false;
+    const A::APInt acrt = A::APInt(this->bw(), crt);
+
+    if (p > A::APInt::getMaxValue(this->bw()).getZExtValue())
+      return {acrt};
+
     const A::APInt ap = A::APInt(this->bw(), p);
     std::vector<A::APInt> r;
-    for (A::APInt x = A::APInt(this->bw(), crt); !ov; x = x.uadd_ov(ap, ov))
+    bool ov = false;
+    for (A::APInt x = acrt; !ov; x = x.uadd_ov(ap, ov))
       r.push_back(x);
 
     return r;
