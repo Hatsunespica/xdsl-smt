@@ -981,6 +981,7 @@ def run(
         helper_funcs_cpp + [print_to_cpp(meet_func)],
         domain,
         bitwidth,
+        (num_random_tests, random_seed) if num_random_tests is not None else None,
     )
 
     solution_result = cmp_results[0]
