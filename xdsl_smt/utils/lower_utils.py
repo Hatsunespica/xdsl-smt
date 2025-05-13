@@ -19,6 +19,11 @@ from ..dialects.transfer import (
     GetLowBitsOp,
     GetBitWidthOp,
     UMulOverflowOp,
+    SMulOverflowOp,
+    UAddOverflowOp,
+    SAddOverflowOp,
+    UShlOverflowOp,
+    SShlOverflowOp,
     SMinOp,
     SMaxOp,
     UMinOp,
@@ -39,6 +44,10 @@ from ..dialects.transfer import (
     TupleType,
     AddPoisonOp,
     RemovePoisonOp,
+    SDivOp,
+    UDivOp,
+    SRemOp,
+    URemOp,
 )
 from xdsl.dialects.func import FuncOp, ReturnOp, CallOp
 from xdsl.pattern_rewriter import *
@@ -62,7 +71,16 @@ operNameToCpp = {
     "arith.subi": "-",
     "transfer.neg": "~",
     "transfer.mul": "*",
+    "transfer.udiv": ".udiv",
+    "transfer.sdiv": ".sdiv",
+    "transfer.urem": ".urem",
+    "transfer.srem": ".srem",
     "transfer.umul_overflow": ".umul_ov",
+    "transfer.smul_overflow": ".smul_ov",
+    "transfer.uadd_overflow": ".uadd_ov",
+    "transfer.sadd_overflow": ".uadd_ov",
+    "transfer.ushl_overflow": ".ushl_ov",
+    "transfer.sshl_overflow": ".sshl_ov",
     "transfer.get_bit_width": ".getBitWidth",
     "transfer.countl_zero": ".countl_zero",
     "transfer.countr_zero": ".countr_zero",
@@ -476,14 +494,43 @@ def _(op: MakeOp):
     )
 
 
-@lowerOperation.register
-def _(op: UMulOverflowOp):
+def trivial_overflow_predicate(op: Operation):
     varDecls = "bool " + op.results[0].name_hint + ends
     expr = op.operands[0].name_hint + operNameToCpp[op.name] + "("
     expr += op.operands[1].name_hint + "," + op.results[0].name_hint
     expr += ")"
     result = varDecls + "\t" + expr + ends
     return indent + result
+
+
+@lowerOperation.register
+def _(op: UMulOverflowOp):
+    return trivial_overflow_predicate(op)
+
+
+@lowerOperation.register
+def _(op: SMulOverflowOp):
+    return trivial_overflow_predicate(op)
+
+
+@lowerOperation.register
+def _(op: UAddOverflowOp):
+    return trivial_overflow_predicate(op)
+
+
+@lowerOperation.register
+def _(op: SAddOverflowOp):
+    return trivial_overflow_predicate(op)
+
+
+@lowerOperation.register
+def _(op: SShlOverflowOp):
+    return trivial_overflow_predicate(op)
+
+
+@lowerOperation.register
+def _(op: UShlOverflowOp):
+    return trivial_overflow_predicate(op)
 
 
 @lowerOperation.register
@@ -646,6 +693,26 @@ def castToAPIntFromUnsigned(op: Operation):
         + ")"
         + ends
     )
+
+
+@lowerOperation.register
+def _(op: SDivOp):
+    return lowerToClassMethod(op, None, None)
+
+
+@lowerOperation.register
+def _(op: UDivOp):
+    return lowerToClassMethod(op, None, None)
+
+
+@lowerOperation.register
+def _(op: SRemOp):
+    return lowerToClassMethod(op, None, None)
+
+
+@lowerOperation.register
+def _(op: URemOp):
+    return lowerToClassMethod(op, None, None)
 
 
 @lowerOperation.register
