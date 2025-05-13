@@ -138,6 +138,12 @@ def register_all_arguments(arg_parser: argparse.ArgumentParser):
         help="Specify the number of mcmc processes that used for abduction. It should be less than num_programs. 0 by default (which means abduction is disabled).",
     )
     arg_parser.add_argument(
+        "-num_random_tests",
+        type=int,
+        nargs="?",
+        help="Specify the number of random test inputs at higher bitwidth. 0 by default",
+    )
+    arg_parser.add_argument(
         "-outputs_folder",
         type=str,
         nargs="?",
@@ -268,6 +274,7 @@ INV_TEMP = 200
 SOLUTION_SIZE = 8
 NUM_ITERS = 100
 NUM_ABD_PROCS = 0
+NUM_RANDOM_TESTS = 0
 INSTANCE_CONSTRAINT = "getInstanceConstraint"
 DOMAIN_CONSTRAINT = "getConstraint"
 OP_CONSTRAINT = "op_constraint"
@@ -336,6 +343,7 @@ def eval_transfer_func_helper(
     base: list[FunctionWithCondition],
     domain: eval_engine.AbstractDomain,
     bitwidth: int,
+    num_random_tests: int,
     helper_funcs: list[str],
 ) -> list[EvalResult]:
     """
@@ -371,12 +379,14 @@ def eval_transfer_func_helper(
         helper_funcs + helper_func_srcs,
         domain,
         bitwidth,
+        num_random_tests,
     )
 
 
 def solution_set_eval_func(
     domain: eval_engine.AbstractDomain,
     bitwidth: int,
+    num_random_tests: int,
     helper_funcs: list[str],
 ) -> Callable[
     [
@@ -390,21 +400,9 @@ def solution_set_eval_func(
     """
     return lambda transfer=list[FunctionWithCondition], base=list[
         FunctionWithCondition
-    ]: (eval_transfer_func_helper(transfer, base, domain, bitwidth, helper_funcs))
-
-
-def main_eval_func(
-    base_transfers: list[FunctionWithCondition],
-    domain: eval_engine.AbstractDomain,
-    bitwidth: int,
-    helper_funcs: list[str],
-) -> Callable[[list[FunctionWithCondition]], list[EvalResult]]:
-    """
-    This function returns a simplified eval_func only receiving transfer names and sources
-    """
-    return lambda transfers=list[FunctionWithCondition]: (
+    ]: (
         eval_transfer_func_helper(
-            transfers, base_transfers, domain, bitwidth, helper_funcs
+            transfer, base, domain, bitwidth, num_random_tests, helper_funcs
         )
     )
 
@@ -721,6 +719,7 @@ def run(
     num_iters: int = NUM_ITERS,
     condition_length: int = CONDITION_LENGTH,
     num_abd_procs: int = NUM_ABD_PROCS,
+    num_random_tests: int = NUM_RANDOM_TESTS,
     random_seed: int | None = None,
     random_number_file: str | None = None,
     transfer_functions: str | None = None,
@@ -888,6 +887,7 @@ def run(
     solution_eval_func = solution_set_eval_func(
         domain,
         bitwidth,
+        num_random_tests,
         helper_funcs_cpp,
     )
 
@@ -1009,6 +1009,9 @@ def main() -> None:
         CONDITION_LENGTH if args.condition_length is None else args.condition_length
     )
     num_abd_procs = NUM_ABD_PROCS if args.num_abd_procs is None else args.num_abd_procs
+    num_random_tests = (
+        NUM_RANDOM_TESTS if args.num_random_tests is None else args.num_random_tests
+    )
     outputs_folder = (
         OUTPUTS_FOLDER if args.outputs_folder is None else args.outputs_folder
     )
@@ -1024,6 +1027,7 @@ def main() -> None:
         num_iters=num_iters,
         condition_length=condition_length,
         num_abd_procs=num_abd_procs,
+        num_random_tests=num_random_tests,
         random_seed=args.random_seed,
         random_number_file=args.random_file,
         transfer_functions=args.transfer_functions,

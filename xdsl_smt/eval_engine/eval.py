@@ -22,6 +22,7 @@ def eval_transfer_func(
     helper_srcs: list[str],
     domain: AbstractDomain,
     bitwidth: int,
+    num_random_tests: int,
 ) -> list[EvalResult]:
     base_dir = path.join("xdsl_smt", "eval_engine")
     engine_path = path.join(base_dir, "build", "eval_engine")
