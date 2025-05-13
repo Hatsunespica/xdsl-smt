@@ -274,7 +274,6 @@ INV_TEMP = 200
 SOLUTION_SIZE = 8
 NUM_ITERS = 100
 NUM_ABD_PROCS = 0
-NUM_RANDOM_TESTS = 0
 INSTANCE_CONSTRAINT = "getInstanceConstraint"
 DOMAIN_CONSTRAINT = "getConstraint"
 OP_CONSTRAINT = "op_constraint"
@@ -343,7 +342,7 @@ def eval_transfer_func_helper(
     base: list[FunctionWithCondition],
     domain: eval_engine.AbstractDomain,
     bitwidth: int,
-    num_random_tests: int,
+    samples: tuple[int, int] | None,
     helper_funcs: list[str],
 ) -> list[EvalResult]:
     """
@@ -379,14 +378,14 @@ def eval_transfer_func_helper(
         helper_funcs + helper_func_srcs,
         domain,
         bitwidth,
-        num_random_tests,
+        samples,
     )
 
 
 def solution_set_eval_func(
     domain: eval_engine.AbstractDomain,
     bitwidth: int,
-    num_random_tests: int,
+    samples: tuple[int, int] | None,
     helper_funcs: list[str],
 ) -> Callable[
     [
@@ -402,7 +401,7 @@ def solution_set_eval_func(
         FunctionWithCondition
     ]: (
         eval_transfer_func_helper(
-            transfer, base, domain, bitwidth, num_random_tests, helper_funcs
+            transfer, base, domain, bitwidth, samples, helper_funcs
         )
     )
 
@@ -719,7 +718,7 @@ def run(
     num_iters: int = NUM_ITERS,
     condition_length: int = CONDITION_LENGTH,
     num_abd_procs: int = NUM_ABD_PROCS,
-    num_random_tests: int = NUM_RANDOM_TESTS,
+    num_random_tests: int | None = None,
     random_seed: int | None = None,
     random_number_file: str | None = None,
     transfer_functions: str | None = None,
@@ -751,6 +750,7 @@ def run(
     logger.debug("Round_ID\tSound%\tUExact%\tUDis(Norm)\tCost")
 
     random = Random(random_seed)
+    random_seed = random.randint(0, 1_000_000) if random_seed is None else random_seed
     if random_number_file is not None:
         random.read_from_file(random_number_file)
 
@@ -887,7 +887,7 @@ def run(
     solution_eval_func = solution_set_eval_func(
         domain,
         bitwidth,
-        num_random_tests,
+        (num_random_tests, random_seed) if num_random_tests is not None else None,
         helper_funcs_cpp,
     )
 
@@ -1009,9 +1009,7 @@ def main() -> None:
         CONDITION_LENGTH if args.condition_length is None else args.condition_length
     )
     num_abd_procs = NUM_ABD_PROCS if args.num_abd_procs is None else args.num_abd_procs
-    num_random_tests = (
-        NUM_RANDOM_TESTS if args.num_random_tests is None else args.num_random_tests
-    )
+    num_random_tests = None if args.num_random_tests is None else args.num_random_tests
     outputs_folder = (
         OUTPUTS_FOLDER if args.outputs_folder is None else args.outputs_folder
     )

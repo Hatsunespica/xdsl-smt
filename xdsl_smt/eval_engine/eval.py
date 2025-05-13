@@ -22,10 +22,8 @@ def eval_transfer_func(
     helper_srcs: list[str],
     domain: AbstractDomain,
     bitwidth: int,
-    num_random_tests: int | None,
+    samples: tuple[int, int] | None,
 ) -> list[EvalResult]:
-    # TODO pass seed as a param
-    seed = 0
     base_dir = path.join("xdsl_smt", "eval_engine")
     engine_path = path.join(base_dir, "build", "eval_engine")
     if not path.exists(engine_path):
@@ -34,9 +32,7 @@ def eval_transfer_func(
     engine_params = ""
     engine_params += f"{domain}\n"
     engine_params += f"{bitwidth}\n"
-    engine_params += (
-        f"{seed} {num_random_tests}\n" if num_random_tests is not None else "\n"
-    )
+    engine_params += f"{samples[0]} {samples[1]}\n" if samples is not None else "\n"
     engine_params += f"{' '.join(xfer_names)}\n"
     engine_params += f"{' '.join(base_names)}\n"
     engine_params += "using A::APInt;\n"
