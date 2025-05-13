@@ -6,6 +6,7 @@
 #include <iterator>
 #include <memory>
 #include <optional>
+#include <random>
 #include <string>
 #include <vector>
 
@@ -56,19 +57,18 @@ private:
   }
 
   const Domain toBestAbst(const Domain &lhs, const Domain &rhs) {
-    std::vector<Domain> crtVals;
-    const std::vector<unsigned int> rhss = rhs.toConcrete();
+    Domain res = Domain::bottom(lhs.bw());
 
     for (unsigned int lhs_v : lhs.toConcrete()) {
-      for (unsigned int rhs_v : rhss) {
+      for (unsigned int rhs_v : rhs.toConcrete()) {
         if (!opCon ||
             opCon.value()(A::APInt(lhs.bw(), lhs_v), A::APInt(lhs.bw(), rhs_v)))
-          crtVals.push_back(Domain::fromConcrete(
+          res = res.join(Domain::fromConcrete(
               concOp(A::APInt(lhs.bw(), lhs_v), A::APInt(lhs.bw(), rhs_v))));
       }
     }
 
-    return Domain::joinAll(crtVals, lhs.bw());
+    return res;
   }
 
 public:
@@ -112,6 +112,44 @@ public:
     llvm::consumeError(mAbsOpCons.takeError());
   }
 
+  void evalSingle(const Domain &lhs, const Domain &rhs, Results &r) {
+    // If abs_op_constraint returns false, we skip this pair
+    if (absOpCon && !absOpCon.value()(lhs, rhs))
+      return;
+
+    Domain best_abstract_res = toBestAbst(lhs, rhs);
+
+    // skip the pair if no concrete values satisfy op_constraint
+    if (best_abstract_res.isBottom())
+      return;
+
+    std::vector<Domain> synth_kbs(synth_function_wrapper(lhs, rhs));
+    std::vector<Domain> ref_kbs(base_function_wrapper(lhs, rhs));
+    Domain cur_kb = Domain::meetAll(ref_kbs, lhs.bw());
+    bool solved = cur_kb == best_abstract_res;
+    unsigned int baseDis = cur_kb.distance(best_abstract_res);
+    for (unsigned int i = 0; i < synth_kbs.size(); ++i) {
+      Domain synth_after_meet = cur_kb.meet(synth_kbs[i]);
+      bool sound = synth_after_meet.isSuperset(best_abstract_res);
+      bool exact = synth_after_meet == best_abstract_res;
+      unsigned int dis = synth_after_meet.distance(best_abstract_res);
+      unsigned int soundDis = sound ? dis : baseDis;
+
+      r.incResult(Result(sound, dis, exact, solved, soundDis), i);
+    }
+
+    r.incCases(solved, baseDis);
+  }
+
+  const Results evalSamples(unsigned int seed, unsigned int samples) {
+    Results r(static_cast<unsigned int>(xferFns.size()));
+    std::mt19937 rng(seed);
+    for (unsigned int i = 0; i < samples; ++i)
+      evalSingle(Domain(rng, bw), Domain(rng, bw), r);
+
+    return r;
+  }
+
   const std::vector<Results> eval() {
     std::vector<Results> r(bw, static_cast<unsigned int>(xferFns.size()));
 
@@ -119,34 +157,7 @@ public:
       const std::vector<Domain> fullLattice = Domain::enumVals(ebw);
       for (Domain lhs : fullLattice) {
         for (Domain rhs : fullLattice) {
-
-          // If abs_op_constraint returns false, we skip this pair
-          if (absOpCon && !absOpCon.value()(lhs, rhs))
-            continue;
-
-          Domain best_abstract_res = toBestAbst(lhs, rhs);
-
-          // skip the pair if no concrete values satisfy op_constraint
-          if (best_abstract_res.isBottom())
-            continue;
-
-          std::vector<Domain> synth_kbs(synth_function_wrapper(lhs, rhs));
-          std::vector<Domain> ref_kbs(base_function_wrapper(lhs, rhs));
-          Domain cur_kb = Domain::meetAll(ref_kbs, ebw);
-          bool solved = cur_kb == best_abstract_res;
-          unsigned int baseDis = cur_kb.distance(best_abstract_res);
-          for (unsigned int i = 0; i < synth_kbs.size(); ++i) {
-            Domain synth_after_meet = cur_kb.meet(synth_kbs[i]);
-            bool sound = synth_after_meet.isSuperset(best_abstract_res);
-            bool exact = synth_after_meet == best_abstract_res;
-            unsigned int dis = synth_after_meet.distance(best_abstract_res);
-            unsigned int soundDis = sound ? dis : baseDis;
-
-            r[ebw - 1].incResult(Result(sound, dis, exact, solved, soundDis),
-                                 i);
-          }
-
-          r[ebw - 1].incCases(solved, baseDis);
+          evalSingle(lhs, rhs, r[ebw - 1]);
         }
       }
     }

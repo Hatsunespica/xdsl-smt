@@ -31,6 +31,7 @@ def eval_transfer_func(
     engine_params = ""
     engine_params += f"{domain}\n"
     engine_params += f"{bitwidth}\n"
+    engine_params += "\n"
     engine_params += f"{' '.join(xfer_names)}\n"
     engine_params += f"{' '.join(base_names)}\n"
     engine_params += "using A::APInt;\n"
