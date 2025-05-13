@@ -141,7 +141,7 @@ def test(input: TestInput) -> None:
     )
 
     results = eval_transfer_func(
-        list(names), list(srcs), [], [], helpers, input.domain, 4
+        list(names), list(srcs), [], [], helpers, input.domain, 4, None
     )
 
     def normalize(s: str) -> str:
