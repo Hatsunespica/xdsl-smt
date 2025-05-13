@@ -887,7 +887,7 @@ def run(
     solution_eval_func = solution_set_eval_func(
         domain,
         bitwidth,
-        (num_random_tests, random_seed) if num_random_tests is not None else None,
+        (random_seed, num_random_tests) if num_random_tests is not None else None,
         helper_funcs_cpp,
     )
 
