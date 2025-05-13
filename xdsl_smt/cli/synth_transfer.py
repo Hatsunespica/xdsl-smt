@@ -138,6 +138,12 @@ def register_all_arguments(arg_parser: argparse.ArgumentParser):
         help="Specify the number of mcmc processes that used for abduction. It should be less than num_programs. 0 by default (which means abduction is disabled).",
     )
     arg_parser.add_argument(
+        "-num_random_tests",
+        type=int,
+        nargs="?",
+        help="Specify the number of random test inputs at higher bitwidth. 0 by default",
+    )
+    arg_parser.add_argument(
         "-outputs_folder",
         type=str,
         nargs="?",
@@ -336,6 +342,7 @@ def eval_transfer_func_helper(
     base: list[FunctionWithCondition],
     domain: eval_engine.AbstractDomain,
     bitwidth: int,
+    samples: tuple[int, int] | None,
     helper_funcs: list[str],
 ) -> list[EvalResult]:
     """
@@ -371,12 +378,14 @@ def eval_transfer_func_helper(
         helper_funcs + helper_func_srcs,
         domain,
         bitwidth,
+        samples,
     )
 
 
 def solution_set_eval_func(
     domain: eval_engine.AbstractDomain,
     bitwidth: int,
+    samples: tuple[int, int] | None,
     helper_funcs: list[str],
 ) -> Callable[
     [
@@ -390,21 +399,9 @@ def solution_set_eval_func(
     """
     return lambda transfer=list[FunctionWithCondition], base=list[
         FunctionWithCondition
-    ]: (eval_transfer_func_helper(transfer, base, domain, bitwidth, helper_funcs))
-
-
-def main_eval_func(
-    base_transfers: list[FunctionWithCondition],
-    domain: eval_engine.AbstractDomain,
-    bitwidth: int,
-    helper_funcs: list[str],
-) -> Callable[[list[FunctionWithCondition]], list[EvalResult]]:
-    """
-    This function returns a simplified eval_func only receiving transfer names and sources
-    """
-    return lambda transfers=list[FunctionWithCondition]: (
+    ]: (
         eval_transfer_func_helper(
-            transfers, base_transfers, domain, bitwidth, helper_funcs
+            transfer, base, domain, bitwidth, samples, helper_funcs
         )
     )
 
@@ -721,6 +718,7 @@ def run(
     num_iters: int = NUM_ITERS,
     condition_length: int = CONDITION_LENGTH,
     num_abd_procs: int = NUM_ABD_PROCS,
+    num_random_tests: int | None = None,
     random_seed: int | None = None,
     random_number_file: str | None = None,
     transfer_functions: str | None = None,
@@ -752,6 +750,7 @@ def run(
     logger.debug("Round_ID\tSound%\tUExact%\tUDis(Norm)\tCost")
 
     random = Random(random_seed)
+    random_seed = random.randint(0, 1_000_000) if random_seed is None else random_seed
     if random_number_file is not None:
         random.read_from_file(random_number_file)
 
@@ -888,6 +887,7 @@ def run(
     solution_eval_func = solution_set_eval_func(
         domain,
         bitwidth,
+        (num_random_tests, random_seed) if num_random_tests is not None else None,
         helper_funcs_cpp,
     )
 
@@ -981,6 +981,7 @@ def run(
         helper_funcs_cpp + [print_to_cpp(meet_func)],
         domain,
         bitwidth,
+        (num_random_tests, random_seed) if num_random_tests is not None else None,
     )
 
     solution_result = cmp_results[0]
@@ -1009,6 +1010,7 @@ def main() -> None:
         CONDITION_LENGTH if args.condition_length is None else args.condition_length
     )
     num_abd_procs = NUM_ABD_PROCS if args.num_abd_procs is None else args.num_abd_procs
+    num_random_tests = None if args.num_random_tests is None else args.num_random_tests
     outputs_folder = (
         OUTPUTS_FOLDER if args.outputs_folder is None else args.outputs_folder
     )
@@ -1024,6 +1026,7 @@ def main() -> None:
         num_iters=num_iters,
         condition_length=condition_length,
         num_abd_procs=num_abd_procs,
+        num_random_tests=num_random_tests,
         random_seed=args.random_seed,
         random_number_file=args.random_file,
         transfer_functions=args.transfer_functions,
