@@ -59,14 +59,10 @@ private:
   const Domain toBestAbst(const Domain &lhs, const Domain &rhs) {
     Domain res = Domain::bottom(lhs.bw());
 
-    for (unsigned int lhs_v : lhs.toConcrete()) {
-      for (unsigned int rhs_v : rhs.toConcrete()) {
-        if (!opCon ||
-            opCon.value()(A::APInt(lhs.bw(), lhs_v), A::APInt(lhs.bw(), rhs_v)))
-          res = res.join(Domain::fromConcrete(
-              concOp(A::APInt(lhs.bw(), lhs_v), A::APInt(lhs.bw(), rhs_v))));
-      }
-    }
+    for (A::APInt lhs_v : lhs.toConcrete())
+      for (A::APInt rhs_v : rhs.toConcrete())
+        if (!opCon || opCon.value()(lhs_v, rhs_v))
+          res = res.join(Domain::fromConcrete(concOp(lhs_v, rhs_v)));
 
     return res;
   }

@@ -57,7 +57,7 @@ public:
   const Domain join(const Domain &rhs) const {
     return static_cast<const Domain *>(this)->join(rhs);
   }
-  const std::vector<unsigned int> toConcrete() const {
+  const std::vector<A::APInt> toConcrete() const {
     return static_cast<const Domain *>(this)->toConcrete();
   }
   unsigned int distance(const Domain &rhs) const {
@@ -121,18 +121,18 @@ public:
     return KnownBits({zero() & rhs.zero(), one() & rhs.one()});
   }
 
-  const std::vector<unsigned int> toConcrete() const {
-    std::vector<unsigned int> ret;
-    const unsigned int z = static_cast<unsigned int>(zero().getZExtValue());
-    const unsigned int o = static_cast<unsigned int>(one().getZExtValue());
-    const unsigned int min =
-        static_cast<unsigned int>(A::APInt::getZero(bw()).getZExtValue());
-    const unsigned int max =
-        static_cast<unsigned int>(A::APInt::getMaxValue(bw()).getZExtValue());
+  const std::vector<A::APInt> toConcrete() const {
+    std::vector<A::APInt> ret;
+    const A::APInt min = A::APInt::getZero(bw());
+    const A::APInt max = A::APInt::getMaxValue(bw());
 
-    for (unsigned int i = min; i <= max; ++i)
-      if ((z & i) == 0 && (o & ~i) == 0)
+    for (A::APInt i = min;; ++i) {
+      if ((zero() & i) == 0 && (one() & ~i) == 0)
         ret.push_back(i);
+
+      if (i == max)
+        break;
+    }
 
     return ret;
   }
@@ -234,15 +234,18 @@ public:
     return ConstantRange({std::move(l), std::move(u)});
   }
 
-  const std::vector<unsigned int> toConcrete() const {
-    unsigned int l = static_cast<unsigned int>(lower().getZExtValue());
-    unsigned int u = static_cast<unsigned int>(upper().getZExtValue() + 1);
-
-    if (l > u)
+  const std::vector<A::APInt> toConcrete() const {
+    if (lower().ugt(upper()))
       return {};
 
-    std::vector<unsigned int> ret(u - l);
-    std::iota(ret.begin(), ret.end(), l);
+    std::vector<A::APInt> ret;
+    for (A::APInt x = lower(); x.ule(upper()); x += 1) {
+      ret.push_back(x);
+
+      if (x == A::APInt::getMaxValue(bw()))
+        break;
+    }
+
     return ret;
   }
 
@@ -527,12 +530,17 @@ public:
     return IntegerModulo(x, false);
   }
 
-  const std::vector<unsigned int> toConcrete() const {
-    const unsigned long max = A::APInt::getMaxValue(this->bw()).getZExtValue();
+  const std::vector<A::APInt> toConcrete() const {
+    const A::APInt acrt = A::APInt(this->bw(), crt);
 
-    std::vector<unsigned int> r;
-    for (unsigned long x = crt; x <= max; x += p)
-      r.push_back(static_cast<unsigned int>(x));
+    if (p > A::APInt::getMaxValue(this->bw()).getZExtValue())
+      return {acrt};
+
+    const A::APInt ap = A::APInt(this->bw(), p);
+    std::vector<A::APInt> r;
+    bool ov = false;
+    for (A::APInt x = acrt; !ov; x = x.uadd_ov(ap, ov))
+      r.push_back(x);
 
     return r;
   }

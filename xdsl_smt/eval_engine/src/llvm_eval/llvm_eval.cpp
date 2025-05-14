@@ -13,14 +13,12 @@ template <typename D>
 const D to_best_abst(const D &lhs, const D &rhs, const concFn &fn,
                      const std::optional<opConFn> &opCon) {
   std::vector<D> crtVals;
-  const std::vector<unsigned int> rhss = rhs.toConcrete();
+  const std::vector<A::APInt> rhss = rhs.toConcrete();
 
-  for (unsigned int lhs_v : lhs.toConcrete())
-    for (unsigned int rhs_v : rhss)
-      if (!opCon ||
-          opCon.value()(A::APInt(lhs.bw(), lhs_v), A::APInt(lhs.bw(), rhs_v)))
-        crtVals.push_back(D::fromConcrete(
-            fn(A::APInt(lhs.bw(), lhs_v), A::APInt(lhs.bw(), rhs_v))));
+  for (A::APInt lhs_v : lhs.toConcrete())
+    for (A::APInt rhs_v : rhss)
+      if (!opCon || opCon.value()(lhs_v, rhs_v))
+        crtVals.push_back(D::fromConcrete(fn(lhs_v, rhs_v)));
 
   return D::joinAll(crtVals, lhs.bw());
 }
