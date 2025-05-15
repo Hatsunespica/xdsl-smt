@@ -2,7 +2,7 @@ import argparse
 import os.path
 import glob
 import sys
-from typing import cast, Callable, Optional
+from typing import cast, Optional
 
 from xdsl.context import Context
 from xdsl.parser import Parser
@@ -408,9 +408,9 @@ def main() -> None:
     args = arg_parser.parse_args()
 
     bitwidth = SYNTH_WIDTH if args.bitwidth is None else args.bitwidth
-    outputs_folder = (
-        OUTPUTS_FOLDER if args.outputs_folder is None else args.outputs_folder
-    )
+    # outputs_folder = (
+    #     OUTPUTS_FOLDER if args.outputs_folder is None else args.outputs_folder
+    # )
 
     # Check if transfer_functions is a directory
     if os.path.isdir(args.transfer_functions):
