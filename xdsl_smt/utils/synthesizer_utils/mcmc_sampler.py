@@ -5,11 +5,19 @@ from typing import Callable
 from xdsl.context import MLContext
 from xdsl.dialects.builtin import i1, IntegerAttr, FunctionType, UnitAttr
 from xdsl.parser import Parser
-
-from xdsl.utils.exceptions import VerifyException
 from xdsl_smt.utils.synthesizer_utils.compare_result import EvalResult
 from xdsl_smt.utils.synthesizer_utils.mutation_program import MutationProgram
-from xdsl_smt.utils.synthesizer_utils.synthesizer_context import SynthesizerContext
+from xdsl_smt.utils.synthesizer_utils.synthesizer_context import (
+    SynthesizerContext,
+    is_int_op,
+    set_ret_type,
+    INT_T,
+    BOOL_T,
+    get_ret_type,
+    BINT_T,
+    not_in_main_body,
+    get_op_with_signature,
+)
 from xdsl_smt.utils.synthesizer_utils.random import Random
 from xdsl_smt.dialects.transfer import (
     AbstractValueType,
@@ -20,6 +28,7 @@ from xdsl_smt.dialects.transfer import (
     Constant,
     AndOp,
     CmpOp,
+    AddOp,
 )
 import xdsl.dialects.arith as arith
 from xdsl.dialects.func import FuncOp, ReturnOp
@@ -45,7 +54,6 @@ def parse_file(ctx: MLContext, file: str | None) -> Operation:
 
 
 class MCMCSampler:
-    last_make_op: MakeOp
     current: MutationProgram
     current_cmp: EvalResult
     context: SynthesizerContext
@@ -90,30 +98,19 @@ class MCMCSampler:
     def reject_proposed(self):
         self.current.revert_operation()
 
-    @staticmethod
-    def is_i1_op(op: Operation):
-        return op.results[0].type == i1
-
-    @staticmethod
-    def is_int_op(op: Operation):
-        return isinstance(op.results[0].type, TransIntegerType)
-
     def replace_entire_operation(self, idx: int, history: bool):
         """
         Random pick an operation and replace it with a new one
         """
         old_op = self.current.ops[idx]
-        int_operands, _ = self.current.get_valid_int_operands(idx)
-        bool_operands, _ = self.current.get_valid_bool_operands(idx)
-
+        valid_operands = {
+            ty: self.current.get_valid_operands(idx, ty)
+            for ty in [INT_T, BOOL_T, BINT_T]
+        }
         new_op = None
         while new_op is None:
-            if MCMCSampler.is_i1_op(old_op):  # bool
-                new_op = self.context.get_random_i1_op(int_operands, bool_operands)
-            elif MCMCSampler.is_int_op(old_op):  # integer
-                new_op = self.context.get_random_int_op(int_operands, bool_operands)
-            else:
-                raise VerifyException("Unexpected result type {}".format(old_op))
+            new_op = self.context.get_random_op(get_ret_type(old_op), valid_operands)
+
         self.current.replace_operation(old_op, new_op, history)
 
     def replace_operand(self, idx: int, history: bool):
@@ -122,12 +119,14 @@ class MCMCSampler:
 
         self.current.replace_operation(op, new_op, history)
 
-        int_operands, _ = self.current.get_valid_int_operands(idx)
-        bool_operands, _ = self.current.get_valid_bool_operands(idx)
+        ith = self.context.random.randint(0, len(op.operands) - 1)
+        op_w_sig = get_op_with_signature(op)
+
+        vals = self.current.get_valid_operands(idx, op_w_sig[1][ith])
 
         success = False
         while not success:
-            success = self.context.replace_operand(new_op, int_operands, bool_operands)
+            success = self.context.replace_operand(new_op, ith, vals)
 
     def construct_init_program(self, _func: FuncOp, length: int):
         func = _func.clone()
@@ -143,6 +142,7 @@ class MCMCSampler:
             if isinstance(arg.type, AbstractValueType):
                 for i, field_type in enumerate(arg.type.get_fields()):
                     op = GetOp(arg, i)
+                    set_ret_type(op, INT_T)
                     block.add_op(op)
 
         assert isinstance(block.last_op, GetOp)
@@ -152,17 +152,28 @@ class MCMCSampler:
         true: arith.ConstantOp = arith.ConstantOp(
             IntegerAttr.from_int_and_width(1, 1), i1
         )
+        set_ret_type(true, BOOL_T)
         false: arith.ConstantOp = arith.ConstantOp(
             IntegerAttr.from_int_and_width(0, 1), i1
         )
+        set_ret_type(false, BOOL_T)
         all_ones = GetAllOnesOp(tmp_int_ssavalue)
+        set_ret_type(all_ones, INT_T)
         zero = Constant(tmp_int_ssavalue, 0)
+        set_ret_type(zero, INT_T)
         one = Constant(tmp_int_ssavalue, 1)
+        set_ret_type(one, INT_T)
+        zero_bint = Constant(tmp_int_ssavalue, 0)
+        set_ret_type(zero_bint, BINT_T)
+        one_bint = Constant(tmp_int_ssavalue, 1)
+        set_ret_type(one_bint, BINT_T)
         block.add_op(true)
         block.add_op(false)
         block.add_op(zero)
         block.add_op(one)
         block.add_op(all_ones)
+        block.add_op(zero_bint)
+        block.add_op(one_bint)
 
         if not self.is_cond:
             # Part III: Main Body
@@ -170,15 +181,19 @@ class MCMCSampler:
             for i in range(length):
                 if i % 4 == 0:
                     nop_bool = CmpOp(tmp_int_ssavalue, tmp_int_ssavalue, 0)
+                    set_ret_type(nop_bool, BOOL_T)
                     block.add_op(nop_bool)
                 elif i % 4 == 1:
-                    last_int_op = AndOp(tmp_int_ssavalue, tmp_int_ssavalue)
-                    block.add_op(last_int_op)
+                    bint_nop = AddOp(tmp_int_ssavalue, tmp_int_ssavalue)
+                    set_ret_type(bint_nop, BINT_T)
+                    block.add_op(bint_nop)
                 elif i % 4 == 2:
                     last_int_op = AndOp(tmp_int_ssavalue, tmp_int_ssavalue)
+                    set_ret_type(last_int_op, INT_T)
                     block.add_op(last_int_op)
                 else:
                     last_int_op = AndOp(tmp_int_ssavalue, tmp_int_ssavalue)
+                    set_ret_type(last_int_op, INT_T)
                     block.add_op(last_int_op)
 
             # Part IV: MakeOp
@@ -192,7 +207,7 @@ class MCMCSampler:
                 while True:
                     last_int_op = last_int_op.prev_op
                     assert last_int_op is not None
-                    if MCMCSampler.is_int_op(last_int_op):
+                    if is_int_op(last_int_op):
                         break
 
             return_val = MakeOp(operands)
@@ -204,9 +219,11 @@ class MCMCSampler:
             for i in range(length):
                 if i % 4 == 0:
                     last_int_op = AndOp(tmp_int_ssavalue, tmp_int_ssavalue)
+                    set_ret_type(last_int_op, INT_T)
                     block.add_op(last_int_op)
                 else:
                     last_bool_op = CmpOp(tmp_int_ssavalue, tmp_int_ssavalue, 0)
+                    set_ret_type(last_bool_op, BOOL_T)
                     block.add_op(last_bool_op)
 
             return_val = last_bool_op.results[0]
@@ -238,7 +255,6 @@ class MCMCSampler:
         # elif sample_mode < 1:
         #     # replace an operand in makeOp
         #     ratio = self.replace_make_operand(ops, len(ops) - 2)
-
         return self
 
     def reset_to_random_prog(self, length: int):
@@ -246,5 +262,5 @@ class MCMCSampler:
         total_ops_len = len(self.current.ops)
         # Only modify ops in the main body
         for i in range(total_ops_len):
-            if not MutationProgram.not_in_main_body(self.current.ops[i]):
+            if not not_in_main_body(self.current.ops[i]):
                 self.replace_entire_operation(i, False)

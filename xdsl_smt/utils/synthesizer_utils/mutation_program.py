@@ -1,16 +1,11 @@
 from xdsl.dialects.func import FuncOp, ReturnOp
 from xdsl.ir import Operation, SSAValue
-import xdsl.dialects.arith as arith
 
-from xdsl_smt.dialects.transfer import (
-    GetOp,
-    MakeOp,
-    Constant,
-    GetAllOnesOp,
-    TransIntegerType,
-)
-from xdsl.dialects.builtin import (
-    i1,
+from xdsl_smt.dialects.transfer import MakeOp
+
+from xdsl_smt.utils.synthesizer_utils.synthesizer_context import (
+    not_in_main_body,
+    is_of_type,
 )
 
 
@@ -38,18 +33,6 @@ class MutationProgram:
     def ops(self):
         return list(self.func.body.block.ops)
 
-    @staticmethod
-    def not_in_main_body(op: Operation):
-        # filter out operations not belong to main body
-        return (
-            isinstance(op, Constant)
-            or isinstance(op, arith.ConstantOp)
-            or isinstance(op, GetAllOnesOp)
-            or isinstance(op, GetOp)
-            or isinstance(op, MakeOp)
-            or isinstance(op, ReturnOp)
-        )
-
     def get_modifiable_operations(
         self, only_live: bool = True
     ) -> list[tuple[Operation, int]]:
@@ -67,12 +50,12 @@ class MutationProgram:
                 assert isinstance(operand.owner, Operation)
                 live_set.add(operand.owner)
         else:  # condition
-            assert not MutationProgram.not_in_main_body(self.ops[-2])
+            assert not not_in_main_body(self.ops[-2])
             live_set.add(self.ops[-2])
 
         for idx in range(len(self.ops) - 2, -1, -1):
             operation = self.ops[idx]
-            if MutationProgram.not_in_main_body(operation):
+            if not_in_main_body(operation):
                 continue
             if only_live:
                 if operation in live_set:
@@ -114,25 +97,8 @@ class MutationProgram:
             old_op.results[0].replace_by(new_op.results[0])
         block.detach_op(old_op)
 
-    def get_valid_bool_operands(self, x: int) -> tuple[list[SSAValue], int]:
+    def get_valid_operands(self, x: int, ty: str) -> list[SSAValue]:
         """
-        Get bool operations that before ops[x] so that can serve as operands
+        Get operations that return a value of type ty and are before ops[x], which can serve as operands
         """
-        bool_ops: list[SSAValue] = [
-            result for op in self.ops[:x] for result in op.results if result.type == i1
-        ]
-        bool_count = len(bool_ops)
-        return bool_ops, bool_count
-
-    def get_valid_int_operands(self, x: int) -> tuple[list[SSAValue], int]:
-        """
-        Get int operations that before ops[x] so that can serve as operands
-        """
-        int_ops: list[SSAValue] = [
-            result
-            for op in self.ops[:x]
-            for result in op.results
-            if isinstance(result.type, TransIntegerType)
-        ]
-        int_count = len(int_ops)
-        return int_ops, int_count
+        return [op.results[0] for op in self.ops[:x] if is_of_type(op, ty)]
