@@ -52,6 +52,17 @@ int_prior_uniform: dict[type[Operation], int] = {
     UMinOp: 1,
     UMaxOp: 1,
     MulOp: 1,
+    # SetHighBitsOp,
+    # SetLowBitsOp,
+}
+
+bint_prior_uniform: dict[type[Operation], int] = {
+    AddOp: 1,
+    SubOp: 1,
+    SelectOp: 1,
+    UMinOp: 1,
+    UMaxOp: 1,
+    MulOp: 1,
     CountLOneOp: 1,
     CountLZeroOp: 1,
     CountROneOp: 1,

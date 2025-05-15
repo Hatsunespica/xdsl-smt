@@ -16,7 +16,9 @@ from xdsl_smt.utils.synthesizer_utils.verifier_utils import verify_transfer_func
 from xdsl_smt.utils.synthesizer_utils.function_with_condition import (
     FunctionWithCondition,
 )
-from xdsl_smt.utils.synthesizer_utils.synthesizer_context import SynthesizerContext
+from xdsl_smt.utils.synthesizer_utils.synthesizer_context import (
+    SynthesizerContext,
+)
 
 
 def rename_functions(lst: list[FunctionWithCondition], prefix: str) -> list[str]:
@@ -444,16 +446,8 @@ class UnsizedSolutionSet(SolutionSet):
     """
 
     def learn_weights(self, context: SynthesizerContext):
-        freq_i1: dict[type[Operation], int] = {}
-        freq_int: dict[type[Operation], int] = {}
-
-        def add_another_dict(
-            dict1: dict[type[Operation], int], dict2: dict[type[Operation], int]
-        ):
-            for k, v in dict2.items():
-                dict1[k] = dict1.get(k, 0) + v
-
         self.logger.info(f"Improvement by each individual function")
+        learn_form_funcs = []
         for i, sol in enumerate(self.solutions):
             cmp_results: list[EvalResult] = self.eval_func(
                 [sol],
@@ -465,17 +459,12 @@ class UnsizedSolutionSet(SolutionSet):
                 f"\tfunc {i}: #exact {res.get_exacts() - res.get_unsolved_exacts()} -> {res.get_exacts()}, new exact%: {res.get_new_exact_prop()}, prec: {res.get_base_dist()} -> {res.get_dist()}, prec improve%: {res.get_improve()}, cond?: {self.solutions[i].cond is not None}, learn?: {to_learn}"
             )
             if to_learn:
-                d_int, d_i1 = SynthesizerContext.count_op_frequency(
-                    self.eliminate_dead_code(sol.func)
-                )
-                add_another_dict(freq_int, d_int)
-                add_another_dict(freq_i1, d_i1)
+                learn_form_funcs.append(self.eliminate_dead_code(sol.func))
 
-        context.update_i1_weights(freq_i1)
-        context.update_int_weights(freq_int)
+        freq_of_learn_funcs = SynthesizerContext.count_op_frequency(learn_form_funcs)
+        context.update_weights(freq_of_learn_funcs)
 
         self.logger.info("Current Weights:")
-        for key, value in context.int_weights.items():
-            self.logger.info(f"\t{key}: {value}")
-        for key, value in context.i1_weights.items():
-            self.logger.info(f"\t{key}: {value}")
+        for ty, weights in context.op_weights.items():
+            for key, value in weights.items():
+                self.logger.info(f"\t{key}: {value}")

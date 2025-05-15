@@ -1,5 +1,6 @@
-from xdsl.dialects.builtin import i1, IntegerAttr
-from xdsl.dialects.func import FuncOp
+from xdsl.dialects.builtin import IntegerAttr, StringAttr, ArrayAttr
+from xdsl.dialects.func import FuncOp, ReturnOp
+from xdsl.utils.hints import isa
 
 from xdsl_smt.dialects.transfer import (
     NegOp,
@@ -28,19 +29,13 @@ from xdsl_smt.dialects.transfer import (
     MulOp,
     SetLowBitsOp,
     SetHighBitsOp,
-    TransIntegerType,
     GetBitWidthOp,
+    GetOp,
+    MakeOp,
 )
 from typing import TypeVar, Generic, Callable
-from xdsl.ir import Operation, SSAValue
+from xdsl.ir import Operation, SSAValue, Attribute
 import xdsl.dialects.arith as arith
-
-from xdsl_smt.utils.synthesizer_utils.prior import (
-    i1_prior_uniform,
-    # int_prior_uniform_stronger,
-    int_prior_uniform,
-    # int_prior_bias,
-)
 from xdsl_smt.utils.synthesizer_utils.random import Random
 
 T = TypeVar("T")
@@ -104,41 +99,70 @@ class Collection(Generic[T]):
         return None
 
 
-basic_int_ops: list[type[Operation]] = [
-    NegOp,
-    AndOp,
-    OrOp,
-    XorOp,
-    AddOp,
+enable_bint = True
+INT_T = "int"
+BOOL_T = "bool"
+BINT_T = "bint" if enable_bint else "int"
+OpWithSignature = tuple[type[Operation], tuple[str, ...]]
+
+full_bint_ops: list[OpWithSignature] = [
+    (AddOp, (BINT_T, BINT_T)),
+    (SubOp, (BINT_T, BINT_T)),
+    (SelectOp, (BOOL_T, BINT_T, BINT_T)),
+    (UMinOp, (BINT_T, BINT_T)),
+    (UMaxOp, (BINT_T, BINT_T)),
+    (CountLOneOp, (INT_T,)),
+    (CountLZeroOp, (INT_T,)),
+    (CountROneOp, (INT_T,)),
+    (CountRZeroOp, (INT_T,)),
+]
+
+
+basic_int_ops: list[OpWithSignature] = [
+    (NegOp, (INT_T,)),
+    (AndOp, (INT_T, INT_T)),
+    (OrOp, (INT_T, INT_T)),
+    (XorOp, (INT_T, INT_T)),
+    (AddOp, (INT_T, INT_T)),
+    # (AddOp, BINT_T, [BINT_T, BINT_T]),
     # SubOp,
     # SelectOp,
 ]
 
 
-full_int_ops: list[type[Operation]] = [
-    NegOp,
-    AndOp,
-    OrOp,
-    XorOp,
-    AddOp,
-    SubOp,
-    SelectOp,
-    LShrOp,
-    ShlOp,
-    UMinOp,
-    UMaxOp,
-    MulOp,
-    CountLOneOp,
-    CountLZeroOp,
-    CountROneOp,
-    CountRZeroOp,
+full_int_ops: list[OpWithSignature] = [
+    (NegOp, (INT_T,)),
+    (AndOp, (INT_T, INT_T)),
+    (OrOp, (INT_T, INT_T)),
+    (XorOp, (INT_T, INT_T)),
+    (AddOp, (INT_T, INT_T)),
+    (SubOp, (INT_T, INT_T)),
+    (SelectOp, (BOOL_T, INT_T, INT_T)),
+    (LShrOp, (INT_T, BINT_T)),
+    (ShlOp, (INT_T, BINT_T)),
+    (UMinOp, (INT_T, INT_T)),
+    (UMaxOp, (INT_T, INT_T)),
+    (MulOp, (INT_T, INT_T)),
     # SetHighBitsOp,
     # SetLowBitsOp,
 ]
 
-full_i1_ops: list[type[Operation]] = [arith.AndIOp, arith.OrIOp, arith.XOrIOp, CmpOp]
+if not enable_bint:
+    full_int_ops = list(set(full_int_ops + full_bint_ops))
 
-basic_i1_ops: list[type[Operation]] = [CmpOp]
+
+full_i1_ops: list[OpWithSignature] = [
+    (arith.AndIOp, (BOOL_T, BOOL_T)),
+    (arith.OrIOp, (BOOL_T, BOOL_T)),
+    (arith.XOrIOp, (BOOL_T, BOOL_T)),
+    (CmpOp, (INT_T, INT_T)),
+    (CmpOp, (BINT_T, BINT_T)),
+]
+
+basic_i1_ops: list[OpWithSignature] = [
+    (CmpOp, (INT_T, INT_T)),
+    (CmpOp, (BINT_T, BINT_T)),
+]
 
 
 def is_constant_constructor(constants: list[int]) -> Callable[[SSAValue], bool]:
@@ -259,13 +283,65 @@ idempotent_operations: set[type[Operation]] = {
 }
 
 
+def set_ret_type(op: Operation, ret_type: str):
+    op.attributes["ret_type"] = StringAttr(ret_type)
+
+
+def set_signature_attr(op: Operation, sig: OpWithSignature, ret_type: str):
+    set_ret_type(op, ret_type)
+    op.attributes["input_type"] = ArrayAttr(StringAttr(ty) for ty in sig[1])
+
+
+def get_ret_type(op: Operation) -> str:
+    assert "ret_type" in op.attributes
+    assert isa(ret_type := op.attributes["ret_type"], StringAttr)
+    return ret_type.data
+
+
+def get_op_with_signature(op: Operation) -> OpWithSignature:
+    assert "input_type" in op.attributes
+    assert isa(input_type := op.attributes["input_type"], ArrayAttr[Attribute])
+    sig = []
+    for ty in input_type.data:
+        assert isa(ty, StringAttr)
+        sig.append(ty.data)
+    return type(op), tuple(sig)
+
+
+def is_int_op(op: Operation) -> bool:
+    return get_ret_type(op) == INT_T
+
+
+def is_i1_op(op: Operation) -> bool:
+    return get_ret_type(op) == BOOL_T
+
+
+def is_bint_op(op: Operation) -> bool:
+    return get_ret_type(op) == BINT_T
+
+
+def is_of_type(op: Operation, ty: str) -> bool:
+    return get_ret_type(op) == ty
+
+
+def not_in_main_body(op: Operation):
+    # filter out operations not belong to main body
+    return (
+        isinstance(op, Constant)
+        or isinstance(op, arith.ConstantOp)
+        or isinstance(op, GetAllOnesOp)
+        or isinstance(op, GetBitWidthOp)
+        or isinstance(op, GetOp)
+        or isinstance(op, MakeOp)
+        or isinstance(op, ReturnOp)
+    )
+
+
 class SynthesizerContext:
     random: Random
     cmp_flags: list[int]
-    i1_ops: Collection[type[Operation]]
-    int_ops: Collection[type[Operation]]
-    i1_weights: dict[type[Operation], int]
-    int_weights: dict[type[Operation], int]
+    dsl_ops: dict[str, Collection[OpWithSignature]]
+    op_weights: dict[str, dict[OpWithSignature, int]]
     weighted: bool
     commutative: bool = False
     idempotent: bool = True
@@ -278,49 +354,42 @@ class SynthesizerContext:
     ):
         self.random = random
         self.cmp_flags = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-        self.i1_ops = Collection(basic_i1_ops, self.random)
-        self.int_ops = Collection(basic_int_ops, self.random)
-        self.i1_weights = {key: 1 for key in basic_i1_ops}
-        self.int_weights = {key: 1 for key in basic_int_ops}
+        self.dsl_ops = dict()
+        self.op_weights = dict()
+        self.dsl_ops[BOOL_T] = Collection(basic_i1_ops, self.random)
+        self.dsl_ops[INT_T] = Collection(basic_int_ops, self.random)
+        self.op_weights[BOOL_T] = {key: 1 for key in basic_i1_ops}
+        self.op_weights[INT_T] = {key: 1 for key in basic_int_ops}
+        if enable_bint:
+            self.dsl_ops[BINT_T] = Collection(full_bint_ops, self.random)
+            self.op_weights[BINT_T] = {key: 1 for key in full_bint_ops}
+
         self.weighted = weighted
 
     def use_basic_int_ops(self):
-        self.int_ops = Collection(basic_int_ops, self.random)
-        self.int_weights = {key: 1 for key in basic_int_ops}
+        self.dsl_ops[INT_T] = Collection(basic_int_ops, self.random)
+        self.op_weights[INT_T] = {key: 1 for key in basic_int_ops}
 
     def use_full_int_ops(self):
-        self.int_ops = Collection(full_int_ops, self.random)
-        self.int_weights = {key: 1 for key in full_int_ops}
+        self.dsl_ops[INT_T] = Collection(full_int_ops, self.random)
+        self.op_weights[INT_T] = {key: 1 for key in full_int_ops}
 
     def use_basic_i1_ops(self):
-        self.i1_ops = Collection(basic_i1_ops, self.random)
-        self.i1_weights = {key: 1 for key in basic_i1_ops}
+        self.dsl_ops[BOOL_T] = Collection(basic_i1_ops, self.random)
+        self.op_weights[BOOL_T] = {key: 1 for key in basic_i1_ops}
 
     def use_full_i1_ops(self):
-        self.i1_ops = Collection(full_i1_ops, self.random)
-        self.i1_weights = {key: 1 for key in full_i1_ops}
+        self.dsl_ops[BOOL_T] = Collection(full_i1_ops, self.random)
+        self.op_weights[BOOL_T] = {key: 1 for key in full_i1_ops}
 
-    def get_available_i1_ops(self) -> tuple[type[Operation], ...]:
-        return self.i1_ops.get_all_elements()
-
-    def get_available_int_ops(self) -> tuple[type[Operation], ...]:
-        return self.int_ops.get_all_elements()
-
-    def update_i1_weights(self, frequency: dict[type[Operation], int]):
-        self.i1_weights = {
-            key: i1_prior_uniform[key] for key in self.i1_ops.get_all_elements()
-        }
-        for key in frequency:
-            assert key in self.i1_weights
-            self.i1_weights[key] += frequency[key]
-
-    def update_int_weights(self, frequency: dict[type[Operation], int]):
-        self.int_weights = {
-            key: int_prior_uniform[key] for key in self.int_ops.get_all_elements()
-        }
-        for key in frequency:
-            assert key in self.int_weights
-            self.int_weights[key] += frequency[key]
+    def update_weights(self, frequency: dict[str, dict[OpWithSignature, int]]):
+        for ty, freq in frequency.items():
+            self.op_weights[ty] = {
+                key: 1 for key in self.dsl_ops[ty].get_all_elements()
+            }
+            for key, val in freq.items():
+                assert key in self.op_weights[ty]
+                self.op_weights[ty][key] += val
 
     def set_cmp_flags(self, cmp_flags: list[int]):
         assert len(cmp_flags) != 0
@@ -374,14 +443,11 @@ class SynthesizerContext:
         return val1, val2
 
     def build_i1_op(
-        self,
-        result_type: type[Operation],
-        int_vals: list[SSAValue],
-        i1_vals: list[SSAValue],
+        self, result_type: type[Operation], operands_vals: tuple[list[SSAValue], ...]
     ) -> Operation | None:
         if result_type == CmpOp:
             val1, val2 = self.select_two_operand(
-                int_vals,
+                operands_vals[0],
                 self.get_constraint(result_type),
                 is_idempotent=self.is_idempotent(result_type),
             )
@@ -394,7 +460,7 @@ class SynthesizerContext:
             )
         assert result_type is not None
         val1, val2 = self.select_two_operand(
-            i1_vals,
+            operands_vals[0],
             self.get_constraint(result_type),
             is_idempotent=self.is_idempotent(result_type),
         )
@@ -410,8 +476,7 @@ class SynthesizerContext:
     def build_int_op(
         self,
         result_type: type[Operation],
-        int_vals: list[SSAValue],
-        i1_vals: list[SSAValue],
+        operands_vals: tuple[list[SSAValue], ...],
     ) -> Operation | None:
         assert result_type is not None
         if result_type == SelectOp:
@@ -420,9 +485,9 @@ class SynthesizerContext:
                 true_constraint,
                 false_constraint,
             ) = optimize_complex_operands_selection[SelectOp]
-            cond = self.select_operand(i1_vals, cond_constraint)
+            cond = self.select_operand(operands_vals[0], cond_constraint)
             true_val, false_val = self.select_two_operand(
-                int_vals,
+                operands_vals[1],
                 true_constraint,
                 false_constraint,
                 is_idempotent=self.is_idempotent(result_type),
@@ -431,21 +496,23 @@ class SynthesizerContext:
                 return None
             return SelectOp(cond, true_val, false_val)
         elif issubclass(result_type, UnaryOp):
-            val = self.select_operand(int_vals, self.get_constraint(result_type))
+            val = self.select_operand(
+                operands_vals[0], self.get_constraint(result_type)
+            )
             if val is None:
                 return None
             return result_type(val)  # pyright: ignore [reportCallIssue]
         elif self.skip_trivial and result_type in optimize_complex_operands_selection:
             constraint1, constraint2 = optimize_complex_operands_selection[result_type]
             val1, val2 = self.select_two_operand(
-                int_vals,
+                operands_vals[0],
                 constraint1,
                 constraint2,
                 is_idempotent=self.is_idempotent(result_type),
             )
         else:
             val1, val2 = self.select_two_operand(
-                int_vals,
+                operands_vals[0],
                 self.get_constraint(result_type),
                 is_idempotent=self.is_idempotent(result_type),
             )
@@ -459,74 +526,36 @@ class SynthesizerContext:
         assert isinstance(result, Operation)
         return result
 
-    def get_random_i1_op(
+    def get_random_op(
         self,
-        int_vals: list[SSAValue],
-        i1_vals: list[SSAValue],
+        op_type: str,
+        vals: dict[str, list[SSAValue]],
     ) -> Operation | None:
-        if self.weighted:
-            result_type = self.i1_ops.get_weighted_random_element(self.i1_weights)
+        result_op_w_sig = (
+            self.dsl_ops[op_type].get_weighted_random_element(self.op_weights[op_type])
+            if self.weighted
+            else self.dsl_ops[op_type].get_random_element()
+        )
+
+        assert result_op_w_sig is not None
+        operands_vals = tuple(vals[t] for t in result_op_w_sig[1])
+        if op_type == BOOL_T:
+            ret_op = self.build_i1_op(result_op_w_sig[0], operands_vals)
+        elif op_type == INT_T or op_type == BINT_T:
+            ret_op = self.build_int_op(result_op_w_sig[0], operands_vals)
         else:
-            result_type = self.i1_ops.get_random_element()
-        assert result_type is not None
-        return self.build_i1_op(result_type, int_vals, i1_vals)
+            assert False
+        if ret_op is not None:
+            set_signature_attr(ret_op, result_op_w_sig, op_type)
+        return ret_op
 
-    def get_random_int_op(
-        self,
-        int_vals: list[SSAValue],
-        i1_vals: list[SSAValue],
-    ) -> Operation | None:
-        if self.weighted:
-            result_type = self.int_ops.get_weighted_random_element(self.int_weights)
-        else:
-            result_type = self.int_ops.get_random_element()
-        assert result_type is not None
-        return self.build_int_op(result_type, int_vals, i1_vals)
-
-    # def get_random_i1_op_except(
-    #     self,
-    #     int_vals: list[SSAValue],
-    #     i1_vals: list[SSAValue],
-    #     except_op: Operation,
-    # ) -> Operation | None:
-    #     result_type = self.i1_ops.get_random_element_if(
-    #         lambda op_ty=type[Operation]: op_ty != type(except_op)
-    #     )
-    #     assert result_type is not None
-    #     return self.build_i1_op(result_type, int_vals, i1_vals)
-    #
-    # def get_random_int_op_except(
-    #     self,
-    #     int_vals: list[SSAValue],
-    #     i1_vals: list[SSAValue],
-    #     except_op: Operation,
-    # ) -> Operation | None:
-    #     result_type = self.int_ops.get_random_element_if(
-    #         lambda op_ty=type[Operation]: op_ty != type(except_op)
-    #     )
-    #     assert result_type is not None
-    #     return self.build_int_op(result_type, int_vals, i1_vals)
-
-    def replace_operand(
-        self, op: Operation, int_vals: list[SSAValue], i1_vals: list[SSAValue]
-    ):
-        ith = self.random.randint(0, len(op.operands) - 1)
+    def replace_operand(self, op: Operation, ith: int, vals: list[SSAValue]):
         if not self.skip_trivial:
             # NOTICE: consider not the same value?
-            if isinstance(op.operands[ith].type, TransIntegerType):
-                val = self.select_operand(int_vals, no_constraint)
-                if val is None:
-                    return False
-                op.operands[ith] = val
-            elif op.operands[ith].type == i1:
-                val = self.select_operand(int_vals, no_constraint)
-                if val is None:
-                    return False
-                op.operands[ith] = val
-            else:
-                raise ValueError(
-                    "unknown type when replacing operand: " + str(op.operands[ith].type)
-                )
+            val = self.select_operand(vals, no_constraint)
+            if val is None:
+                return False
+            op.operands[ith] = val
             return True
         op_type = type(op)
         constraint: Callable[[SSAValue], bool] = self.get_constraint(op_type)
@@ -546,36 +575,32 @@ class SynthesizerContext:
                 new_constraint = lambda val=SSAValue: (
                     constraint(val) and val != op.operands[1 - ith]
                 )
-        if isinstance(op.operands[ith].type, TransIntegerType):
-            val = self.select_operand(
-                int_vals, constraint if new_constraint is None else new_constraint
-            )
-            if val is None:
-                return False
-            op.operands[ith] = val
-        elif op.operands[ith].type == i1:
-            val = self.select_operand(
-                i1_vals, constraint if new_constraint is None else new_constraint
-            )
-            if val is None:
-                return False
-            op.operands[ith] = val
-        else:
-            raise ValueError(
-                "unknown type when replacing operand: " + str(op.operands[ith].type)
-            )
+        val = self.select_operand(
+            vals, constraint if new_constraint is None else new_constraint
+        )
+        if val is None:
+            return False
+        op.operands[ith] = val
         return True
 
     @staticmethod
     def count_op_frequency(
-        func: FuncOp,
-    ) -> tuple[dict[type[Operation], int], dict[type[Operation], int]]:
-        freq_int: dict[type[Operation], int] = {}
-        freq_i1: dict[type[Operation], int] = {}
-        for op in func.body.block.ops:
-            ty = type(op)
-            if ty in full_int_ops:
-                freq_int[ty] = freq_int.get(ty, 0) + 1
-            if ty in full_i1_ops:
-                freq_i1[ty] = freq_i1.get(ty, 0) + 1
-        return freq_int, freq_i1
+        funcs: list[FuncOp],
+    ) -> dict[str, dict[OpWithSignature, int],]:
+        freq: dict[str, dict[OpWithSignature, int]] = {
+            INT_T: {},
+            BOOL_T: {},
+            BINT_T: {},
+        }
+        for func in funcs:
+            for op in func.body.block.ops:
+                if not_in_main_body(op):
+                    continue
+                op_w_sig = get_op_with_signature(op)
+                if op_w_sig in full_int_ops:
+                    freq[INT_T][op_w_sig] = freq[INT_T].get(op_w_sig, 0) + 1
+                if op_w_sig in full_i1_ops:
+                    freq[BOOL_T][op_w_sig] = freq[BOOL_T].get(op_w_sig, 0) + 1
+                if enable_bint and op_w_sig in full_bint_ops:
+                    freq[BINT_T][op_w_sig] = freq[BINT_T].get(op_w_sig, 0) + 1
+        return freq
