@@ -46,6 +46,7 @@ from xdsl_smt.utils.synthesizer_utils.function_with_condition import (
     FunctionWithCondition,
 )
 
+
 def register_all_arguments(arg_parser: argparse.ArgumentParser):
     arg_parser.add_argument(
         "transfer_functions", type=str, nargs="?", help="path to the transfer functions"
