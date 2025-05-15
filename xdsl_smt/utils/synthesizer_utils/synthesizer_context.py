@@ -301,7 +301,7 @@ def get_ret_type(op: Operation) -> str:
 def get_op_with_signature(op: Operation) -> OpWithSignature:
     assert "input_type" in op.attributes
     assert isa(input_type := op.attributes["input_type"], ArrayAttr[Attribute])
-    sig = []
+    sig: list[str] = []
     for ty in input_type.data:
         assert isa(ty, StringAttr)
         sig.append(ty.data)
@@ -586,7 +586,7 @@ class SynthesizerContext:
     @staticmethod
     def count_op_frequency(
         funcs: list[FuncOp],
-    ) -> dict[str, dict[OpWithSignature, int],]:
+    ) -> dict[str, dict[OpWithSignature, int]]:
         freq: dict[str, dict[OpWithSignature, int]] = {
             INT_T: {},
             BOOL_T: {},

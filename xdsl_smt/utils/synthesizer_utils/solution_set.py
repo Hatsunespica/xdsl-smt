@@ -6,7 +6,6 @@ from typing import Callable
 from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.func import FuncOp, CallOp, ReturnOp
-from xdsl.ir import Operation
 
 from xdsl_smt.utils.synthesizer_utils.compare_result import EvalResult
 from abc import ABC, abstractmethod
@@ -465,6 +464,6 @@ class UnsizedSolutionSet(SolutionSet):
         context.update_weights(freq_of_learn_funcs)
 
         self.logger.info("Current Weights:")
-        for ty, weights in context.op_weights.items():
+        for _, weights in context.op_weights.items():
             for key, value in weights.items():
                 self.logger.info(f"\t{key}: {value}")
