@@ -278,25 +278,6 @@ def eval_transfer_func_helper(
     )
 
 
-def solution_set_eval_func(
-    domain: eval_engine.AbstractDomain,
-    bitwidth: int,
-    helper_funcs: list[str],
-) -> Callable[
-    [
-        list[FunctionWithCondition],
-        list[FunctionWithCondition],
-    ],
-    list[EvalResult],
-]:
-    """
-    This function returns a simplified eval_func receiving transfer functions and base functions
-    """
-    return lambda transfer=list[FunctionWithCondition], base=list[
-        FunctionWithCondition
-    ]: (eval_transfer_func_helper(transfer, base, domain, bitwidth, helper_funcs))
-
-
 def run(
     domain: eval_engine.AbstractDomain,
     bitwidth: int,
@@ -400,8 +381,7 @@ def run(
         get_top_func,
         meet_func,
     ]
-
-    solution = None
+    solution: FuncOp
     for func in sol_module.ops:
         if isinstance(func, FuncOp):
             if func.sym_name.data == "solution":
@@ -412,7 +392,6 @@ def run(
     helper_funcs_cpp: list[str] = [print_concrete_function_to_cpp(crt_func)] + [
         print_to_cpp(func) for func in helper_funcs[1:]
     ]
-
     init_cmp_res = eval_transfer_func_helper(
         solution, domain, bitwidth, helper_funcs_cpp
     )
@@ -420,6 +399,7 @@ def run(
     print(
         f"{res.per_bit[res.max_bit].exacts / res.per_bit[res.max_bit].all_cases*100:.4f}%"
     )
+    return res
 
 
 def main() -> None:
