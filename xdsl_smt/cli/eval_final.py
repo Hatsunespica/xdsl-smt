@@ -2,7 +2,7 @@ import argparse
 import os.path
 import glob
 import sys
-from typing import cast, Callable
+from typing import cast, Callable, Optional
 
 from xdsl.context import Context
 from xdsl.parser import Parser
@@ -283,8 +283,7 @@ def run(
     bitwidth: int,
     input_path: str,
     solution_path: str,
-    outputs_folder: str = OUTPUTS_FOLDER,
-) -> EvalResult:
+):
     global ctx
     ctx = Context()
     ctx.load_dialect(Arith)
@@ -381,7 +380,7 @@ def run(
         get_top_func,
         meet_func,
     ]
-    solution: FuncOp
+    solution: Optional[FuncOp] = None
     for func in sol_module.ops:
         if isinstance(func, FuncOp):
             if func.sym_name.data == "solution":
@@ -392,6 +391,7 @@ def run(
     helper_funcs_cpp: list[str] = [print_concrete_function_to_cpp(crt_func)] + [
         print_to_cpp(func) for func in helper_funcs[1:]
     ]
+    assert solution is not None, "No solution function is found in solution file"
     init_cmp_res = eval_transfer_func_helper(
         solution, domain, bitwidth, helper_funcs_cpp
     )
@@ -427,7 +427,7 @@ def main() -> None:
             # print(f"Warning: solution directory does not exist: {solution_dir}")
             continue
         if not os.path.isfile(solution_path):
-            # print(f"Warning: solution file missing: {solution_path}")
+            print(f"Warning: solution file missing: {solution_path}")
             continue
 
         print(base_name, end=" ")
@@ -437,7 +437,6 @@ def main() -> None:
             bitwidth=bitwidth,
             input_path=input_path,
             solution_path=solution_path,
-            outputs_folder=outputs_folder,
         )
 
 
