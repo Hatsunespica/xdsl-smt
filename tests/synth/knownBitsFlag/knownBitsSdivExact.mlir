@@ -56,7 +56,7 @@
 
     %const1 = "transfer.constant"(%arg1) {value=1:index}:(!transfer.integer)->!transfer.integer
     %safe_arg1 = "transfer.select"(%arg1_neq_0, %arg1, %const1) : (i1, !transfer.integer, !transfer.integer) -> !transfer.integer
-    %rem = "comb.mods"(%arg0, %safe_arg1) : (!transfer.integer, !transfer.integer) -> !transfer.integer
+    %rem = "transfer.srem"(%arg0, %safe_arg1) : (!transfer.integer, !transfer.integer) -> !transfer.integer
     %exact = "transfer.cmp"(%rem, %const0) {predicate=0:i64}: (!transfer.integer, !transfer.integer) -> i1
 
     %check = "arith.andi"(%exact, %not_ub) : (i1, i1) -> i1
