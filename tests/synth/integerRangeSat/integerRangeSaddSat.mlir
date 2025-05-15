@@ -11,16 +11,28 @@
   }) {function_type = (!transfer.abs_value<[!transfer.integer,!transfer.integer]>) -> !transfer.abs_value<[!transfer.integer,!transfer.integer]>, sym_name = "getTop"} : () -> ()
 
 
+"func.func"() ({
+  ^bb0(%arg0: !transfer.integer, %arg1: !transfer.integer):
+    %signed_max = "transfer.get_signed_max_value"(%arg0) : (!transfer.integer) -> !transfer.integer
+    %signed_min = "transfer.get_signed_min_value"(%arg0) : (!transfer.integer) -> !transfer.integer
+    %addRes = "transfer.add"(%arg0, %arg1) : (!transfer.integer, !transfer.integer) -> !transfer.integer
+    %overflow = "transfer.sadd_overflow"(%arg0, %arg1): (!transfer.integer,!transfer.integer)->i1
+    $arg0_is_neg = "transfer.is_negative"(%arg0): (!transfer.integer) -> i1
+    %sat_res = "transfer.select"(%arg0_is_neg, %signed_min, %signed_max) : (i1, !transfer.integer, !transfer.integer) ->!transfer.integer
+    %result = "transfer.select"(%overflow, %sat_res, %addRes) : (i1, !transfer.integer, !transfer.integer) ->!transfer.integer
+    "func.return"(%result) : (!transfer.integer) -> ()
+  }) {function_type = (!transfer.integer,!transfer.integer) -> !transfer.integer, sym_name = "concrete_op"} : () -> ()
+
    "func.func"() ({
   ^bb0(%arg0: !transfer.abs_value<[!transfer.integer,!transfer.integer]>, %arg1: !transfer.abs_value<[!transfer.integer,!transfer.integer]>):
     %arg00 = "transfer.get"(%arg0) {index=0:index}: (!transfer.abs_value<[!transfer.integer,!transfer.integer]>) -> !transfer.integer
     %arg01 = "transfer.get"(%arg0) {index=1:index}: (!transfer.abs_value<[!transfer.integer,!transfer.integer]>) -> !transfer.integer
     %arg10 = "transfer.get"(%arg1) {index=0:index}: (!transfer.abs_value<[!transfer.integer,!transfer.integer]>) -> !transfer.integer
     %arg11 = "transfer.get"(%arg1) {index=1:index}: (!transfer.abs_value<[!transfer.integer,!transfer.integer]>) -> !transfer.integer
-    %min0 = "transfer.umin"(%arg00,%arg10): (!transfer.integer,!transfer.integer)->!transfer.integer
-    %max0 = "transfer.umax"(%arg01,%arg11): (!transfer.integer,!transfer.integer)->!transfer.integer
-    %result = "transfer.make"(%min0, %max1) : (!transfer.integer, !transfer.integer) -> !transfer.abs_value<[!transfer.integer, !transfer.integer]>
-    "func.return"(%result) : (!transfer.abs_value<[!transfer.integer, !transfer.integer]>) -> ()
+    %min0 = "transfer.umax"(%arg00,%arg10): (!transfer.integer,!transfer.integer)->!transfer.integer
+    %max0 = "transfer.umin"(%arg01,%arg11): (!transfer.integer,!transfer.integer)->!transfer.integer
+    %result = "transfer.make"(%min0, %max0) : (!transfer.integer, !transfer.integer) -> !transfer.abs_value<[!transfer.integer, !transfer.integer]>
+     "func.return"(%result) : (!transfer.abs_value<[!transfer.integer, !transfer.integer]>) -> ()
   }) {function_type = (!transfer.abs_value<[!transfer.integer,!transfer.integer]>, !transfer.abs_value<[!transfer.integer,!transfer.integer]>) -> !transfer.abs_value<[!transfer.integer,!transfer.integer]>, sym_name = "meet"} : () -> ()
 
   "func.func"() ({
@@ -30,16 +42,6 @@
     %result = "transfer.cmp"(%arg00, %arg01){predicate=7:i64}:(!transfer.integer,!transfer.integer)->i1
     "func.return"(%result) : (i1) -> ()
   }) {function_type = (!transfer.abs_value<[!transfer.integer,!transfer.integer]>) -> i1, sym_name = "getConstraint"} : () -> ()
-
-
-"func.func"() ({
-  ^bb0(%arg0: !transfer.integer, %arg1: !transfer.integer):
-    %constMax = "transfer.get_all_ones"(%arg0) : (!transfer.integer) -> !transfer.integer
-    %mulRes = "transfer.mul"(%arg0, %arg1) : (!transfer.integer, !transfer.integer) -> !transfer.integer
-    %overflow = "transfer.umul_overflow"(%arg0, %arg1){predicate=6:i64}:(!transfer.integer,!transfer.integer)->i1
-    %result = "transfer.select"(%overflow, %constMax, %mulRes) : (i1, !transfer.integer, !transfer.integer) ->!transfer.integer
-    "func.return"(%result) : (!transfer.integer) -> ()
-  }) {function_type = (!transfer.integer,!transfer.integer) -> !transfer.integer, sym_name = "concrete_op"} : () -> ()
 
   "func.func"() ({
   ^bb0(%arg0: !transfer.abs_value<[!transfer.integer,!transfer.integer]>, %inst: !transfer.integer):
@@ -51,9 +53,11 @@
     "func.return"(%result) : (i1) -> ()
   }) {function_type = (!transfer.abs_value<[!transfer.integer,!transfer.integer]>, !transfer.integer) -> i1, sym_name = "getInstanceConstraint"} : () -> ()
 
-  "func.func"() ({
+"func.func"() ({
   ^bb0(%arg0: !transfer.abs_value<[!transfer.integer,!transfer.integer]>, %arg1: !transfer.abs_value<[!transfer.integer,!transfer.integer]>):
     "func.return"(%arg0) : (!transfer.abs_value<[!transfer.integer,!transfer.integer]>) -> ()
-  }) {function_type = (!transfer.abs_value<[!transfer.integer,!transfer.integer]>,!transfer.abs_value<[!transfer.integer,!transfer.integer]>) -> !transfer.abs_value<[!transfer.integer,!transfer.integer]>, sym_name = "MULImpl", applied_to=["comb.mul"], CPPCLASS=["circt::comb::MulOp"], is_forward=true} : () -> ()
+  }) {function_type = (!transfer.abs_value<[!transfer.integer,!transfer.integer]>,!transfer.abs_value<[!transfer.integer,!transfer.integer]>) -> !transfer.abs_value<[!transfer.integer,!transfer.integer]>, sym_name = "SAddSatImpl", applied_to=["comb.xxx"], CPPCLASS=["circt::comb::XXXOp"], is_forward=true} : () -> ()
+
+
 
 }): () -> ()

@@ -53,7 +53,7 @@
     %check = "arith.andi"(%arg1_ge_0, %arg1_le_bitwidth) : (i1, i1) -> i1
 
     %cl0 = "transfer.countl_zero"(%arg0) : (!transfer.integer) -> !transfer.integer
-    %cl1 = "transfer.countl_zero"(%arg0) : (!transfer.integer) -> !transfer.integer
+    %cl1 = "transfer.countl_one"(%arg0) : (!transfer.integer) -> !transfer.integer
     %is_non_neg = "transfer.cmp"(%arg0, %const0) {predicate=5:i64}: (!transfer.integer, !transfer.integer) -> i1
     %shamt_lt_cl0 = "transfer.cmp"(%arg1, %cl0) {predicate=6:i64}: (!transfer.integer, !transfer.integer) -> i1
     %shamt_lt_cl1 = "transfer.cmp"(%arg1, %cl1) {predicate=6:i64}: (!transfer.integer, !transfer.integer) -> i1
