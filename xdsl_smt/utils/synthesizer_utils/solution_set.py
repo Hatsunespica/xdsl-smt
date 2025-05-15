@@ -446,7 +446,7 @@ class UnsizedSolutionSet(SolutionSet):
 
     def learn_weights(self, context: SynthesizerContext):
         self.logger.info(f"Improvement by each individual function")
-        learn_form_funcs = []
+        learn_form_funcs: list[FuncOp] = []
         for i, sol in enumerate(self.solutions):
             cmp_results: list[EvalResult] = self.eval_func(
                 [sol],
