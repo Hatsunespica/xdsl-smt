@@ -249,32 +249,22 @@ def construct_top_func(transfer: FuncOp) -> FuncOp:
 
 
 def eval_transfer_func_helper(
+    data_dir: str,
     transfer: FuncOp,
-    # base: list[FunctionWithCondition],
     domain: eval_engine.AbstractDomain,
-    bitwidth: int,
     helper_funcs: list[str],
 ) -> list[EvalResult]:
     transfer_func_names: list[str] = [transfer.sym_name.data]
     transfer_func_srcs: list[str] = [print_to_cpp(transfer)]
 
-    # base_func_names: list[str] = []
-    # base_func_srcs: list[str] = []
-    # for fc in base:
-    #     caller_str, helper_strs = fc.get_function_str(print_to_cpp)
-    #     base_func_names.append(fc.func_name)
-    #     base_func_srcs.append(caller_str)
-    #     helper_func_srcs += helper_strs
-
     return eval_engine.eval_transfer_func(
+        data_dir,
         transfer_func_names,
         transfer_func_srcs,
-        [],  # base_func_names,
-        [],  # base_func_srcs,
-        helper_funcs,  # helper_funcs + helper_func_srcs,
+        [],
+        [],
+        helper_funcs,
         domain,
-        bitwidth,
-        None,
     )
 
 
@@ -391,9 +381,14 @@ def run(
     helper_funcs_cpp: list[str] = [print_concrete_function_to_cpp(crt_func)] + [
         print_to_cpp(func) for func in helper_funcs[1:]
     ]
+
+    data_dir = eval_engine.setup_eval(
+        domain, bitwidth, None, "\n".join(helper_funcs_cpp)
+    )
+
     assert solution is not None, "No solution function is found in solution file"
     init_cmp_res = eval_transfer_func_helper(
-        solution, domain, bitwidth, helper_funcs_cpp
+        data_dir, solution, domain, helper_funcs_cpp
     )
     res = init_cmp_res[0]
     print(
@@ -408,9 +403,6 @@ def main() -> None:
     args = arg_parser.parse_args()
 
     bitwidth = SYNTH_WIDTH if args.bitwidth is None else args.bitwidth
-    # outputs_folder = (
-    #     OUTPUTS_FOLDER if args.outputs_folder is None else args.outputs_folder
-    # )
 
     # Check if transfer_functions is a directory
     if os.path.isdir(args.transfer_functions):
@@ -422,9 +414,7 @@ def main() -> None:
         base_name = os.path.splitext(os.path.basename(input_path))[0]
         solution_dir = os.path.join(args.solution_path, base_name)
         solution_path = os.path.join(solution_dir, "solution.mlir")
-        # print(input_path)
         if not os.path.isdir(solution_dir):
-            # print(f"Warning: solution directory does not exist: {solution_dir}")
             continue
         if not os.path.isfile(solution_path):
             print(f"Warning: solution file missing: {solution_path}")

@@ -93,15 +93,49 @@ target_compile_options(llvm_eval PRIVATE
     -Wno-unused-command-line-argument
 )
 
+add_executable(xfer_enum
+  src/xfer_enum/xfer_enum.cpp
+)
+
+target_include_directories(xfer_enum PRIVATE
+  ${CMAKE_BINARY_DIR}
+  ${LLVM_INCLUDE_DIRS}
+  ${CLANG_INCLUDE_DIRS}
+)
+
+target_compile_options(xfer_enum PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Werror
+    -Wshadow
+    -Wconversion
+    -Wsign-conversion
+    -Wold-style-cast
+    -Wcast-qual
+    -Wformat=2
+    -O3
+    -march=native
+    -flto
+    -DNDEBUG
+    -fstrict-enums
+    -Wno-unused-command-line-argument
+)
+
 add_custom_target(generate_header DEPENDS ${GENERATED_HEADER})
 add_dependencies(eval_engine generate_header)
 
 # Link against LLVM and Clang
+target_link_libraries(xfer_enum PRIVATE ${LLVM_LIBS} ${CLANG_LIBS})
 target_link_libraries(llvm_eval PRIVATE ${LLVM_LIBS} ${CLANG_LIBS})
 target_link_libraries(eval_engine PRIVATE ${LLVM_LIBS} ${CLANG_LIBS})
+
 target_link_options(eval_engine PRIVATE
     -Wl,--copy-dt-needed-entries
 )
 target_link_options(llvm_eval PRIVATE
+    -Wl,--copy-dt-needed-entries
+)
+target_link_options(xfer_enum PRIVATE
     -Wl,--copy-dt-needed-entries
 )

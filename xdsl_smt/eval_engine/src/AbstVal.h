@@ -9,14 +9,14 @@
 
 #include "APInt.h"
 
-template <typename Domain, unsigned int N> class AbstVal {
+template <typename Domain, unsigned int N_> class AbstVal {
 public:
-  typedef Vec<N> (*XferFn)(Vec<N>, Vec<N>);
+  static constexpr unsigned int N = N_;
   Vec<N> v;
 
 protected:
-  explicit AbstVal(const Vec<N> &x) : v(x) {}
-  explicit AbstVal(std::mt19937 &);
+  AbstVal(const Vec<N> &x) : v(x) {}
+  AbstVal(std::mt19937 &);
 
 public:
   // static ctors
@@ -42,12 +42,17 @@ public:
         [](const Domain &lhs, const Domain &rhs) { return lhs.meet(rhs); });
   }
 
+  static const Domain deserialize(unsigned char *ptr, unsigned int &offset) {
+    return Vec<N>::deserialize(ptr, offset);
+  }
+
   // normal methods
   bool operator==(const AbstVal &rhs) const { return v == rhs.v; }
   unsigned int bw() const { return v[0].getBitWidth(); }
   bool isTop() const { return *this == top(bw()); }
   bool isBottom() const { return *this == bottom(bw()); }
   bool isSuperset(const Domain &rhs) const { return meet(rhs) == rhs; }
+  void serialize(unsigned char *p, unsigned int &o) const { v.serialize(p, o); }
 
   // methods delegated to derived class
   bool isValid() const { return static_cast<const Domain *>(this)->isValid(); }
@@ -81,9 +86,9 @@ private:
   const A::APInt getConstant() const { return one(); }
 
 public:
-  explicit KnownBits(const Vec<2> &vC) : AbstVal<KnownBits, 2>(vC) {}
-  explicit KnownBits(std::mt19937 &rng, unsigned int bw)
-      : AbstVal<KnownBits, 2>(
+  KnownBits(const Vec<N> &vC) : AbstVal<KnownBits, N>(vC) {}
+  KnownBits(std::mt19937 &rng, unsigned int bw)
+      : AbstVal<KnownBits, N>(
             {A::APInt::getAllOnes(bw), A::APInt::getAllOnes(bw)}) {
     std::uniform_int_distribution<unsigned long> dist(0, (1 << bw) - 1);
     while (!isValid()) {
@@ -189,9 +194,9 @@ private:
   const A::APInt getConstant() const { return lower(); }
 
 public:
-  explicit ConstantRange(const Vec<2> &vC) : AbstVal<ConstantRange, 2>(vC) {}
-  explicit ConstantRange(std::mt19937 &rng, unsigned int bw)
-      : AbstVal<ConstantRange, 2>(
+  ConstantRange(const Vec<N> &vC) : AbstVal<ConstantRange, N>(vC) {}
+  ConstantRange(std::mt19937 &rng, unsigned int bw)
+      : AbstVal<ConstantRange, N>(
             {A::APInt::getMaxValue(bw), A::APInt::getMinValue(bw)}) {
     std::uniform_int_distribution<unsigned long> dist(0, (1 << bw) - 1);
     v[0] = A::APInt(bw, dist(rng));
@@ -302,7 +307,7 @@ public:
 //   const A::APInt getConstant() const { return lower(); }
 //
 // public:
-//   explicit SConstRange(const Vec<2> &vC) : AbstVal<SConstRange, 2>(vC) {}
+//    SConstRange(const Vec<N> &vC) : AbstVal<SConstRange, N>(vC) {}
 //
 //   const std::string display() const {
 //     if (SConstRange::isBottom()) {
@@ -420,11 +425,11 @@ private:
     return false;
   }
 
-  explicit IntegerModulo(const Vec<N> &v_, unsigned long crt_, unsigned long p_,
-                         unsigned int numTs_)
+  IntegerModulo(const Vec<N> &v_, unsigned long crt_, unsigned long p_,
+                unsigned int numTs_)
       : AbstVal<IntegerModulo, N>(v_), crt(crt_), p(p_), numTs(numTs_) {}
 
-  explicit IntegerModulo(const Vec<N> &vC, bool fixBadVals)
+  IntegerModulo(const Vec<N> &vC, bool fixBadVals)
       : AbstVal<IntegerModulo, N>(vC) {
     unsigned int numTs_ = 0;
     unsigned long p_ = 1;
@@ -458,8 +463,8 @@ private:
   }
 
 public:
-  explicit IntegerModulo(const Vec<N> &vC) : IntegerModulo(vC, true) {}
-  explicit IntegerModulo(std::mt19937 &rng, unsigned int bw)
+  IntegerModulo(const Vec<N> &vC) : IntegerModulo(vC, true) {}
+  IntegerModulo(std::mt19937 &rng, unsigned int bw)
       : IntegerModulo(Vec<N>(bw)) {
     do {
       for (unsigned int i = 0; i < N; ++i)

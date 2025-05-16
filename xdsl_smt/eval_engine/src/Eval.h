@@ -19,43 +19,19 @@ SUPPRESS_WARNINGS_BEGIN
 #include <llvm/Support/Error.h>
 SUPPRESS_WARNINGS_END
 
-template <typename Domain> class Eval {
+template <typename Domain> class EnumXfer {
 private:
   // types
   typedef std::function<A::APInt(A::APInt, A::APInt)> ConcOpFn;
   typedef std::function<bool(A::APInt, A::APInt)> OpConstraintFn;
-  typedef std::function<bool(Domain, Domain)> AbsOpConstraintFn;
 
   // members
   std::unique_ptr<llvm::orc::LLJIT> jit;
-  unsigned int bw;
-  std::vector<typename Domain::XferFn> xferFns;
-  std::vector<typename Domain::XferFn> baseFns;
   std::optional<OpConstraintFn> opCon;
-  std::optional<AbsOpConstraintFn> absOpCon;
   ConcOpFn concOp;
+  unsigned int bw;
 
   // methods
-  std::vector<Domain> synth_function_wrapper(const Domain &lhs,
-                                             const Domain &rhs) {
-    std::vector<Domain> r;
-    std::transform(xferFns.begin(), xferFns.end(), std::back_inserter(r),
-                   [&lhs, &rhs](const typename Domain::XferFn &f) {
-                     return Domain(f(lhs.v, rhs.v));
-                   });
-    return r;
-  }
-
-  std::vector<Domain> base_function_wrapper(const Domain &lhs,
-                                            const Domain &rhs) {
-    std::vector<Domain> r;
-    std::transform(baseFns.begin(), baseFns.end(), std::back_inserter(r),
-                   [&lhs, &rhs](const typename Domain::XferFn &f) {
-                     return Domain(f(lhs.v, rhs.v));
-                   });
-    return r;
-  }
-
   const Domain toBestAbst(const Domain &lhs, const Domain &rhs) {
     Domain res = Domain::bottom(lhs.bw());
 
@@ -68,22 +44,8 @@ private:
   }
 
 public:
-  Eval(std::unique_ptr<llvm::orc::LLJIT> jit0,
-       const std::vector<std::string> synthFnNames,
-       const std::vector<std::string> baseFnNames, unsigned int bw0)
+  EnumXfer(std::unique_ptr<llvm::orc::LLJIT> jit0, unsigned int bw0)
       : jit(std::move(jit0)), bw(bw0) {
-
-    std::transform(synthFnNames.begin(), synthFnNames.end(),
-                   std::back_inserter(xferFns), [this](const std::string &x) {
-                     return llvm::cantFail(jit->lookup(x))
-                         .toPtr<typename Domain::XferFn>();
-                   });
-
-    std::transform(baseFnNames.begin(), baseFnNames.end(),
-                   std::back_inserter(baseFns), [this](const std::string &x) {
-                     return llvm::cantFail(jit->lookup(x))
-                         .toPtr<typename Domain::XferFn>();
-                   });
 
     concOp = llvm::cantFail(jit->lookup("concrete_op"))
                  .toPtr<A::APInt(A::APInt, A::APInt)>();
@@ -91,44 +53,133 @@ public:
     llvm::Expected<llvm::orc::ExecutorAddr> mOpCons =
         jit->lookup("op_constraint");
 
-    llvm::Expected<llvm::orc::ExecutorAddr> mAbsOpCons =
-        jit->lookup("abs_op_constraint");
-
     opCon =
         !mOpCons
             ? std::nullopt
             : std::optional(mOpCons.get().toPtr<bool(A::APInt, A::APInt)>());
+
+    llvm::consumeError(mOpCons.takeError());
+  }
+
+  const std::vector<std::tuple<Domain, Domain, Domain>>
+  genRand(unsigned int seed, unsigned int samples) {
+    std::vector<std::tuple<Domain, Domain, Domain>> r;
+    std::mt19937 rng(seed);
+
+    for (unsigned int i = 0; i < samples; ++i) {
+      Domain lhs = Domain(rng, bw);
+      Domain rhs = Domain(rng, bw);
+      Domain res = toBestAbst(lhs, rhs);
+      r.push_back({lhs, rhs, res});
+    }
+
+    return r;
+  }
+
+  const std::vector<std::tuple<Domain, Domain, Domain>>
+  genLattice(unsigned int ebw) {
+    std::vector<std::tuple<Domain, Domain, Domain>> r;
+    const std::vector<Domain> fullLattice = Domain::enumVals(ebw);
+
+    for (Domain lhs : fullLattice)
+      for (Domain rhs : fullLattice)
+        r.push_back({lhs, rhs, toBestAbst(lhs, rhs)});
+
+    return r;
+  }
+
+  const std::vector<std::vector<std::tuple<Domain, Domain, Domain>>>
+  genAllBws() {
+    std::vector<std::vector<std::tuple<Domain, Domain, Domain>>> r;
+
+    for (unsigned int ebw = 1; ebw <= bw; ++ebw)
+      r.push_back(genLattice(ebw));
+
+    return r;
+  }
+};
+
+template <typename Domain> class Eval {
+private:
+  // types
+  typedef std::function<bool(Domain, Domain)> AbsOpConstraintFn;
+  typedef Domain (*XferFn)(Domain, Domain);
+
+  // members
+  std::unique_ptr<llvm::orc::LLJIT> jit;
+  std::vector<std::vector<std::tuple<Domain, Domain, Domain>>> toEval;
+  std::vector<XferFn> xferFns;
+  std::vector<XferFn> baseFns;
+  std::optional<AbsOpConstraintFn> absOpCon;
+
+  // methods
+  std::vector<Domain> synth_function_wrapper(const Domain &lhs,
+                                             const Domain &rhs) {
+    std::vector<Domain> r;
+    std::transform(
+        xferFns.begin(), xferFns.end(), std::back_inserter(r),
+        [&lhs, &rhs](const XferFn &f) { return Domain(f(lhs.v, rhs.v)); });
+    return r;
+  }
+
+  std::vector<Domain> base_function_wrapper(const Domain &lhs,
+                                            const Domain &rhs) {
+    std::vector<Domain> r;
+    std::transform(
+        baseFns.begin(), baseFns.end(), std::back_inserter(r),
+        [&lhs, &rhs](const XferFn &f) { return Domain(f(lhs.v, rhs.v)); });
+    return r;
+  }
+
+public:
+  Eval(std::unique_ptr<llvm::orc::LLJIT> jit0,
+       const std::vector<std::string> synthFnNames,
+       const std::vector<std::string> baseFnNames,
+       const std::vector<std::vector<std::tuple<Domain, Domain, Domain>>>
+           toEval_)
+      : jit(std::move(jit0)), toEval(toEval_) {
+
+    std::transform(synthFnNames.begin(), synthFnNames.end(),
+                   std::back_inserter(xferFns), [this](const std::string &x) {
+                     return llvm::cantFail(jit->lookup(x)).toPtr<XferFn>();
+                   });
+
+    std::transform(baseFnNames.begin(), baseFnNames.end(),
+                   std::back_inserter(baseFns), [this](const std::string &x) {
+                     return llvm::cantFail(jit->lookup(x)).toPtr<XferFn>();
+                   });
+
+    llvm::Expected<llvm::orc::ExecutorAddr> mAbsOpCons =
+        jit->lookup("abs_op_constraint");
 
     absOpCon =
         !mAbsOpCons
             ? std::nullopt
             : std::optional(mAbsOpCons.get().toPtr<bool(Domain, Domain)>());
 
-    llvm::consumeError(mOpCons.takeError());
     llvm::consumeError(mAbsOpCons.takeError());
   }
 
-  void evalSingle(const Domain &lhs, const Domain &rhs, Results &r) {
+  void evalSingle(const Domain &lhs, const Domain &rhs, const Domain &best,
+                  Results &r) {
     // If abs_op_constraint returns false, we skip this pair
     if (absOpCon && !absOpCon.value()(lhs, rhs))
       return;
 
-    Domain best_abstract_res = toBestAbst(lhs, rhs);
-
     // skip the pair if no concrete values satisfy op_constraint
-    if (best_abstract_res.isBottom())
+    if (best.isBottom())
       return;
 
     std::vector<Domain> synth_kbs(synth_function_wrapper(lhs, rhs));
     std::vector<Domain> ref_kbs(base_function_wrapper(lhs, rhs));
     Domain cur_kb = Domain::meetAll(ref_kbs, lhs.bw());
-    bool solved = cur_kb == best_abstract_res;
-    unsigned int baseDis = cur_kb.distance(best_abstract_res);
+    bool solved = cur_kb == best;
+    unsigned int baseDis = cur_kb.distance(best);
     for (unsigned int i = 0; i < synth_kbs.size(); ++i) {
       Domain synth_after_meet = cur_kb.meet(synth_kbs[i]);
-      bool sound = synth_after_meet.isSuperset(best_abstract_res);
-      bool exact = synth_after_meet == best_abstract_res;
-      unsigned int dis = synth_after_meet.distance(best_abstract_res);
+      bool sound = synth_after_meet.isSuperset(best);
+      bool exact = synth_after_meet == best;
+      unsigned int dis = synth_after_meet.distance(best);
       unsigned int soundDis = sound ? dis : baseDis;
 
       r.incResult(Result(sound, dis, exact, solved, soundDis), i);
@@ -137,24 +188,14 @@ public:
     r.incCases(solved, baseDis);
   }
 
-  const Results evalSamples(unsigned int seed, unsigned int samples) {
-    Results r(static_cast<unsigned int>(xferFns.size()));
-    std::mt19937 rng(seed);
-    for (unsigned int i = 0; i < samples; ++i)
-      evalSingle(Domain(rng, bw), Domain(rng, bw), r);
-
-    return r;
-  }
-
   const std::vector<Results> eval() {
-    std::vector<Results> r(bw, static_cast<unsigned int>(xferFns.size()));
+    std::vector<Results> r(toEval.size(),
+                           static_cast<unsigned int>(xferFns.size()));
 
-    for (unsigned int ebw = 1; ebw <= bw; ++ebw) {
-      const std::vector<Domain> fullLattice = Domain::enumVals(ebw);
-      for (Domain lhs : fullLattice) {
-        for (Domain rhs : fullLattice) {
-          evalSingle(lhs, rhs, r[ebw - 1]);
-        }
+    for (unsigned int i = 0; i < toEval.size(); ++i) {
+      for (unsigned int j = 0; j < toEval[i].size(); ++j) {
+        auto [lhs, rhs, best] = toEval[i][j];
+        evalSingle(lhs, rhs, best, r[i]);
       }
     }
 

@@ -4,7 +4,7 @@
 # TODO test at different bitwidths
 
 from typing import NamedTuple
-from xdsl_smt.eval_engine.eval import eval_transfer_func, AbstractDomain
+from xdsl_smt.eval_engine.eval import eval_transfer_func, AbstractDomain, setup_eval
 
 
 class TestInput(NamedTuple):
@@ -140,8 +140,11 @@ def test(input: TestInput) -> None:
         else [input.concrete_op, input.op_constraint]
     )
 
+    bw = 4
+    data_dir = setup_eval(input.domain, bw, None, "\n".join(helpers))
+
     results = eval_transfer_func(
-        list(names), list(srcs), [], [], helpers, input.domain, 4, None
+        data_dir, list(names), list(srcs), [], [], helpers, input.domain
     )
 
     def normalize(s: str) -> str:
