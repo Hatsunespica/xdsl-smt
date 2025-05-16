@@ -747,7 +747,7 @@ def run(
     if random_number_file is not None:
         random.read_from_file(random_number_file)
 
-    samples = (num_random_tests, random_seed) if num_random_tests is not None else None
+    samples = (random_seed, num_random_tests) if num_random_tests is not None else None
 
     if domain == eval_engine.AbstractDomain.KnownBits:
         EvalResult.get_max_dis = lambda x: x * 2

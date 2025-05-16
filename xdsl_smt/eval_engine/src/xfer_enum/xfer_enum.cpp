@@ -18,7 +18,7 @@ void handleDomain(std::unique_ptr<llvm::orc::LLJIT> jit, unsigned int bw,
         e.genRand(samples->first, samples->second);
     const std::string fname = dirPath + "bw " + std::to_string(bw) +
                               " samples " + std::to_string(data.size());
-    write_vecs(dirPath, data);
+    write_vecs(fname, data);
   } else {
     std::vector<std::vector<std::tuple<D, D, D>>> r = e.genAllBws();
     for (unsigned int i = 0; i < r.size(); ++i) {

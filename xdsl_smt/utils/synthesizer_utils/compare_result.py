@@ -68,7 +68,7 @@ class PerBitEvalResult:
 
     def __str__(self):
         s = ""
-        s += f"bw: {self.bitwidth:<2}"
+        s += f"bw: {self.bitwidth:<3}"
         s += f"all: {self.all_cases:<6}"
         s += f"s: {self.sounds:<6}"
         s += f"e: {self.exacts:<6}"
