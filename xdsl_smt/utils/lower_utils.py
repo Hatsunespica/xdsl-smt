@@ -78,7 +78,7 @@ operNameToCpp = {
     "transfer.umul_overflow": ".umul_ov",
     "transfer.smul_overflow": ".smul_ov",
     "transfer.uadd_overflow": ".uadd_ov",
-    "transfer.sadd_overflow": ".uadd_ov",
+    "transfer.sadd_overflow": ".sadd_ov",
     "transfer.ushl_overflow": ".ushl_ov",
     "transfer.sshl_overflow": ".sshl_ov",
     "transfer.get_bit_width": ".getBitWidth",

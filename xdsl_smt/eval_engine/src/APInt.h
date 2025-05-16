@@ -73,6 +73,12 @@ public:
     return Res;
   }
 
+  static APInt getLowBitsSet(unsigned numBits, unsigned loBitsSet) {
+    APInt Res(numBits, 0);
+    Res.setLowBits(loBitsSet);
+    return Res;
+  }
+
   static APInt getSplat(unsigned NewLen, const APInt &V) {
     APInt Val = V.zext(NewLen);
     for (unsigned I = V.getBitWidth(); I < NewLen; I <<= 1)
@@ -103,7 +109,12 @@ public:
     return this->lshr(BitWidth - numBits);
   }
 
-  APInt getLoBits(unsigned numBits) const;
+  APInt getLoBits(unsigned numBits) const {
+    APInt Result(getLowBitsSet(BitWidth, numBits));
+    Result &= *this;
+    return Result;
+  }
+
   bool isOneBitSet(unsigned BitNo) const {
     return (*this)[BitNo] && popcount() == 1;
   }
@@ -712,6 +723,21 @@ public:
   void setBit(unsigned BitPosition) {
     WordType Mask = maskBit(BitPosition);
     VAL |= Mask;
+  }
+
+  void setBits(unsigned loBit, unsigned hiBit) {
+    if (loBit == hiBit)
+      return;
+    unsigned long mask =
+        WORDTYPE_MAX >> (APINT_BITS_PER_WORD - (hiBit - loBit));
+    mask <<= loBit;
+    VAL |= mask;
+  }
+
+  void setLowBits(unsigned loBits) { return setBits(0, loBits); }
+
+  void setHighBits(unsigned hiBits) {
+    return setBits(BitWidth - hiBits, BitWidth);
   }
 
   void setSignBit() { setBit(BitWidth - 1); }
