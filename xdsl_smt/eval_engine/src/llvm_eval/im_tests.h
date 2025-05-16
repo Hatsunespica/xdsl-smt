@@ -1,11 +1,14 @@
-#include <algorithm>
 #include <iostream>
 #include <optional>
-#include <ranges>
 #include <vector>
 
 #include "../AbstVal.h"
+#include "../warning_suppresor.h"
 #include "common.h"
+
+SUPPRESS_WARNINGS_BEGIN
+#include "llvm/ADT/STLExtras.h"
+SUPPRESS_WARNINGS_END
 
 inline const IntegerModulo<6>
 im_xfer_wrapper(const IntegerModulo<6> &lhs, const IntegerModulo<6> &_,
@@ -52,18 +55,16 @@ inline const std::vector<Test<std::nullopt_t>> im_tests() {
   }
 
   std::vector<Test<std::nullopt_t>> v;
-  std::ranges::for_each(std::ranges::views::zip(tests, im_tests),
-                        [&v](const auto &pair) {
-                          const auto &[test, imTest] = pair;
-                          const auto &[tName, concFn, opConFn] = test;
-                          const auto &[imName, imOp] = imTest;
-                          if (tName != imName) {
-                            std::cerr << "Function name mismatch: " << tName
-                                      << " | " << imName << "\n";
-                            exit(1);
-                          }
-                          v.emplace_back(tName, concFn, opConFn, imOp);
-                        });
+  for (const auto &[test, imTest] : llvm::zip(tests, im_tests)) {
+    const auto &[tName, concFn, opConFn] = test;
+    const auto &[imName, imOp] = imTest;
+    if (tName != imName) {
+      std::cerr << "Function name mismatch: " << tName << " | " << imName
+                << "\n";
+      exit(1);
+    }
+    v.emplace_back(tName, concFn, opConFn, imOp);
+  }
 
   return v;
 }
