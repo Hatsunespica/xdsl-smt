@@ -1,7 +1,5 @@
-#include <algorithm>
 #include <iostream>
 #include <optional>
-#include <ranges>
 #include <vector>
 
 #include "../APInt.h"
@@ -10,6 +8,7 @@
 #include "common.h"
 
 SUPPRESS_WARNINGS_BEGIN
+#include "llvm/ADT/STLExtras.h"
 #include <llvm/Support/KnownBits.h>
 SUPPRESS_WARNINGS_END
 
@@ -93,18 +92,16 @@ inline const std::vector<Test<llvm::KnownBits>> kb_tests() {
   }
 
   std::vector<Test<llvm::KnownBits>> v;
-  std::ranges::for_each(std::ranges::views::zip(tests, kb_tests),
-                        [&v](const auto &pair) {
-                          const auto &[test, kbTest] = pair;
-                          const auto &[tName, concFn, opConFn] = test;
-                          const auto &[kbName, kbOp] = kbTest;
-                          if (tName != kbName) {
-                            std::cerr << "Function name mismatch: " << tName
-                                      << " | " << kbName << "\n";
-                            exit(1);
-                          }
-                          v.emplace_back(tName, concFn, opConFn, kbOp);
-                        });
+  for (const auto &[test, kbTest] : llvm::zip(tests, kb_tests)) {
+    const auto &[tName, concFn, opConFn] = test;
+    const auto &[kbName, kbOp] = kbTest;
+    if (tName != kbName) {
+      std::cerr << "Function name mismatch: " << tName << " | " << kbName
+                << "\n";
+      exit(1);
+    }
+    v.emplace_back(tName, concFn, opConFn, kbOp);
+  }
 
   return v;
 }
