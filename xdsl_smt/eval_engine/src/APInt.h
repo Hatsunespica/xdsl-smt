@@ -1107,6 +1107,17 @@ inline APInt APInt::sfloordiv_ov(const APInt &RHS, bool &Overflow) const {
 template <unsigned int N> class Vec {
   static_assert(N != 0, "Vec must include at least one element");
 
+private:
+  static void *memcpy(void *dest, const void *src, unsigned long n) {
+    unsigned char *d = static_cast<unsigned char *>(dest);
+    const unsigned char *s = static_cast<const unsigned char *>(src);
+
+    for (unsigned long i = 0; i < n; ++i)
+      d[i] = s[i];
+
+    return dest;
+  }
+
 public:
   A::APInt v[N];
 
@@ -1147,6 +1158,32 @@ public:
 
   const A::APInt &operator[](unsigned int i) const { return v[i]; }
   A::APInt &operator[](unsigned int i) { return v[i]; }
+
+  void serialize(unsigned char *ptr, unsigned int &offset) const {
+    for (unsigned int i = 0; i < N; ++i) {
+      unsigned long val = v[i].getZExtValue();
+      unsigned int bw = v[i].getBitWidth();
+      memcpy(ptr + offset, &val, sizeof(val));
+      offset += sizeof(val);
+      memcpy(ptr + offset, &bw, sizeof(bw));
+      offset += sizeof(bw);
+    }
+  }
+
+  static Vec<N> deserialize(unsigned char *ptr, unsigned int &offset) {
+    Vec<N> v(0U);
+    for (unsigned int i = 0; i < N; ++i) {
+      unsigned long val;
+      unsigned int bw;
+      memcpy(&val, ptr + offset, sizeof(val));
+      offset += sizeof(val);
+      memcpy(&bw, ptr + offset, sizeof(bw));
+      offset += sizeof(bw);
+      v[i] = A::APInt(bw, val);
+    }
+
+    return v;
+  }
 };
 
 namespace IM {
