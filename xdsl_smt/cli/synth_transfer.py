@@ -338,11 +338,10 @@ def construct_top_func(transfer: FuncOp) -> FuncOp:
 
 
 def eval_transfer_func_helper(
+    data_dir: str,
     transfer: list[FunctionWithCondition],
     base: list[FunctionWithCondition],
     domain: eval_engine.AbstractDomain,
-    bitwidth: int,
-    samples: tuple[int, int] | None,
     helper_funcs: list[str],
 ) -> list[EvalResult]:
     """
@@ -371,21 +370,19 @@ def eval_transfer_func_helper(
         helper_func_srcs += helper_strs
 
     return eval_engine.eval_transfer_func(
+        data_dir,
         transfer_func_names,
         transfer_func_srcs,
         base_func_names,
         base_func_srcs,
         helper_funcs + helper_func_srcs,
         domain,
-        bitwidth,
-        samples,
     )
 
 
 def solution_set_eval_func(
+    data_dir: str,
     domain: eval_engine.AbstractDomain,
-    bitwidth: int,
-    samples: tuple[int, int] | None,
     helper_funcs: list[str],
 ) -> Callable[
     [
@@ -399,11 +396,7 @@ def solution_set_eval_func(
     """
     return lambda transfer=list[FunctionWithCondition], base=list[
         FunctionWithCondition
-    ]: (
-        eval_transfer_func_helper(
-            transfer, base, domain, bitwidth, samples, helper_funcs
-        )
-    )
+    ]: (eval_transfer_func_helper(data_dir, transfer, base, domain, helper_funcs))
 
 
 def build_eval_list(
@@ -754,6 +747,8 @@ def run(
     if random_number_file is not None:
         random.read_from_file(random_number_file)
 
+    samples = (num_random_tests, random_seed) if num_random_tests is not None else None
+
     if domain == eval_engine.AbstractDomain.KnownBits:
         EvalResult.get_max_dis = lambda x: x * 2
     elif domain == eval_engine.AbstractDomain.ConstantRange:
@@ -853,6 +848,10 @@ def run(
         print_to_cpp(func) for func in helper_funcs[1:]
     ]
 
+    data_dir = eval_engine.setup_eval(
+        domain, bitwidth, samples, "\n".join(helper_funcs_cpp)
+    )
+
     base_bodys: dict[str, FuncOp] = {}
     base_conds: dict[str, FuncOp] = {}
     base_transfers: list[FunctionWithCondition] = []
@@ -885,9 +884,8 @@ def run(
         base_transfers.append(FunctionWithCondition(func))
 
     solution_eval_func = solution_set_eval_func(
+        data_dir,
         domain,
-        bitwidth,
-        (random_seed, num_random_tests) if num_random_tests is not None else None,
         helper_funcs_cpp,
     )
 
@@ -974,14 +972,13 @@ def run(
     solution_module, solution_str = solution_set.generate_solution_and_cpp()
     save_solution(solution_module, solution_str, outputs_folder)
     cmp_results: list[EvalResult] = eval_engine.eval_transfer_func(
+        data_dir,
         ["solution"],
         [solution_str],
         [],
         [],
         helper_funcs_cpp + [print_to_cpp(meet_func)],
         domain,
-        bitwidth,
-        (num_random_tests, random_seed) if num_random_tests is not None else None,
     )
 
     solution_result = cmp_results[0]

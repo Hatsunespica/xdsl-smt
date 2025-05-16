@@ -1,6 +1,7 @@
 from os import path
 from subprocess import run, PIPE
 from enum import Enum, auto
+from tempfile import mkdtemp
 
 from xdsl_smt.utils.synthesizer_utils.compare_result import EvalResult, PerBitEvalResult
 
@@ -14,15 +15,51 @@ class AbstractDomain(Enum):
         return self.name
 
 
+def setup_eval(
+    domain: AbstractDomain,
+    bitwidth: int,
+    samples: tuple[int, int] | None,
+    conc_op_src: str,
+) -> str:
+    base_dir = path.join("xdsl_smt", "eval_engine")
+    engine_path = path.join(base_dir, "build", "xfer_enum")
+    if not path.exists(engine_path):
+        raise FileExistsError(f"Enumeration Engine not found at: {engine_path}")
+
+    dirpath = f"{mkdtemp()}/"
+
+    engine_params = ""
+    engine_params += f"{dirpath}\n"
+    engine_params += f"{domain}\n"
+    engine_params += f"{bitwidth}\n"
+    engine_params += f"{samples[0]} {samples[1]}\n" if samples is not None else "\n"
+    engine_params += "using A::APInt;\n"
+    engine_params += f"{conc_op_src}"
+
+    engine_output = run(
+        [engine_path],
+        input=engine_params,
+        text=True,
+        stdout=PIPE,
+        stderr=PIPE,
+    )
+
+    if engine_output.returncode != 0:
+        print("Enumeration Engine failed with this error:")
+        print(engine_output.stderr, end="")
+        exit(engine_output.returncode)
+
+    return dirpath
+
+
 def eval_transfer_func(
+    data_dir: str,
     xfer_names: list[str],
     xfer_srcs: list[str],
     base_names: list[str],
     base_srcs: list[str],
     helper_srcs: list[str],
     domain: AbstractDomain,
-    bitwidth: int,
-    samples: tuple[int, int] | None,
 ) -> list[EvalResult]:
     base_dir = path.join("xdsl_smt", "eval_engine")
     engine_path = path.join(base_dir, "build", "eval_engine")
@@ -30,9 +67,8 @@ def eval_transfer_func(
         raise FileExistsError(f"Eval Engine not found at: {engine_path}")
 
     engine_params = ""
+    engine_params += f"{data_dir}\n"
     engine_params += f"{domain}\n"
-    engine_params += f"{bitwidth}\n"
-    engine_params += f"{samples[0]} {samples[1]}\n" if samples is not None else "\n"
     engine_params += f"{' '.join(xfer_names)}\n"
     engine_params += f"{' '.join(base_names)}\n"
     engine_params += "using A::APInt;\n"
@@ -101,6 +137,7 @@ def eval_transfer_func(
         ]
 
     bw_evals = eval_output.stdout.split("---\n")
+    bw_evals.reverse()
     per_bits = [get_per_bit(x.split("\n")) for x in bw_evals if x != ""]
 
     ds: list[dict[int, PerBitEvalResult]] = [{} for _ in range(len(per_bits[0][1]))]

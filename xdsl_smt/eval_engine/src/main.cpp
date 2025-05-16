@@ -10,21 +10,25 @@
 #include "utils.cpp"
 
 template <typename D>
-const std::vector<std::vector<std::tuple<D, D, D>>>
+const std::pair<std::vector<unsigned int>,
+                std::vector<std::vector<std::tuple<D, D, D>>>>
 getToEval(const std::string dirName) {
   std::vector<std::vector<std::tuple<D, D, D>>> v;
+  std::vector<unsigned int> bws;
 
   for (const std::filesystem::directory_entry &entry :
        std::filesystem::directory_iterator(dirName)) {
-    std::vector<std::string> a = split_whitespace(entry.path());
-    std::cout << "opening: " << entry.path() << "\n";
-    std::cout << "num elems: " << std::atol(a[a.size() - 1].data()) << "\n";
-    unsigned int elems =
-        static_cast<unsigned int>(std::atol(a[a.size() - 1].data()));
+    std::vector<std::string> split_fname = split_whitespace(entry.path());
+    unsigned int elems = static_cast<unsigned int>(
+        std::atol(split_fname[split_fname.size() - 1].data()));
+
+    bws.push_back(static_cast<unsigned int>(
+        std::atol(split_fname[split_fname.size() - 3].data())));
+
     v.push_back(read_vecs<D>(entry.path(), elems));
   }
 
-  return v;
+  return {bws, v};
 }
 
 int main() {
@@ -44,29 +48,26 @@ int main() {
   std::string fnSrcCode(std::istreambuf_iterator<char>(std::cin), {});
   std::unique_ptr<llvm::orc::LLJIT> jit = getJit(fnSrcCode);
 
-  std::vector<Results> r;
+  std::pair<std::vector<unsigned int>, std::vector<Results>> r;
   if (domain == "KnownBits") {
-    const std::vector<std::vector<std::tuple<KnownBits, KnownBits, KnownBits>>>
-        toEval = getToEval<KnownBits>(fname);
-    Eval<KnownBits> e(std::move(jit), synNames, bFnNames, toEval);
-    r = e.eval();
+    auto [bws, toEval] = getToEval<KnownBits>(fname);
+    r = {bws,
+         Eval<KnownBits>(std::move(jit), synNames, bFnNames, toEval).eval()};
   } else if (domain == "ConstantRange") {
-    const std::vector<
-        std::vector<std::tuple<ConstantRange, ConstantRange, ConstantRange>>>
-        toEval = getToEval<ConstantRange>(fname);
-    Eval<ConstantRange> e(std::move(jit), synNames, bFnNames, toEval);
-    r = e.eval();
+    auto [bws, toEval] = getToEval<ConstantRange>(fname);
+    r = {
+        bws,
+        Eval<ConstantRange>(std::move(jit), synNames, bFnNames, toEval).eval()};
   } else if (domain == "IntegerModulo") {
-    const std::vector<std::vector<
-        std::tuple<IntegerModulo<6>, IntegerModulo<6>, IntegerModulo<6>>>>
-        toEval = getToEval<IntegerModulo<6>>(fname);
-    Eval<IntegerModulo<6>> e(std::move(jit), synNames, bFnNames, toEval);
-    r = e.eval();
+    auto [bws, toEval] = getToEval<IntegerModulo<6>>(fname);
+    r = {bws, Eval<IntegerModulo<6>>(std::move(jit), synNames, bFnNames, toEval)
+                  .eval()};
   } else
     std::cerr << "Unknown domain: " << domain << "\n";
 
-  for (unsigned int i = 0; i < r.size(); ++i) {
-    r[i].print();
+  for (unsigned int i = 0; i < r.first.size(); ++i) {
+    std::cout << "bw: " << r.first[i] << "\n";
+    r.second[i].print();
     std::cout << "---\n";
   }
 
