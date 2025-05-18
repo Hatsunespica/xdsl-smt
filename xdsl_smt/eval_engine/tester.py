@@ -139,9 +139,9 @@ def test(input: TestInput) -> None:
         if input.op_constraint is None
         else [input.concrete_op, input.op_constraint]
     )
-
+    lbw = 1
     bw = 4
-    data_dir = setup_eval(input.domain, bw, None, "\n".join(helpers))
+    data_dir = setup_eval(input.domain, bw, lbw, None, "\n".join(helpers))
 
     results = eval_transfer_func(
         data_dir, list(names), list(srcs), [], [], helpers, input.domain
