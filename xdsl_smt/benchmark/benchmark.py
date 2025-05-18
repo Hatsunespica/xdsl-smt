@@ -18,8 +18,10 @@ COND_LEN = 10
 SOL_SIZE = 0
 NUM_ABD_P = 25
 BWIDTH = 4
+MIN_BWIDTH = 1
 WEIGHT_DSL = True
 PROGRAM_LENGTH = 40
+INV_TEMP = 200
 
 # something faster
 # PROGRAM_LENGTH = 40
@@ -76,8 +78,10 @@ def synth_run(args: tuple[str, str, str, int]) -> dict[str, float | str]:
             solution_size=SOL_SIZE,
             num_abd_procs=NUM_ABD_P,
             bitwidth=BWIDTH,
+            min_bitwidth=MIN_BWIDTH,
             weighted_dsl=WEIGHT_DSL,
             program_length=PROGRAM_LENGTH,
+            inv_temp=INV_TEMP,
             random_seed=seed,
             transfer_functions=fname,
             outputs_folder=output_folder,
