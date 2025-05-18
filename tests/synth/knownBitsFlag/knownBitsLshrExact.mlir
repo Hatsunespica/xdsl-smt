@@ -56,7 +56,7 @@
     %eq = "transfer.cmp"(%tmp2, %arg0) {predicate=0:i64}: (!transfer.integer, !transfer.integer) -> i1
 
     %ret = "arith.andi"(%check, %eq) : (i1, i1) -> i1
-    "func.return"(%check) : (i1) -> ()
+    "func.return"(%ret) : (i1) -> ()
   }) {function_type = (!transfer.integer, !transfer.integer) -> i1, sym_name = "op_constraint"} : () -> ()
 
   "func.func"() ({
