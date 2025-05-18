@@ -131,6 +131,7 @@ dmypy.json
 
 # Debug outputs
 outputs/
+tmp/
 
 # ignore synthed output
 tmp.cpp

@@ -23,5 +23,6 @@ bool nonZeroRhs(const A::APInt &, const A::APInt &);
 opConFn getNW(ovFn);
 opConFn getNW(ovFn, ovFn);
 
-extern const std::vector<std::tuple<std::string, concFn, std::optional<opConFn>>>
+extern const std::vector<
+    std::tuple<std::string, concFn, std::optional<opConFn>>>
     tests;
