@@ -73,6 +73,12 @@ public:
     return Res;
   }
 
+  static APInt getHighBitsSet(unsigned numBits, unsigned hiBitsSet) {
+    APInt Res(numBits, 0);
+    Res.setHighBits(hiBitsSet);
+    return Res;
+  }
+
   static APInt getLowBitsSet(unsigned numBits, unsigned loBitsSet) {
     APInt Res(numBits, 0);
     Res.setLowBits(loBitsSet);
@@ -757,6 +763,18 @@ public:
   }
 
   void clearSignBit() { clearBit(BitWidth - 1); }
+
+  /// Set bottom loBits bits to 0.
+  void clearLowBits(unsigned loBits) {
+    APInt Keep = getHighBitsSet(BitWidth, BitWidth - loBits);
+    *this &= Keep;
+  }
+
+  /// Set top hiBits bits to 0.
+  void clearHighBits(unsigned hiBits) {
+    APInt Keep = getLowBitsSet(BitWidth, BitWidth - hiBits);
+    *this &= Keep;
+  }
 
   void flipAllBits() {
     VAL ^= WORDTYPE_MAX;
