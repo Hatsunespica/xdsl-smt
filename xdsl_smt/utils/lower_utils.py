@@ -16,7 +16,12 @@ from ..dialects.transfer import (
     CountRZeroOp,
     SetHighBitsOp,
     SetLowBitsOp,
+    SetSignBitOp,
+    ClearSignBitOp,
     GetLowBitsOp,
+    GetHighBitsOp,
+    ClearLowBitsOp,
+    ClearHighBitsOp,
     GetBitWidthOp,
     UMulOverflowOp,
     SMulOverflowOp,
@@ -35,6 +40,8 @@ from ..dialects.transfer import (
     ExtractOp,
     ConcatOp,
     GetAllOnesOp,
+    GetSignedMaxValueOp,
+    GetSignedMinValueOp,
     SelectOp,
     NextLoopOp,
     ConstRangeForOp,
@@ -86,9 +93,14 @@ operNameToCpp = {
     "transfer.countr_zero": ".countr_zero",
     "transfer.countl_one": ".countl_one",
     "transfer.countr_one": ".countr_one",
+    "transfer.get_high_bits": ".getHiBits",
     "transfer.get_low_bits": ".getLoBits",
     "transfer.set_high_bits": ".setHighBits",
     "transfer.set_low_bits": ".setLowBits",
+    "transfer.clear_high_bits": ".clearHighBits",
+    "transfer.clear_low_bits": ".clearLowBits",
+    "transfer.set_sign_bit": ".setSignBit",
+    "transfer.clear_sign_bit": ".clearSignBit",
     "transfer.intersects": ".intersects",
     "transfer.cmp": [
         ".eq",
@@ -119,6 +131,8 @@ operNameToCpp = {
     "arith.select": ["?", ":"],
     "arith.cmpi": ["==", "!=", "<", "<=", ">", ">="],
     "transfer.get_all_ones": "APInt::getAllOnes",
+    "transfer.get_signed_max_value": "APInt::getSignedMaxValue",
+    "transfer.get_signed_min_value": "APInt::getSignedMinValue",
     "transfer.select": ["?", ":"],
     "transfer.reverse_bits": ".reverseBits",
     "transfer.add_poison": " ",
@@ -641,6 +655,46 @@ def _(op: GetAllOnesOp):
 
 
 @lowerOperation.register
+def _(op: GetSignedMaxValueOp):
+    returnedType = lowerType(op.results[0].type)
+    returnedValue = op.results[0].name_hint
+    opName = operNameToCpp[op.name]
+    return (
+        indent
+        + returnedType
+        + " "
+        + returnedValue
+        + " = "
+        + opName
+        + "("
+        + op.operands[0].name_hint
+        + ".getBitWidth()"
+        + ")"
+        + ends
+    )
+
+
+@lowerOperation.register
+def _(op: GetSignedMinValueOp):
+    returnedType = lowerType(op.results[0].type)
+    returnedValue = op.results[0].name_hint
+    opName = operNameToCpp[op.name]
+    return (
+        indent
+        + returnedType
+        + " "
+        + returnedValue
+        + " = "
+        + opName
+        + "("
+        + op.operands[0].name_hint
+        + ".getBitWidth()"
+        + ")"
+        + ends
+    )
+
+
+@lowerOperation.register
 def _(op: CallOp):
     returnedType = lowerType(op.results[0].type)
     returnedValue = op.results[0].name_hint
@@ -773,7 +827,60 @@ def _(op: SetLowBitsOp):
 
 
 @lowerOperation.register
+def _(op: ClearHighBitsOp):
+    returnedType = lowerType(op.results[0].type, op)
+    returnedValue = op.results[0].name_hint
+    equals = "=" + op.operands[0].name_hint + ends + "\t"
+    expr = op.results[0].name_hint + operNameToCpp[op.name] + "("
+    operands = op.operands[1].name_hint + ".getZExtValue()"
+    expr = expr + operands + ")"
+    result = returnedType + " " + returnedValue + equals + expr + ends
+    return indent + result
+
+
+@lowerOperation.register
+def _(op: ClearLowBitsOp):
+    returnedType = lowerType(op.results[0].type, op)
+    returnedValue = op.results[0].name_hint
+    equals = "=" + op.operands[0].name_hint + ends + "\t"
+    expr = op.results[0].name_hint + operNameToCpp[op.name] + "("
+    operands = op.operands[1].name_hint + ".getZExtValue()"
+    expr = expr + operands + ")"
+    result = returnedType + " " + returnedValue + equals + expr + ends
+    return indent + result
+
+
+@lowerOperation.register
+def _(op: SetSignBitOp):
+    returnedType = lowerType(op.results[0].type, op)
+    returnedValue = op.results[0].name_hint
+    equals = "=" + op.operands[0].name_hint + ends + "\t"
+    expr = op.results[0].name_hint + operNameToCpp[op.name] + "("
+    operands = ""
+    expr = expr + operands + ")"
+    result = returnedType + " " + returnedValue + equals + expr + ends
+    return indent + result
+
+
+@lowerOperation.register
+def _(op: ClearSignBitOp):
+    returnedType = lowerType(op.results[0].type, op)
+    returnedValue = op.results[0].name_hint
+    equals = "=" + op.operands[0].name_hint + ends + "\t"
+    expr = op.results[0].name_hint + operNameToCpp[op.name] + "("
+    operands = ""
+    expr = expr + operands + ")"
+    result = returnedType + " " + returnedValue + equals + expr + ends
+    return indent + result
+
+
+@lowerOperation.register
 def _(op: GetLowBitsOp):
+    return lowerToClassMethod(op, castToUnisgnedFromAPInt)
+
+
+@lowerOperation.register
+def _(op: GetHighBitsOp):
     return lowerToClassMethod(op, castToUnisgnedFromAPInt)
 
 
