@@ -14,10 +14,12 @@ from xdsl_smt.dialects.transfer import (
     CountLZeroOp,
     CountROneOp,
     CountRZeroOp,
-    # GetBitWidthOp,
+    GetBitWidthOp,
+    # GetSignedMinValueOp,
+    # GetSignedMaxValueOp,
     # UMulOverflowOp,
-    # SMinOp,
-    # SMaxOp,
+    SMinOp,
+    SMaxOp,
     UMinOp,
     UMaxOp,
     ShlOp,
@@ -29,7 +31,10 @@ from xdsl_smt.dialects.transfer import (
     MulOp,
     SetLowBitsOp,
     SetHighBitsOp,
-    GetBitWidthOp,
+    ClearHighBitsOp,
+    ClearLowBitsOp,
+    SetSignBitOp,
+    ClearSignBitOp,
     GetOp,
     MakeOp,
 )
@@ -142,9 +147,15 @@ full_int_ops: list[OpWithSignature] = [
     (ShlOp, (INT_T, BINT_T)),
     (UMinOp, (INT_T, INT_T)),
     (UMaxOp, (INT_T, INT_T)),
+    (SMinOp, (INT_T, INT_T)),
+    (SMaxOp, (INT_T, INT_T)),
     (MulOp, (INT_T, INT_T)),
-    # SetHighBitsOp,
-    # SetLowBitsOp,
+    (SetHighBitsOp, (INT_T, BINT_T)),
+    (SetLowBitsOp, (INT_T, BINT_T)),
+    (ClearHighBitsOp, (INT_T, BINT_T)),
+    (ClearLowBitsOp, (INT_T, BINT_T)),
+    (SetSignBitOp, (INT_T,)),
+    (ClearSignBitOp, (INT_T,)),
 ]
 
 if not enable_bint:
@@ -241,6 +252,8 @@ optimize_operands_selection: dict[type[Operation], Callable[[SSAValue], bool]] =
     LShrOp: is_zero_or_allones,
     UMaxOp: is_zero_or_allones,
     UMinOp: is_zero_or_allones,
+    ClearSignBitOp: is_zero,
+    SetSignBitOp: is_one_or_allones,
     # arith operations
     arith.AndIOp: is_constant_bool,
     arith.OrIOp: is_constant_bool,
@@ -259,6 +272,8 @@ optimize_complex_operands_selection: dict[
     SelectOp: [is_constant_bool, no_constraint, no_constraint],
     SetLowBitsOp: [is_one_or_allones, is_zero_or_allones],
     SetHighBitsOp: [is_allones, is_zero_or_allones],
+    ClearLowBitsOp: [is_zero, is_zero_or_allones],
+    ClearHighBitsOp: [is_zero, is_zero_or_allones],
 }
 
 """
@@ -274,6 +289,8 @@ idempotent_operations: set[type[Operation]] = {
     CmpOp,
     UMaxOp,
     UMinOp,
+    SMinOp,
+    SMaxOp,
     # Special case for true and false branch
     SelectOp,
     # arith operations
@@ -426,20 +443,21 @@ class SynthesizerContext:
 
     def select_two_operand(
         self,
-        vals: list[SSAValue],
+        vals1: list[SSAValue],
+        vals2: list[SSAValue],
         constraint1: Callable[[SSAValue], bool],
         constraint2: Callable[[SSAValue], bool] | None = None,
         is_idempotent: bool = False,
     ) -> tuple[SSAValue | None, SSAValue | None]:
-        val1 = self.select_operand(vals, constraint1)
+        val1 = self.select_operand(vals1, constraint1)
         if val1 is None:
             return None, None
         if constraint2 is None:
             constraint2 = constraint1
         if is_idempotent:
-            val2 = self.select_operand(vals, constraint2, val1)
+            val2 = self.select_operand(vals2, constraint2, val1)
         else:
-            val2 = self.select_operand(vals, constraint2)
+            val2 = self.select_operand(vals2, constraint2)
         return val1, val2
 
     def build_i1_op(
@@ -448,6 +466,7 @@ class SynthesizerContext:
         if result_type == CmpOp:
             val1, val2 = self.select_two_operand(
                 operands_vals[0],
+                operands_vals[1],
                 self.get_constraint(result_type),
                 is_idempotent=self.is_idempotent(result_type),
             )
@@ -461,6 +480,7 @@ class SynthesizerContext:
         assert result_type is not None
         val1, val2 = self.select_two_operand(
             operands_vals[0],
+            operands_vals[1],
             self.get_constraint(result_type),
             is_idempotent=self.is_idempotent(result_type),
         )
@@ -488,6 +508,7 @@ class SynthesizerContext:
             cond = self.select_operand(operands_vals[0], cond_constraint)
             true_val, false_val = self.select_two_operand(
                 operands_vals[1],
+                operands_vals[2],
                 true_constraint,
                 false_constraint,
                 is_idempotent=self.is_idempotent(result_type),
@@ -506,6 +527,7 @@ class SynthesizerContext:
             constraint1, constraint2 = optimize_complex_operands_selection[result_type]
             val1, val2 = self.select_two_operand(
                 operands_vals[0],
+                operands_vals[1],
                 constraint1,
                 constraint2,
                 is_idempotent=self.is_idempotent(result_type),
@@ -513,6 +535,7 @@ class SynthesizerContext:
         else:
             val1, val2 = self.select_two_operand(
                 operands_vals[0],
+                operands_vals[1],
                 self.get_constraint(result_type),
                 is_idempotent=self.is_idempotent(result_type),
             )
