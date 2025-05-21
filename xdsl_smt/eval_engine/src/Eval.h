@@ -29,8 +29,8 @@ private:
   std::unique_ptr<llvm::orc::LLJIT> jit;
   std::optional<OpConstraintFn> opCon;
   ConcOpFn concOp;
-  unsigned int bw;
   unsigned int lbw;
+  unsigned int ubw;
 
   // methods
   const Domain toBestAbst(const Domain &lhs, const Domain &rhs) {
@@ -45,9 +45,9 @@ private:
   }
 
 public:
-  EnumXfer(std::unique_ptr<llvm::orc::LLJIT> jit0, unsigned int bw0,
-           unsigned int lbw0)
-      : jit(std::move(jit0)), bw(bw0), lbw(lbw0) {
+  EnumXfer(std::unique_ptr<llvm::orc::LLJIT> _jit, unsigned int _ubw,
+           unsigned int _lbw)
+      : jit(std::move(_jit)), ubw(_ubw), lbw(_lbw) {
 
     concOp = llvm::cantFail(jit->lookup("concrete_op"))
                  .toPtr<A::APInt(A::APInt, A::APInt)>();
@@ -94,7 +94,7 @@ public:
   genAllBws() {
     std::vector<std::vector<std::tuple<Domain, Domain, Domain>>> r;
 
-    for (unsigned int ebw = lbw; ebw <= bw; ++ebw)
+    for (unsigned int ebw = lbw; ebw <= ubw; ++ebw)
       r.push_back(genLattice(ebw));
 
     return r;
@@ -104,14 +104,16 @@ public:
   genAllBwsRand(unsigned int seed, unsigned int samples) {
     std::vector<std::vector<std::tuple<Domain, Domain, Domain>>> r;
 
-    for (unsigned int ebw = lbw; ebw <= std::min(bw, 4u); ++ebw)
+    for (unsigned int ebw = lbw; ebw <= std::min(ubw, 4u); ++ebw)
       r.push_back(genLattice(ebw));
-    if (bw > 4) {
+
+    if (ubw > 4) {
       unsigned int tmplbw = std::max(5u, lbw);
-      unsigned int sample_per_bw = samples / (bw - tmplbw + 1);
-      for (unsigned int ebw = tmplbw; ebw <= bw; ++ebw)
+      unsigned int sample_per_bw = samples / (ubw - tmplbw + 1);
+      for (unsigned int ebw = tmplbw; ebw <= ubw; ++ebw)
         r.push_back(genRand(seed, sample_per_bw, ebw));
     }
+
     return r;
   }
 };
