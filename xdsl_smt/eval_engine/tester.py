@@ -168,22 +168,22 @@ kb_or_test = TestInput(
     [kb_xor, kb_and, kb_or],
     [
         """
-bw: 1 all: 9     s: 8     e: 6     uall: 6     us: 5     ue: 3     dis: 4     udis: 4     bdis: 6     sdis: 3
-bw: 2 all: 81    s: 64    e: 36    uall: 72    us: 55    ue: 27    dis: 72    udis: 72    bdis: 108   sdis: 60
-bw: 3 all: 729   s: 512   e: 216   uall: 702   us: 485   ue: 189   dis: 972   udis: 972   bdis: 1458  sdis: 882
-bw: 4 all: 6561  s: 4096  e: 1296  uall: 6480  us: 4015  ue: 1215  dis: 11664 udis: 11664 bdis: 17496 sdis: 11352
+bw: 1  all: 9     s: 8     e: 6     uall: 6     us: 5     ue: 3     dis: 4     udis: 4     bdis: 6     sdis: 3
+bw: 2  all: 81    s: 64    e: 36    uall: 72    us: 55    ue: 27    dis: 72    udis: 72    bdis: 108   sdis: 60
+bw: 3  all: 729   s: 512   e: 216   uall: 702   us: 485   ue: 189   dis: 972   udis: 972   bdis: 1458  sdis: 882
+bw: 4  all: 6561  s: 4096  e: 1296  uall: 6480  us: 4015  ue: 1215  dis: 11664 udis: 11664 bdis: 17496 sdis: 11352
         """,
         """
-bw: 1 all: 9     s: 5     e: 3     uall: 6     us: 4     ue: 2     dis: 8     udis: 6     bdis: 6     sdis: 4
-bw: 2 all: 81    s: 25    e: 9     uall: 72    us: 24    ue: 8     dis: 144   udis: 132   bdis: 108   sdis: 88
-bw: 3 all: 729   s: 125   e: 27    uall: 702   us: 124   ue: 26    dis: 1944  udis: 1890  bdis: 1458  sdis: 1308
-bw: 4 all: 6561  s: 625   e: 81    uall: 6480  us: 624   ue: 80    dis: 23328 udis: 23112 bdis: 17496 sdis: 16496
+bw: 1  all: 9     s: 5     e: 3     uall: 6     us: 4     ue: 2     dis: 8     udis: 6     bdis: 6     sdis: 4
+bw: 2  all: 81    s: 25    e: 9     uall: 72    us: 24    ue: 8     dis: 144   udis: 132   bdis: 108   sdis: 88
+bw: 3  all: 729   s: 125   e: 27    uall: 702   us: 124   ue: 26    dis: 1944  udis: 1890  bdis: 1458  sdis: 1308
+bw: 4  all: 6561  s: 625   e: 81    uall: 6480  us: 624   ue: 80    dis: 23328 udis: 23112 bdis: 17496 sdis: 16496
         """,
         """
-bw: 1 all: 9     s: 9     e: 9     uall: 6     us: 6     ue: 6     dis: 0     udis: 0     bdis: 6     sdis: 0
-bw: 2 all: 81    s: 81    e: 81    uall: 72    us: 72    ue: 72    dis: 0     udis: 0     bdis: 108   sdis: 0
-bw: 3 all: 729   s: 729   e: 729   uall: 702   us: 702   ue: 702   dis: 0     udis: 0     bdis: 1458  sdis: 0
-bw: 4 all: 6561  s: 6561  e: 6561  uall: 6480  us: 6480  ue: 6480  dis: 0     udis: 0     bdis: 17496 sdis: 0
+bw: 1  all: 9     s: 9     e: 9     uall: 6     us: 6     ue: 6     dis: 0     udis: 0     bdis: 6     sdis: 0
+bw: 2  all: 81    s: 81    e: 81    uall: 72    us: 72    ue: 72    dis: 0     udis: 0     bdis: 108   sdis: 0
+bw: 3  all: 729   s: 729   e: 729   uall: 702   us: 702   ue: 702   dis: 0     udis: 0     bdis: 1458  sdis: 0
+bw: 4  all: 6561  s: 6561  e: 6561  uall: 6480  us: 6480  ue: 6480  dis: 0     udis: 0     bdis: 17496 sdis: 0
         """,
     ],
 )
@@ -195,22 +195,22 @@ kb_and_test = TestInput(
     [kb_xor, kb_and, kb_or],
     [
         """
-bw: 1 all: 9     s: 6     e: 4     uall: 6     us: 3     ue: 1     dis: 8     udis: 8     bdis: 6     sdis: 5
-bw: 2 all: 81    s: 36    e: 16    uall: 72    us: 27    ue: 7     dis: 144   udis: 144   bdis: 108   sdis: 96
-bw: 3 all: 729   s: 216   e: 64    uall: 702   us: 189   ue: 37    dis: 1944  udis: 1944  bdis: 1458  sdis: 1350
-bw: 4 all: 6561  s: 1296  e: 256   uall: 6480  us: 1215  ue: 175   dis: 23328 udis: 23328 bdis: 17496 sdis: 16632
+bw: 1  all: 9     s: 6     e: 4     uall: 6     us: 3     ue: 1     dis: 8     udis: 8     bdis: 6     sdis: 5
+bw: 2  all: 81    s: 36    e: 16    uall: 72    us: 27    ue: 7     dis: 144   udis: 144   bdis: 108   sdis: 96
+bw: 3  all: 729   s: 216   e: 64    uall: 702   us: 189   ue: 37    dis: 1944  udis: 1944  bdis: 1458  sdis: 1350
+bw: 4  all: 6561  s: 1296  e: 256   uall: 6480  us: 1215  ue: 175   dis: 23328 udis: 23328 bdis: 17496 sdis: 16632
         """,
         """
-bw: 1 all: 9     s: 9     e: 9     uall: 6     us: 6     ue: 6     dis: 0     udis: 0     bdis: 6     sdis: 0
-bw: 2 all: 81    s: 81    e: 81    uall: 72    us: 72    ue: 72    dis: 0     udis: 0     bdis: 108   sdis: 0
-bw: 3 all: 729   s: 729   e: 729   uall: 702   us: 702   ue: 702   dis: 0     udis: 0     bdis: 1458  sdis: 0
-bw: 4 all: 6561  s: 6561  e: 6561  uall: 6480  us: 6480  ue: 6480  dis: 0     udis: 0     bdis: 17496 sdis: 0
+bw: 1  all: 9     s: 9     e: 9     uall: 6     us: 6     ue: 6     dis: 0     udis: 0     bdis: 6     sdis: 0
+bw: 2  all: 81    s: 81    e: 81    uall: 72    us: 72    ue: 72    dis: 0     udis: 0     bdis: 108   sdis: 0
+bw: 3  all: 729   s: 729   e: 729   uall: 702   us: 702   ue: 702   dis: 0     udis: 0     bdis: 1458  sdis: 0
+bw: 4  all: 6561  s: 6561  e: 6561  uall: 6480  us: 6480  ue: 6480  dis: 0     udis: 0     bdis: 17496 sdis: 0
         """,
         """
-bw: 1 all: 9     s: 5     e: 3     uall: 6     us: 4     ue: 2     dis: 8     udis: 6     bdis: 6     sdis: 4
-bw: 2 all: 81    s: 25    e: 9     uall: 72    us: 24    ue: 8     dis: 144   udis: 132   bdis: 108   sdis: 88
-bw: 3 all: 729   s: 125   e: 27    uall: 702   us: 124   ue: 26    dis: 1944  udis: 1890  bdis: 1458  sdis: 1308
-bw: 4 all: 6561  s: 625   e: 81    uall: 6480  us: 624   ue: 80    dis: 23328 udis: 23112 bdis: 17496 sdis: 16496
+bw: 1  all: 9     s: 5     e: 3     uall: 6     us: 4     ue: 2     dis: 8     udis: 6     bdis: 6     sdis: 4
+bw: 2  all: 81    s: 25    e: 9     uall: 72    us: 24    ue: 8     dis: 144   udis: 132   bdis: 108   sdis: 88
+bw: 3  all: 729   s: 125   e: 27    uall: 702   us: 124   ue: 26    dis: 1944  udis: 1890  bdis: 1458  sdis: 1308
+bw: 4  all: 6561  s: 625   e: 81    uall: 6480  us: 624   ue: 80    dis: 23328 udis: 23112 bdis: 17496 sdis: 16496
         """,
     ],
 )
@@ -222,22 +222,22 @@ kb_xor_test = TestInput(
     [kb_xor, kb_and, kb_or],
     [
         """
-bw: 1 all: 9     s: 9     e: 9     uall: 4     us: 4     ue: 4     dis: 0     udis: 0     bdis: 4     sdis: 0
-bw: 2 all: 81    s: 81    e: 81    uall: 56    us: 56    ue: 56    dis: 0     udis: 0     bdis: 72    sdis: 0
-bw: 3 all: 729   s: 729   e: 729   uall: 604   us: 604   ue: 604   dis: 0     udis: 0     bdis: 972   sdis: 0
-bw: 4 all: 6561  s: 6561  e: 6561  uall: 5936  us: 5936  ue: 5936  dis: 0     udis: 0     bdis: 11664 sdis: 0
+bw: 1  all: 9     s: 9     e: 9     uall: 4     us: 4     ue: 4     dis: 0     udis: 0     bdis: 4     sdis: 0
+bw: 2  all: 81    s: 81    e: 81    uall: 56    us: 56    ue: 56    dis: 0     udis: 0     bdis: 72    sdis: 0
+bw: 3  all: 729   s: 729   e: 729   uall: 604   us: 604   ue: 604   dis: 0     udis: 0     bdis: 972   sdis: 0
+bw: 4  all: 6561  s: 6561  e: 6561  uall: 5936  us: 5936  ue: 5936  dis: 0     udis: 0     bdis: 11664 sdis: 0
         """,
         """
-bw: 1 all: 9     s: 4     e: 4     uall: 4     us: 1     ue: 1     dis: 8     udis: 6     bdis: 4     sdis: 3
-bw: 2 all: 81    s: 16    e: 16    uall: 56    us: 7     ue: 7     dis: 144   udis: 124   bdis: 72    sdis: 64
-bw: 3 all: 729   s: 64    e: 64    uall: 604   us: 37    ue: 37    dis: 1944  udis: 1794  bdis: 972   sdis: 924
-bw: 4 all: 6561  s: 256   e: 256   uall: 5936  us: 175   ue: 175   dis: 23328 udis: 22328 bdis: 11664 sdis: 11408
+bw: 1  all: 9     s: 4     e: 4     uall: 4     us: 1     ue: 1     dis: 8     udis: 6     bdis: 4     sdis: 3
+bw: 2  all: 81    s: 16    e: 16    uall: 56    us: 7     ue: 7     dis: 144   udis: 124   bdis: 72    sdis: 64
+bw: 3  all: 729   s: 64    e: 64    uall: 604   us: 37    ue: 37    dis: 1944  udis: 1794  bdis: 972   sdis: 924
+bw: 4  all: 6561  s: 256   e: 256   uall: 5936  us: 175   ue: 175   dis: 23328 udis: 22328 bdis: 11664 sdis: 11408
         """,
         """
-bw: 1 all: 9     s: 6     e: 6     uall: 4     us: 3     ue: 3     dis: 4     udis: 2     bdis: 4     sdis: 1
-bw: 2 all: 81    s: 36    e: 36    uall: 56    us: 27    ue: 27    dis: 72    udis: 52    bdis: 72    sdis: 36
-bw: 3 all: 729   s: 216   e: 216   uall: 604   us: 189   ue: 189   dis: 972   udis: 822   bdis: 972   sdis: 648
-bw: 4 all: 6561  s: 1296  e: 1296  uall: 5936  us: 1215  ue: 1215  dis: 11664 udis: 10664 bdis: 11664 sdis: 9072
+bw: 1  all: 9     s: 6     e: 6     uall: 4     us: 3     ue: 3     dis: 4     udis: 2     bdis: 4     sdis: 1
+bw: 2  all: 81    s: 36    e: 36    uall: 56    us: 27    ue: 27    dis: 72    udis: 52    bdis: 72    sdis: 36
+bw: 3  all: 729   s: 216   e: 216   uall: 604   us: 189   ue: 189   dis: 972   udis: 822   bdis: 972   sdis: 648
+bw: 4  all: 6561  s: 1296  e: 1296  uall: 5936  us: 1215  ue: 1215  dis: 11664 udis: 10664 bdis: 11664 sdis: 9072
         """,
     ],
 )
@@ -249,22 +249,22 @@ kb_add_test = TestInput(
     [kb_xor, kb_and, kb_or],
     [
         """
-bw: 1 all: 9     s: 9     e: 9     uall: 4     us: 4     ue: 4     dis: 0     udis: 0     bdis: 4     sdis: 0
-bw: 2 all: 81    s: 65    e: 65    uall: 44    us: 40    ue: 40    dis: 20    udis: 8     bdis: 60    sdis: 8
-bw: 3 all: 729   s: 425   e: 425   uall: 436   us: 300   ue: 300   dis: 440   udis: 248   bdis: 708   sdis: 228
-bw: 4 all: 6561  s: 2625  e: 2625  uall: 4220  us: 2000  ue: 2000  dis: 6620  udis: 4328  bdis: 7692  sdis: 3892
+bw: 1  all: 9     s: 9     e: 9     uall: 4     us: 4     ue: 4     dis: 0     udis: 0     bdis: 4     sdis: 0
+bw: 2  all: 81    s: 65    e: 65    uall: 44    us: 40    ue: 40    dis: 20    udis: 8     bdis: 60    sdis: 8
+bw: 3  all: 729   s: 425   e: 425   uall: 436   us: 300   ue: 300   dis: 440   udis: 248   bdis: 708   sdis: 228
+bw: 4  all: 6561  s: 2625  e: 2625  uall: 4220  us: 2000  ue: 2000  dis: 6620  udis: 4328  bdis: 7692  sdis: 3892
         """,
         """
-bw: 1 all: 9     s: 4     e: 4     uall: 4     us: 1     ue: 1     dis: 8     udis: 6     bdis: 4     sdis: 3
-bw: 2 all: 81    s: 13    e: 13    uall: 44    us: 4     ue: 4     dis: 134   udis: 102   bdis: 60    sdis: 55
-bw: 3 all: 729   s: 40    e: 40    uall: 436   us: 13    ue: 13    dis: 1724  udis: 1310  bdis: 708   sdis: 690
-bw: 4 all: 6561  s: 121   e: 121   uall: 4220  us: 40    ue: 40    dis: 20018 udis: 15358 bdis: 7692  sdis: 7634
+bw: 1  all: 9     s: 4     e: 4     uall: 4     us: 1     ue: 1     dis: 8     udis: 6     bdis: 4     sdis: 3
+bw: 2  all: 81    s: 13    e: 13    uall: 44    us: 4     ue: 4     dis: 134   udis: 102   bdis: 60    sdis: 55
+bw: 3  all: 729   s: 40    e: 40    uall: 436   us: 13    ue: 13    dis: 1724  udis: 1310  bdis: 708   sdis: 690
+bw: 4  all: 6561  s: 121   e: 121   uall: 4220  us: 40    ue: 40    dis: 20018 udis: 15358 bdis: 7692  sdis: 7634
         """,
         """
-bw: 1 all: 9     s: 6     e: 6     uall: 4     us: 3     ue: 3     dis: 4     udis: 2     bdis: 4     sdis: 1
-bw: 2 all: 81    s: 33    e: 33    uall: 44    us: 24    ue: 24    dis: 82    udis: 42    bdis: 60    sdis: 27
-bw: 3 all: 729   s: 174   e: 174   uall: 436   us: 147   ue: 147   dis: 1192  udis: 690   bdis: 708   sdis: 444
-bw: 4 all: 6561  s: 897   e: 897   uall: 4220  us: 816   ue: 816   dis: 14974 udis: 9554  bdis: 7692  sdis: 5850
+bw: 1  all: 9     s: 6     e: 6     uall: 4     us: 3     ue: 3     dis: 4     udis: 2     bdis: 4     sdis: 1
+bw: 2  all: 81    s: 33    e: 33    uall: 44    us: 24    ue: 24    dis: 82    udis: 42    bdis: 60    sdis: 27
+bw: 3  all: 729   s: 174   e: 174   uall: 436   us: 147   ue: 147   dis: 1192  udis: 690   bdis: 708   sdis: 444
+bw: 4  all: 6561  s: 897   e: 897   uall: 4220  us: 816   ue: 816   dis: 14974 udis: 9554  bdis: 7692  sdis: 5850
         """,
     ],
 )
@@ -276,16 +276,16 @@ cr_add_test = TestInput(
     [cr_add, cr_sub],
     [
         """
-bw: 1 all: 16    s: 16    e: 16    uall: 4     us: 4     ue: 4     dis: 0     udis: 0     bdis: 4     sdis: 0
-bw: 2 all: 121   s: 121   e: 121   uall: 46    us: 46    ue: 46    dis: 0     udis: 0     bdis: 96    sdis: 0
-bw: 3 all: 1369  s: 1369  e: 1369  uall: 532   us: 532   ue: 532   dis: 0     udis: 0     bdis: 2352  sdis: 0
-bw: 4 all: 18769 s: 18769 e: 18769 uall: 6920  us: 6920  ue: 6920  dis: 0     udis: 0     bdis: 63648 sdis: 0
+bw: 1  all: 16    s: 16    e: 16    uall: 4     us: 4     ue: 4     dis: 0     udis: 0     bdis: 4     sdis: 0
+bw: 2  all: 121   s: 121   e: 121   uall: 46    us: 46    ue: 46    dis: 0     udis: 0     bdis: 96    sdis: 0
+bw: 3  all: 1369  s: 1369  e: 1369  uall: 532   us: 532   ue: 532   dis: 0     udis: 0     bdis: 2352  sdis: 0
+bw: 4  all: 18769 s: 18769 e: 18769 uall: 6920  us: 6920  ue: 6920  dis: 0     udis: 0     bdis: 63648 sdis: 0
         """,
         """
-bw: 1 all: 16    s: 16    e: 16    uall: 4     us: 4     ue: 4     dis: 0     udis: 0     bdis: 4     sdis: 0
-bw: 2 all: 121   s: 92    e: 80    uall: 46    us: 29    ue: 17    dis: 88    udis: 71    bdis: 96    sdis: 58
-bw: 3 all: 1369  s: 912   e: 709   uall: 532   us: 278   ue: 75    dis: 2620  udis: 1950  bdis: 2352  sdis: 1994
-bw: 4 all: 18769 s: 12224 e: 9179  uall: 6920  us: 3420  ue: 375   dis: 75432 udis: 53340 bdis: 63648 sdis: 59948
+bw: 1  all: 16    s: 16    e: 16    uall: 4     us: 4     ue: 4     dis: 0     udis: 0     bdis: 4     sdis: 0
+bw: 2  all: 121   s: 92    e: 80    uall: 46    us: 29    ue: 17    dis: 88    udis: 71    bdis: 96    sdis: 58
+bw: 3  all: 1369  s: 912   e: 709   uall: 532   us: 278   ue: 75    dis: 2620  udis: 1950  bdis: 2352  sdis: 1994
+bw: 4  all: 18769 s: 12224 e: 9179  uall: 6920  us: 3420  ue: 375   dis: 75432 udis: 53340 bdis: 63648 sdis: 59948
         """,
     ],
 )
@@ -297,16 +297,16 @@ cr_sub_test = TestInput(
     [cr_sub, cr_add],
     [
         """
-bw: 1 all: 16    s: 16    e: 16    uall: 4     us: 4     ue: 4     dis: 0     udis: 0     bdis: 4     sdis: 0
-bw: 2 all: 121   s: 121   e: 121   uall: 46    us: 46    ue: 46    dis: 0     udis: 0     bdis: 96    sdis: 0
-bw: 3 all: 1369  s: 1369  e: 1369  uall: 532   us: 532   ue: 532   dis: 0     udis: 0     bdis: 2352  sdis: 0
-bw: 4 all: 18769 s: 18769 e: 18769 uall: 6920  us: 6920  ue: 6920  dis: 0     udis: 0     bdis: 63648 sdis: 0
+bw: 1  all: 16    s: 16    e: 16    uall: 4     us: 4     ue: 4     dis: 0     udis: 0     bdis: 4     sdis: 0
+bw: 2  all: 121   s: 121   e: 121   uall: 46    us: 46    ue: 46    dis: 0     udis: 0     bdis: 96    sdis: 0
+bw: 3  all: 1369  s: 1369  e: 1369  uall: 532   us: 532   ue: 532   dis: 0     udis: 0     bdis: 2352  sdis: 0
+bw: 4  all: 18769 s: 18769 e: 18769 uall: 6920  us: 6920  ue: 6920  dis: 0     udis: 0     bdis: 63648 sdis: 0
         """,
         """
-bw: 1 all: 16    s: 16    e: 16    uall: 4     us: 4     ue: 4     dis: 0     udis: 0     bdis: 4     sdis: 0
-bw: 2 all: 121   s: 92    e: 80    uall: 46    us: 29    ue: 17    dis: 88    udis: 71    bdis: 96    sdis: 58
-bw: 3 all: 1369  s: 912   e: 709   uall: 532   us: 278   ue: 75    dis: 2620  udis: 1950  bdis: 2352  sdis: 1994
-bw: 4 all: 18769 s: 12224 e: 9179  uall: 6920  us: 3420  ue: 375   dis: 75432 udis: 53340 bdis: 63648 sdis: 59948
+bw: 1  all: 16    s: 16    e: 16    uall: 4     us: 4     ue: 4     dis: 0     udis: 0     bdis: 4     sdis: 0
+bw: 2  all: 121   s: 92    e: 80    uall: 46    us: 29    ue: 17    dis: 88    udis: 71    bdis: 96    sdis: 58
+bw: 3  all: 1369  s: 912   e: 709   uall: 532   us: 278   ue: 75    dis: 2620  udis: 1950  bdis: 2352  sdis: 1994
+bw: 4  all: 18769 s: 12224 e: 9179  uall: 6920  us: 3420  ue: 375   dis: 75432 udis: 53340 bdis: 63648 sdis: 59948
         """,
     ],
 )
