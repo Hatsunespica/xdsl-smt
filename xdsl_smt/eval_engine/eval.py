@@ -17,6 +17,7 @@ class AbstractDomain(Enum):
 
 def setup_eval(
     domain: AbstractDomain,
+    min_bitwidth: int,
     bitwidth: int,
     samples: tuple[int, int] | None,
     conc_op_src: str,
@@ -31,6 +32,7 @@ def setup_eval(
     engine_params = ""
     engine_params += f"{dirpath}\n"
     engine_params += f"{domain}\n"
+    engine_params += f"{min_bitwidth}\n"
     engine_params += f"{bitwidth}\n"
     engine_params += f"{samples[0]} {samples[1]}\n" if samples is not None else "\n"
     engine_params += "using A::APInt;\n"

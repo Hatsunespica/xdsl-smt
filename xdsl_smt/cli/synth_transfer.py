@@ -109,6 +109,12 @@ def register_all_arguments(arg_parser: argparse.ArgumentParser):
         help="Specify the bitwidth of the evaluation engine",
     )
     arg_parser.add_argument(
+        "-min_bitwidth",
+        type=int,
+        nargs="?",
+        help="Specify the minimum bitwidth of the evaluation engine",
+    )
+    arg_parser.add_argument(
         "-solution_size",
         type=int,
         nargs="?",
@@ -702,11 +708,12 @@ def save_solution(solution_module: ModuleOp, solution_str: str, outputs_folder: 
 
 def run(
     domain: eval_engine.AbstractDomain,
-    num_programs: int = NUM_PROGRAMS,
-    total_rounds: int = TOTAL_ROUNDS,
-    program_length: int = PROGRAM_LENGTH,
-    inv_temp: int = INV_TEMP,
-    bitwidth: int = SYNTH_WIDTH,
+    num_programs: int,
+    total_rounds: int,
+    program_length: int,
+    inv_temp: int,
+    bitwidth: int,
+    min_bitwidth: int,
     solution_size: int = SOLUTION_SIZE,
     num_iters: int = NUM_ITERS,
     condition_length: int = CONDITION_LENGTH,
@@ -849,7 +856,7 @@ def run(
     ]
 
     data_dir = eval_engine.setup_eval(
-        domain, bitwidth, samples, "\n".join(helper_funcs_cpp)
+        domain, bitwidth, min_bitwidth, samples, "\n".join(helper_funcs_cpp)
     )
 
     base_bodys: dict[str, FuncOp] = {}
@@ -1001,6 +1008,7 @@ def main() -> None:
     )
     inv_temp = INV_TEMP if args.inv_temp is None else args.inv_temp
     bitwidth = SYNTH_WIDTH if args.bitwidth is None else args.bitwidth
+    min_bitwidth = SYNTH_WIDTH if args.min_bitwidth is None else args.min_bitwidth
     solution_size = SOLUTION_SIZE if args.solution_size is None else args.solution_size
     num_iters = NUM_ITERS if args.num_iters is None else args.num_iters
     condition_length = (
@@ -1019,6 +1027,7 @@ def main() -> None:
         program_length=program_length,
         inv_temp=inv_temp,
         bitwidth=bitwidth,
+        min_bitwidth=min_bitwidth,
         solution_size=solution_size,
         num_iters=num_iters,
         condition_length=condition_length,

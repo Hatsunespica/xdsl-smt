@@ -45,6 +45,7 @@ from xdsl_smt.semantics.comb_semantics import comb_semantics
 from xdsl_smt.utils.synthesizer_utils.function_with_condition import (
     FunctionWithCondition,
 )
+from xdsl_smt.utils.synthesizer_utils.random import Random
 
 
 def register_all_arguments(arg_parser: argparse.ArgumentParser):
@@ -67,6 +68,12 @@ def register_all_arguments(arg_parser: argparse.ArgumentParser):
         help="Specify the bitwidth of the evaluation engine",
     )
     arg_parser.add_argument(
+        "-min_bitwidth",
+        type=int,
+        nargs="?",
+        help="Specify the minimum bitwidth of the evaluation engine",
+    )
+    arg_parser.add_argument(
         "-outputs_folder",
         type=str,
         nargs="?",
@@ -78,6 +85,12 @@ def register_all_arguments(arg_parser: argparse.ArgumentParser):
         choices=[str(x) for x in eval_engine.AbstractDomain],
         required=True,
         help="Abstract Domain to evaluate",
+    )
+    arg_parser.add_argument(
+        "-num_random_tests",
+        type=int,
+        nargs="?",
+        help="Specify the number of random test inputs at higher bitwidth. 0 by default",
     )
 
 
@@ -271,8 +284,11 @@ def eval_transfer_func_helper(
 def run(
     domain: eval_engine.AbstractDomain,
     bitwidth: int,
+    min_bitwidth: int,
     input_path: str,
     solution_path: str,
+    num_random_tests: int | None = None,
+    random_seed: int | None = None,
 ):
     global ctx
     ctx = Context()
@@ -292,6 +308,10 @@ def run(
 
     assert isinstance(module, ModuleOp)
     assert isinstance(sol_module, ModuleOp)
+
+    random = Random(random_seed)
+    random_seed = random.randint(0, 1_000_000) if random_seed is None else random_seed
+    samples = (random_seed, num_random_tests) if num_random_tests is not None else None
 
     if domain == eval_engine.AbstractDomain.KnownBits:
         EvalResult.get_max_dis = lambda x: x * 2
@@ -383,14 +403,18 @@ def run(
     ]
 
     data_dir = eval_engine.setup_eval(
-        domain, bitwidth, None, "\n".join(helper_funcs_cpp)
+        domain, bitwidth, min_bitwidth, samples, "\n".join(helper_funcs_cpp)
     )
 
     assert solution is not None, "No solution function is found in solution file"
     init_cmp_res = eval_transfer_func_helper(
-        data_dir, solution, domain, helper_funcs_cpp
+        data_dir,
+        solution,
+        domain,
+        helper_funcs_cpp,
     )
     res = init_cmp_res[0]
+    print(res)
     print(
         f"{res.per_bit[res.max_bit].exacts / res.per_bit[res.max_bit].all_cases*100:.4f}%"
     )
@@ -403,6 +427,11 @@ def main() -> None:
     args = arg_parser.parse_args()
 
     bitwidth = SYNTH_WIDTH if args.bitwidth is None else args.bitwidth
+    min_bitwidth = 1 if args.min_bitwidth is None else args.min_bitwidth
+    num_random_tests = None if args.num_random_tests is None else args.num_random_tests
+    # outputs_folder = (
+    #     OUTPUTS_FOLDER if args.outputs_folder is None else args.outputs_folder
+    # )
 
     # Check if transfer_functions is a directory
     if os.path.isdir(args.transfer_functions):
@@ -425,8 +454,11 @@ def main() -> None:
         run(
             eval_engine.AbstractDomain[args.domain],
             bitwidth=bitwidth,
+            min_bitwidth=min_bitwidth,
             input_path=input_path,
             solution_path=solution_path,
+            num_random_tests=num_random_tests,
+            random_seed=args.random_seed,
         )
 
 

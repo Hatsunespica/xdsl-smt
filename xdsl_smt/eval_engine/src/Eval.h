@@ -29,7 +29,8 @@ private:
   std::unique_ptr<llvm::orc::LLJIT> jit;
   std::optional<OpConstraintFn> opCon;
   ConcOpFn concOp;
-  unsigned int bw;
+  unsigned int lbw;
+  unsigned int ubw;
 
   // methods
   const Domain toBestAbst(const Domain &lhs, const Domain &rhs) {
@@ -44,8 +45,9 @@ private:
   }
 
 public:
-  EnumXfer(std::unique_ptr<llvm::orc::LLJIT> jit0, unsigned int bw0)
-      : jit(std::move(jit0)), bw(bw0) {
+  EnumXfer(std::unique_ptr<llvm::orc::LLJIT> _jit, unsigned int _ubw,
+           unsigned int _lbw)
+      : jit(std::move(_jit)), ubw(_ubw), lbw(_lbw) {
 
     concOp = llvm::cantFail(jit->lookup("concrete_op"))
                  .toPtr<A::APInt(A::APInt, A::APInt)>();
@@ -62,13 +64,13 @@ public:
   }
 
   const std::vector<std::tuple<Domain, Domain, Domain>>
-  genRand(unsigned int seed, unsigned int samples) {
+  genRand(unsigned int seed, unsigned int samples, unsigned int ebw) {
     std::vector<std::tuple<Domain, Domain, Domain>> r;
     std::mt19937 rng(seed);
 
     for (unsigned int i = 0; i < samples; ++i) {
-      Domain lhs = Domain(rng, bw);
-      Domain rhs = Domain(rng, bw);
+      Domain lhs = Domain(rng, ebw);
+      Domain rhs = Domain(rng, ebw);
       Domain res = toBestAbst(lhs, rhs);
       r.push_back({lhs, rhs, res});
     }
@@ -92,8 +94,25 @@ public:
   genAllBws() {
     std::vector<std::vector<std::tuple<Domain, Domain, Domain>>> r;
 
-    for (unsigned int ebw = 1; ebw <= bw; ++ebw)
+    for (unsigned int ebw = lbw; ebw <= ubw; ++ebw)
       r.push_back(genLattice(ebw));
+
+    return r;
+  }
+
+  const std::vector<std::vector<std::tuple<Domain, Domain, Domain>>>
+  genAllBwsRand(unsigned int seed, unsigned int samples) {
+    std::vector<std::vector<std::tuple<Domain, Domain, Domain>>> r;
+
+    for (unsigned int ebw = lbw; ebw <= std::min(ubw, 4u); ++ebw)
+      r.push_back(genLattice(ebw));
+
+    if (ubw > 4) {
+      unsigned int tmplbw = std::max(5u, lbw);
+      unsigned int sample_per_bw = samples / (ubw - tmplbw + 1);
+      for (unsigned int ebw = tmplbw; ebw <= ubw; ++ebw)
+        r.push_back(genRand(seed, sample_per_bw, ebw));
+    }
 
     return r;
   }

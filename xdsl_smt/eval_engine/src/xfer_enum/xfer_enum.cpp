@@ -8,24 +8,18 @@
 #include "../utils.cpp"
 
 template <typename D>
-void handleDomain(std::unique_ptr<llvm::orc::LLJIT> jit, unsigned int bw,
+void handleDomain(std::unique_ptr<llvm::orc::LLJIT> jit, unsigned int ubw,
+                  unsigned int lbw,
                   std::optional<std::pair<unsigned int, unsigned int>> samples,
                   const std::string dirPath) {
-  EnumXfer<D> e(std::move(jit), bw);
-
-  if (samples) {
-    const std::vector<std::tuple<D, D, D>> data =
-        e.genRand(samples->first, samples->second);
-    const std::string fname = dirPath + "bw " + std::to_string(bw) +
-                              " samples " + std::to_string(data.size());
-    write_vecs(fname, data);
-  } else {
-    std::vector<std::vector<std::tuple<D, D, D>>> r = e.genAllBws();
-    for (unsigned int i = 0; i < r.size(); ++i) {
-      const std::string fname = dirPath + "bw " + std::to_string(i + 1) +
-                                " samples " + std::to_string(r[i].size());
-      write_vecs(fname, r[i]);
-    }
+  EnumXfer<D> e(std::move(jit), ubw, lbw);
+  std::vector<std::vector<std::tuple<D, D, D>>> r =
+      samples ? e.genAllBwsRand(samples->first, samples->second)
+              : e.genAllBws();
+  for (unsigned int i = 0; i < r.size(); ++i) {
+    const std::string fname = dirPath + "bw " + std::to_string(i + lbw) +
+                              " samples " + std::to_string(r[i].size());
+    write_vecs(fname, r[i]);
   }
 }
 
@@ -38,7 +32,10 @@ int main() {
 
   std::string tmpStr;
   std::getline(std::cin, tmpStr);
-  unsigned int bw = static_cast<unsigned int>(std::stoul(tmpStr));
+  unsigned int ubw = static_cast<unsigned int>(std::stoul(tmpStr));
+
+  std::getline(std::cin, tmpStr);
+  unsigned int lbw = static_cast<unsigned int>(std::stoul(tmpStr));
 
   std::getline(std::cin, tmpStr);
   std::vector<std::string> tmpVec = split_whitespace(tmpStr);
@@ -51,11 +48,11 @@ int main() {
   std::unique_ptr<llvm::orc::LLJIT> jit = getJit(fnSrcCode);
 
   if (domain == "KnownBits") {
-    handleDomain<KnownBits>(std::move(jit), bw, samples, fname);
+    handleDomain<KnownBits>(std::move(jit), ubw, lbw, samples, fname);
   } else if (domain == "ConstantRange") {
-    handleDomain<ConstantRange>(std::move(jit), bw, samples, fname);
+    handleDomain<ConstantRange>(std::move(jit), ubw, lbw, samples, fname);
   } else if (domain == "IntegerModulo") {
-    handleDomain<IntegerModulo<6>>(std::move(jit), bw, samples, fname);
+    handleDomain<IntegerModulo<6>>(std::move(jit), ubw, lbw, samples, fname);
   } else
     std::cerr << "Unknown domain: " << domain << "\n";
 
