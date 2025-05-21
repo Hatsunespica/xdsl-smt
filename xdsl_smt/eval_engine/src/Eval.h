@@ -29,8 +29,8 @@ private:
   std::unique_ptr<llvm::orc::LLJIT> jit;
   std::optional<OpConstraintFn> opCon;
   ConcOpFn concOp;
-  unsigned int lbw;
   unsigned int ubw;
+  unsigned int lbw;
 
   // methods
   const Domain toBestAbst(const Domain &lhs, const Domain &rhs) {
