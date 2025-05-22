@@ -1235,6 +1235,10 @@ constexpr unsigned char primes[32] = {
     2,  3,  5,  7,  11, 13, 17, 19, 23, 29,  31,  37,  41,  43,  47,  53,
     59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107, 109, 113, 127, 131};
 
+inline bool primeOv(unsigned int bw, unsigned int i) {
+  return IM::primes[i] > A::APInt::getMaxValue(bw).getZExtValue();
+}
+
 inline unsigned long modInv(long a, long b) {
   long b0 = b, t, q;
   long x0 = 0, x1 = 1;
@@ -1252,7 +1256,7 @@ template <unsigned int N> A::APInt crt(const Vec<N> &x, const A::APInt p) {
   unsigned long crt = 0;
 
   for (unsigned int i = 0; i < N; ++i) {
-    if (x[i] == primes[i])
+    if (x[i] == primes[i] || primeOv(x[i].getBitWidth(), i))
       continue;
     unsigned long pp = p.getZExtValue() / primes[i];
     crt += x[i].getZExtValue() * modInv(static_cast<long>(pp), primes[i]) * pp;
@@ -1264,7 +1268,7 @@ template <unsigned int N> A::APInt crt(const Vec<N> &x, const A::APInt p) {
 template <unsigned int N> A::APInt prod(const Vec<N> &x) {
   unsigned long p = 1;
   for (unsigned int i = 0; i < N; ++i)
-    if (x.v[i] != primes[i])
+    if (x[i] != primes[i] && !primeOv(x[i].getBitWidth(), i))
       p *= primes[i];
 
   return A::APInt(64, p);

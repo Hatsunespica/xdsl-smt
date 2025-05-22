@@ -121,7 +121,9 @@ extern "C" Vec<N> im_add_nsw(const Vec<N> &lhs, const Vec<N> &rhs) {
 
   Vec<N> x(bw);
   for (unsigned int i = 0; i < N; ++i)
-    if (small_lhs[i] != IM::primes[i] && small_rhs[i] != IM::primes[i])
+    if (IM::primes[i] > A::APInt::getMaxValue(bw).getZExtValue())
+      x[i] = 0;
+    else if (small_lhs[i] != IM::primes[i] && small_rhs[i] != IM::primes[i])
       x[i] = (small_lhs[i] + small_rhs[i]).urem(IM::primes[i]);
     else
       x[i] = IM::primes[i];
@@ -317,7 +319,12 @@ im_add_nsw_test = TestInput(
     AbstractDomain.IntegerModulo,
     [im_add_nsw],
     [
-        "all: 2971	s: 2971	e: 2971	p: 0	unsolved:2182	us: 2182	ue: 2182	up: 0	basep: 6964",
+        """
+bw: 1  all: 0     s: 0     e: 0     uall: 0     us: 0     ue: 0     dis: 0     udis: 0     bdis: 0     sdis: 0
+bw: 2  all: 56    s: 56    e: 56    uall: 41    us: 41    ue: 41    dis: 0     udis: 0     bdis: 68    sdis: 0
+bw: 3  all: 356   s: 356   e: 356   uall: 271   us: 271   ue: 271   dis: 0     udis: 0     bdis: 696   sdis: 0
+bw: 4  all: 2971  s: 2971  e: 2971  uall: 2182  us: 2182  ue: 2182  dis: 0     udis: 0     bdis: 6964  sdis: 0
+        """,
     ],
 )
 
@@ -329,5 +336,4 @@ if __name__ == "__main__":
     test(kb_add_test)
     test(cr_add_test)
     test(cr_sub_test)
-    print("TODO skipped IM test")
-    # test(im_add_nsw_test)
+    test(im_add_nsw_test)

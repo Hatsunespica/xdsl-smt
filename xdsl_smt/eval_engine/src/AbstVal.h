@@ -151,12 +151,12 @@ public:
   }
 
   static KnownBits bottom(unsigned int bw) {
-    A::APInt max = A::APInt::getMaxValue(bw);
+    const A::APInt max = A::APInt::getMaxValue(bw);
     return KnownBits({max, max});
   }
 
   static KnownBits top(unsigned int bw) {
-    A::APInt min = A::APInt::getMinValue(bw);
+    const A::APInt min = A::APInt::getMinValue(bw);
     return KnownBits({min, min});
   }
 
@@ -265,14 +265,14 @@ public:
   }
 
   static ConstantRange bottom(unsigned int bw) {
-    A::APInt min = A::APInt::getMinValue(bw);
-    A::APInt max = A::APInt::getMaxValue(bw);
+    const A::APInt min = A::APInt::getMinValue(bw);
+    const A::APInt max = A::APInt::getMaxValue(bw);
     return ConstantRange({max, min});
   }
 
   static ConstantRange top(unsigned int bw) {
-    A::APInt min = A::APInt::getMinValue(bw);
-    A::APInt max = A::APInt::getMaxValue(bw);
+    const A::APInt min = A::APInt::getMinValue(bw);
+    const A::APInt max = A::APInt::getMaxValue(bw);
     return ConstantRange({min, max});
   }
 
@@ -296,104 +296,6 @@ public:
     return ret;
   }
 };
-
-// class SConstRange : public AbstVal<SConstRange, 2> {
-// private:
-//   A::APInt lower() const { return v[0]; }
-//   A::APInt upper() const { return v[1]; }
-//
-//   bool isConstant() const { return lower() == upper(); }
-//
-//   const A::APInt getConstant() const { return lower(); }
-//
-// public:
-//    SConstRange(const Vec<N> &vC) : AbstVal<SConstRange, N>(vC) {}
-//
-//   const std::string display() const {
-//     if (SConstRange::isBottom()) {
-//       return "(bottom)";
-//     }
-//
-//     std::stringstream ss;
-//     ss << '[' << lower().getSExtValue() << ", " << upper().getSExtValue()
-//        << ']';
-//
-//     if (SConstRange::isTop())
-//       ss << " (top)";
-//
-//     return ss.str();
-//   }
-//
-//   // TODO
-//   // bool isValid() const {}
-//
-//   const SConstRange meet(const SConstRange &rhs) const {
-//     A::APInt l = rhs.lower().sgt(lower()) ? rhs.lower() : lower();
-//     A::APInt u = rhs.upper().slt(upper()) ? rhs.upper() : upper();
-//     if (l.sgt(u))
-//       return bottom(bw());
-//     return SConstRange({std::move(l), std::move(u)});
-//   }
-//
-//   const SConstRange join(const SConstRange &rhs) const {
-//     const A::APInt l = rhs.lower().slt(lower()) ? rhs.lower() : lower();
-//     const A::APInt u = rhs.upper().sgt(upper()) ? rhs.upper() : upper();
-//     return SConstRange({std::move(l), std::move(u)});
-//   }
-//
-//   const std::vector<long> toConcrete() const {
-//     long l = lower().getSExtValue();
-//     long u = upper().getSExtValue() + 1;
-//
-//     if (l > u)
-//       return {};
-//
-//     std::vector<long> ret(static_cast<unsigned long>(u - l));
-//     std::iota(ret.begin(), ret.end(), l);
-//     return ret;
-//   }
-//
-//   unsigned int distance(const SConstRange &rhs) const {
-//     unsigned long ld = A::APIntOps::abds(lower(),
-//     rhs.lower()).getZExtValue(); unsigned long ud =
-//     A::APIntOps::abds(upper(), rhs.upper()).getZExtValue(); return
-//     static_cast<unsigned int>(ld + ud);
-//   }
-//
-//   static SConstRange fromConcrete(const A::APInt &x) {
-//     return SConstRange({x, x});
-//   }
-//
-//   static SConstRange bottom(unsigned int bw) {
-//     A::APInt min = A::APInt::getSignedMinValue(bw);
-//     A::APInt max = A::APInt::getSignedMaxValue(bw);
-//     return SConstRange({max, min});
-//   }
-//
-//   static SConstRange top(unsigned int bw) {
-//     A::APInt min = A::APInt::getSignedMinValue(bw);
-//     A::APInt max = A::APInt::getSignedMaxValue(bw);
-//     return SConstRange({min, max});
-//   }
-//
-//   static std::vector<SConstRange> const enumVals(unsigned int bw) {
-//     const long min = A::APInt::getSignedMinValue(bw).getSExtValue();
-//     const long max = A::APInt::getSignedMaxValue(bw).getSExtValue();
-//     A::APInt l = A::APInt(bw, 0);
-//     A::APInt u = A::APInt(bw, 0);
-//     std::vector<SConstRange> ret = {top(bw)};
-//
-//     for (long i = min; i <= max; ++i) {
-//       for (long j = i; j <= max; ++j) {
-//         l = static_cast<unsigned long>(i);
-//         u = static_cast<unsigned long>(j);
-//         ret.push_back(SConstRange({l, u}));
-//       }
-//     }
-//
-//     return ret;
-//   }
-// };
 
 template <unsigned int N>
 class IntegerModulo : public AbstVal<IntegerModulo<N>, N> {
@@ -436,7 +338,7 @@ private:
     for (unsigned int i = 0; i < N; ++i)
       if (residues()[i] == IM::primes[i])
         numTs_ += 1;
-      else
+      else if (!IM::primeOv(this->bw(), i))
         p_ *= IM::primes[i];
 
     numTs = numTs_;
@@ -444,7 +346,7 @@ private:
     unsigned long crt_ = 0;
 
     for (unsigned int i = 0; i < N; ++i) {
-      if (residues()[i] == IM::primes[i])
+      if (residues()[i] == IM::primes[i] || IM::primeOv(this->bw(), i))
         continue;
       unsigned long pp = p / IM::primes[i];
       crt_ += residues()[i].getZExtValue() *
@@ -452,6 +354,10 @@ private:
     }
 
     crt = crt_ % p;
+
+    for (unsigned int i = 0; i < N; ++i)
+      if (IM::primeOv(this->bw(), i))
+        this->v[i] = 0;
 
     if (fixBadVals) {
       if (isBadBottom())
@@ -467,9 +373,12 @@ public:
   IntegerModulo(std::mt19937 &rng, unsigned int bw)
       : IntegerModulo(Vec<N>(bw)) {
     do {
-      for (unsigned int i = 0; i < N; ++i)
+      for (unsigned int i = 0; i < N; ++i) {
+        if (IM::primeOv(this->bw(), i))
+          continue;
         this->v[i] =
             std::uniform_int_distribution<unsigned long>(0, IM::primes[i])(rng);
+      }
     } while (!isValid());
   }
 
@@ -482,7 +391,7 @@ public:
 
     ss << "mods: ";
     for (unsigned int i = 0; i < N; ++i)
-      if (residues()[i] == IM::primes[i])
+      if (residues()[i] == IM::primes[i] || IM::primeOv(this->bw(), i))
         ss << "T ";
       else
         ss << residues()[i].getZExtValue() << " ";
@@ -494,9 +403,11 @@ public:
   }
 
   bool isValid() const {
+    if (isBadBottom() || isBadSingleton())
+      return false;
+
     for (unsigned int i = 0; i < N; ++i)
-      if (this->v[i].uge(A::APInt(this->bw(), IM::primes[i])) ||
-          isBadBottom() || isBadSingleton())
+      if (this->v[i].ugt(A::APInt(this->bw(), IM::primes[i])))
         return false;
 
     return true;
@@ -506,6 +417,9 @@ public:
     Vec<N> x(this->bw());
 
     for (unsigned int i = 0; i < N; ++i) {
+      if (IM::primeOv(this->bw(), i))
+        x[i] = 0;
+
       if (residues()[i] == rhs.residues()[i])
         x[i] = residues()[i];
       else if (residues()[i] == IM::primes[i])
@@ -522,15 +436,19 @@ public:
   const IntegerModulo join(const IntegerModulo &rhs) const {
     Vec<N> x(this->bw());
 
-    for (unsigned int i = 0; i < N; ++i)
+    for (unsigned int i = 0; i < N; ++i) {
+      if (IM::primeOv(this->bw(), i))
+        x[i] = 0;
+
       if (residues()[i] == rhs.residues()[i])
         x[i] = residues()[i];
       else if (residues()[i] == IM::primes[i] + 1)
-        x[i] = rhs.residues()[i];
+        return rhs;
       else if (rhs.residues()[i] == IM::primes[i] + 1)
-        x[i] = residues()[i];
+        return *this;
       else
         x[i] = IM::primes[i];
+    }
 
     return IntegerModulo(x, false);
   }
@@ -564,6 +482,9 @@ public:
     unsigned long p = 1;
 
     for (unsigned int i = 0; i < N; ++i) {
+      if (IM::primeOv(x.getBitWidth(), i))
+        continue;
+
       r[i] = x.urem(IM::primes[i]);
       p *= IM::primes[i];
     }
@@ -573,8 +494,12 @@ public:
 
   static IntegerModulo top(unsigned int bw) {
     Vec<N> x(bw);
-    for (unsigned int i = 0; i < N; ++i)
+    for (unsigned int i = 0; i < N; ++i) {
+      if (IM::primeOv(bw, i))
+        continue;
+
       x[i] = IM::primes[i];
+    }
 
     return IntegerModulo(x, 0, 1, N);
   }
@@ -583,6 +508,9 @@ public:
     Vec<N> x(bw);
     unsigned long p = 1;
     for (unsigned int i = 0; i < N; ++i) {
+      if (IM::primeOv(bw, i))
+        continue;
+
       x[i] = IM::primes[i] + 1;
       p *= IM::primes[i];
     }
@@ -603,7 +531,7 @@ public:
         break;
 
       for (unsigned int i = 0; i < N; ++i) {
-        if (x[i] != IM::primes[i]) {
+        if (x[i] != IM::primes[i] && !IM::primeOv(bw, i)) {
           for (unsigned int j = 0; j < i; ++j)
             x[j] = 0;
 
