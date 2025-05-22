@@ -69,10 +69,15 @@ public:
     std::mt19937 rng(seed);
 
     for (unsigned int i = 0; i < samples; ++i) {
-      Domain lhs = Domain(rng, ebw);
-      Domain rhs = Domain(rng, ebw);
-      Domain res = toBestAbst(lhs, rhs);
-      r.push_back({lhs, rhs, res});
+      while (true) {
+        Domain lhs = Domain(rng, ebw);
+        Domain rhs = Domain(rng, ebw);
+        Domain res = toBestAbst(lhs, rhs);
+        if (!res.isBottom()) {
+          r.push_back({lhs, rhs, res});
+          break;
+        }
+      }
     }
 
     return r;
