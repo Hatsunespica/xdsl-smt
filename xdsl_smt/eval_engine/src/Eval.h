@@ -32,7 +32,7 @@ public:
   EnumEval(ConcOpFn _concOp, std::optional<OpConFn> _opCon)
       : opCon(_opCon), concOp(_concOp) {}
 
-  const D toBestAbst(const D &lhs, const D &rhs) {
+  const D toBestAbst(const D &lhs, const D &rhs) const {
     D res = D::bottom(lhs.bw());
 
     for (A::APInt lhs_v : lhs.toConcrete())
@@ -43,7 +43,7 @@ public:
     return res;
   }
 
-  const std::tuple<D, D, D> genRand(unsigned int ebw, std::mt19937 &rng) {
+  const std::tuple<D, D, D> genRand(unsigned int ebw, std::mt19937 &rng) const {
     while (true) {
       D lhs = D(rng, ebw);
       D rhs = D(rng, ebw);
@@ -132,7 +132,7 @@ private:
   EnumEval<D> enumEval;
 
   // methods
-  std::vector<D> synth_function_wrapper(const D &lhs, const D &rhs) {
+  std::vector<D> synth_function_wrapper(const D &lhs, const D &rhs) const {
     std::vector<D> r;
     std::transform(
         xferFns.begin(), xferFns.end(), std::back_inserter(r),
@@ -140,7 +140,7 @@ private:
     return r;
   }
 
-  std::vector<D> base_function_wrapper(const D &lhs, const D &rhs) {
+  std::vector<D> base_function_wrapper(const D &lhs, const D &rhs) const {
     std::vector<D> r;
     std::transform(
         baseFns.begin(), baseFns.end(), std::back_inserter(r),

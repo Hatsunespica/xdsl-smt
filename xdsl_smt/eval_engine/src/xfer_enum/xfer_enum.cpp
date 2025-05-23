@@ -15,10 +15,10 @@ void handleDomain(Jit jit, unsigned int ubw, unsigned int lbw,
   std::vector<std::vector<std::tuple<D, D, D>>> r =
       samples ? e.genAllBwsRand(samples->first, samples->second)
               : e.genAllBws();
-  for (unsigned int i = 0; i < r.size(); ++i) {
-    const std::string fname = dirPath + "bw " + std::to_string(i + lbw) +
-                              " samples " + std::to_string(r[i].size());
-    write_vecs(fname, r[i]);
+  for (const std::vector<std::tuple<D, D, D>> &vecs : r) {
+    const std::string fname =
+        makeVecFname(dirPath, std::get<0>(vecs[0]).bw(), vecs.size());
+    write_vecs(fname, vecs, false);
   }
 }
 
