@@ -66,11 +66,15 @@ def eval_llvm(domain: AbstractDomain, bitwidth: int) -> list[str]:
         for n, cps in results
     ]
 
-    def fmt_llvm(x: EvalResult) -> str:
+    def fmt_llvm_exact(x: EvalResult) -> str:
         return "n/a   " if x.get_exact_prop() == 0 else f"{x.get_exact_prop():.4f}"
 
+    def fmt_llvm_dis(x: EvalResult) -> str:
+        return "n/a   " if x.get_exact_prop() == 0 else f"{x.get_dist():<6}"
+
     return [
-        f"{n:<11}| llvm: {fmt_llvm(llvm)} | top: {top.get_exact_prop():.4f}"
+        f"{n:<11}| llvm exact: {fmt_llvm_exact(llvm)} | top exact: {top.get_exact_prop():.4f} | "
+        + f"llvm dis: {fmt_llvm_dis(llvm)} | top dis: {top.get_dist():<6}"
         for n, llvm, top in r
     ]
 

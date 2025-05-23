@@ -43,14 +43,17 @@ eval(unsigned int bw, const std::vector<Test<D2>> &tsts,
           continue;
 
         bool exact = false;
+        unsigned int dis = 0;
         if (xfer) {
           D xfer_res = xfer_wrapper(lhs, rhs, xfer.value());
           exact = xfer_res == best_abstract_res;
+          dis = xfer_res.distance(best_abstract_res);
         }
         bool topExact = top == best_abstract_res;
+        unsigned int topDis = top.distance(best_abstract_res);
 
-        r.back().second.incResult(Result(0, 0, exact, 0, 0), 0);
-        r.back().second.incResult(Result(0, 0, topExact, 0, 0), 1);
+        r.back().second.incResult(Result(0, dis, exact, 0, 0), 0);
+        r.back().second.incResult(Result(0, topDis, topExact, 0, 0), 1);
         r.back().second.incCases(0, 0);
       }
     }
