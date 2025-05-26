@@ -18,6 +18,11 @@ const std::vector<std::string> getFiles(const std::string dirName) {
       fnames.push_back(entry.path());
   }
 
+  if (fnames.size() == 0) {
+    std::cerr << "No data sets with bitwidth > 4 were found.\n";
+    exit(1);
+  }
+
   return fnames;
 }
 
