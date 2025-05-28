@@ -6,8 +6,15 @@ from xdsl.dialects.builtin import StringAttr
 from xdsl.dialects.func import FuncOp
 
 from xdsl_smt.utils.synthesizer_utils.compare_result import EvalResult
-from xdsl_smt.utils.synthesizer_utils.cost_model import sound_and_precise_cost, precise_cost, abduction_cost, decide
-from xdsl_smt.utils.synthesizer_utils.function_with_condition import FunctionWithCondition
+from xdsl_smt.utils.synthesizer_utils.cost_model import (
+    sound_and_precise_cost,
+    precise_cost,
+    abduction_cost,
+    decide,
+)
+from xdsl_smt.utils.synthesizer_utils.function_with_condition import (
+    FunctionWithCondition,
+)
 from xdsl_smt.utils.synthesizer_utils.mcmc_sampler import MCMCSampler
 from xdsl_smt.utils.synthesizer_utils.random import Random
 from xdsl_smt.utils.synthesizer_utils.solution_set import SolutionSet
@@ -310,7 +317,5 @@ def synthesize_one_iteration(
     new_solution_set: SolutionSet = solution_set.construct_new_solution_set(
         candidates_sp, candidates_p, candidates_c, concrete_func, helper_funcs, ctx
     )
-
-
 
     return new_solution_set
