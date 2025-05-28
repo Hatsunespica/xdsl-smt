@@ -67,6 +67,7 @@ class MCMCSampler:
         context: SynthesizerContext,
         compute_cost: Callable[[EvalResult], float],
         length: int,
+        reset_init_program: bool = True,
         random_init_program: bool = True,
         is_cond: bool = False,
     ):
@@ -79,11 +80,12 @@ class MCMCSampler:
             func = FuncOp("cond", cond_type)
 
         self.context = context
-        self.current = self.construct_init_program(func, length)
         self.compute_cost = compute_cost
         self.random = context.get_random_class()
-        if random_init_program:
-            self.reset_to_random_prog(length)
+        if reset_init_program:
+            self.current = self.construct_init_program(func, length)
+            if random_init_program:
+                self.reset_to_random_prog(length)
 
     def compute_current_cost(self):
         return self.compute_cost(self.current_cmp)

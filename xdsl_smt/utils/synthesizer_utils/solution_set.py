@@ -65,6 +65,8 @@ class SolutionSet(ABC):
     eval_func: Callable[
         [list[FunctionWithCondition], list[FunctionWithCondition]], list[EvalResult]
     ]
+
+    tests_sampler: Callable[[list[FunctionWithCondition], int, int], None]
     logger: logging.Logger
 
     def __init__(
@@ -79,6 +81,7 @@ class SolutionSet(ABC):
             ],
             list[EvalResult],
         ],
+        tests_sampler: Callable[[list[FunctionWithCondition], int, int], None],
         logger: logging.Logger,
         is_perfect: bool = False,
     ):
@@ -88,12 +91,28 @@ class SolutionSet(ABC):
         self.lower_to_cpp = lower_to_cpp
         self.eliminate_dead_code = eliminate_dead_code
         self.eval_func = eval_func
+        self.tests_sampler = tests_sampler
         self.logger = logger
         self.precise_set = []
         self.is_perfect = is_perfect
 
     def eval_improve(self, transfers: list[FunctionWithCondition]) -> list[EvalResult]:
         return self.eval_func(transfers, self.solutions)
+
+    def sample_unsolved_tests(self, samples: int, seed: int):
+        self.tests_sampler(self.solutions, samples, seed)
+
+    def sample_unsolved_tests_up_to(self, desired_size: int, seed: int) -> int:
+        res = self.eval_improve([])[0]
+        unsolved_cases = res.get_unsolved_cases()
+        if unsolved_cases == 0:
+            return -1
+        samples = desired_size - unsolved_cases
+        if samples <= 0:
+            return 0
+        else:
+            self.sample_unsolved_tests(samples, seed)
+            return samples
 
     @abstractmethod
     def construct_new_solution_set(
@@ -191,115 +210,117 @@ class SolutionSet(ABC):
             self.is_perfect = False
 
 
-"""
-This class maintains a list of solutions with a specified size
-"""
+# class SizedSolutionSet(SolutionSet):
+#     """
+#     This class maintains a list of solutions with a specified size
+#     """
+#     size: int
 
+#     def __init__(
+#         self,
+#         size: int,
+#         initial_solutions: list[FunctionWithCondition],
+#         lower_to_cpp: Callable[[FuncOp], str],
+#         eliminate_dead_code: Callable[[FuncOp], FuncOp],
+#         eval_func_with_cond: Callable[
+#             [
+#                 list[FunctionWithCondition],
+#                 list[FunctionWithCondition],
+#             ],
+#             list[EvalResult],
+#         ],
+#         logger: logging.Logger,
+#         is_perfect: bool = False,
+#     ):
+#         super().__init__(
+#             initial_solutions,
+#             lower_to_cpp,
+#             eliminate_dead_code,
+#             eval_func_with_cond,
+#             logger,
+#             is_perfect,
+#         )
+#         self.size = size
 
-class SizedSolutionSet(SolutionSet):
-    size: int
+#     def construct_new_solution_set(
+#         self,
+#         new_candidates_sp: list[FunctionWithCondition],
+#         new_candidates_p: list[FuncOp],
+#         new_candidates_c: list[FunctionWithCondition],
+#         concrete_op: FuncOp,
+#         helper_funcs: list[FuncOp],
+#         ctx: Context,
+#     ) -> SolutionSet:
+#         candidates = self.solutions + new_candidates_sp
+#         if len(candidates) <= self.size:
+#             return SizedSolutionSet(
+#                 self.size,
+#                 candidates.copy(),
+#                 self.lower_to_cpp,
+#                 self.eliminate_dead_code,
+#                 self.eval_func,
+#                 self.logger,
+#             )
+#         rename_functions(candidates, "part_solution_")
+#         ref_funcs: list[FunctionWithCondition] = []
 
-    def __init__(
-        self,
-        size: int,
-        initial_solutions: list[FunctionWithCondition],
-        lower_to_cpp: Callable[[FuncOp], str],
-        eliminate_dead_code: Callable[[FuncOp], FuncOp],
-        eval_func_with_cond: Callable[
-            [
-                list[FunctionWithCondition],
-                list[FunctionWithCondition],
-            ],
-            list[EvalResult],
-        ],
-        logger: logging.Logger,
-        is_perfect: bool = False,
-    ):
-        super().__init__(
-            initial_solutions,
-            lower_to_cpp,
-            eliminate_dead_code,
-            eval_func_with_cond,
-            logger,
-            is_perfect,
-        )
-        self.size = size
+#         # First select a function with maximal precise
+#         result: list[EvalResult] = self.eval_func(candidates, ref_funcs)
+#         index = 0
+#         num_exacts = 0
+#         # cost = 2
+#         for i in range(len(result)):
+#             if result[i].get_exacts() > num_exacts:
+#                 index = i
+#                 num_exacts = result[i].get_exacts()
+#             # temporarily comment this out since (1) now the cost depends on both synthcontext and cmpresult (2) I think #exacts is enough to rank tfs
+#             #     cost = result[i].get_cost()
+#             # elif result[i].exacts == num_exacts and result[i].get_cost() > cost:
+#             #     index = i
+#             #     cost = result[i].get_cost()
 
-    def construct_new_solution_set(
-        self,
-        new_candidates_sp: list[FunctionWithCondition],
-        new_candidates_p: list[FuncOp],
-        new_candidates_c: list[FunctionWithCondition],
-        concrete_op: FuncOp,
-        helper_funcs: list[FuncOp],
-        ctx: Context,
-    ) -> SolutionSet:
-        candidates = self.solutions + new_candidates_sp
-        if len(candidates) <= self.size:
-            return SizedSolutionSet(
-                self.size,
-                candidates.copy(),
-                self.lower_to_cpp,
-                self.eliminate_dead_code,
-                self.eval_func,
-                self.logger,
-            )
-        rename_functions(candidates, "part_solution_")
-        ref_funcs: list[FunctionWithCondition] = []
+#         ref_funcs.append(candidates.pop(index))
 
-        # First select a function with maximal precise
-        result: list[EvalResult] = self.eval_func(candidates, ref_funcs)
-        index = 0
-        num_exacts = 0
-        # cost = 2
-        for i in range(len(result)):
-            if result[i].get_exacts() > num_exacts:
-                index = i
-                num_exacts = result[i].get_exacts()
-            # temporarily comment this out since (1) now the cost depends on both synthcontext and cmpresult (2) I think #exacts is enough to rank tfs
-            #     cost = result[i].get_cost()
-            # elif result[i].exacts == num_exacts and result[i].get_cost() > cost:
-            #     index = i
-            #     cost = result[i].get_cost()
+#         is_perfect = False
+#         # Greedy select all subsequent functions
+#         for _ in range(1, self.size + 1):
+#             index = 0
+#             num_exacts = 0
+#             # cost = 2
+#             result: list[EvalResult] = self.eval_func(candidates, ref_funcs)
+#             for ith_result in range(len(result)):
+#                 if result[ith_result].get_unsolved_cases() == 0:
+#                     is_perfect = True
+#                     break
+#                 if result[ith_result].get_unsolved_exacts() > num_exacts:
+#                     index = ith_result
+#                     num_exacts = result[ith_result].get_unsolved_exacts()
+#             # Xuanyu: temporarily comment this out since (1) now the cost depends on both mcmc_sampler and cmp_result (2) I think #exacts is enough to rank tfs
+#             #     cost = result[ith_result].get_cost()
+#             # elif (
+#             #     result[ith_result].unsolved_exacts == num_exacts
+#             #     and cost > result[ith_result].get_cost()
+#             # ):
+#             #     index = ith_result
+#             #     cost = result[ith_result].get_cost()
+#             ref_funcs.append(candidates.pop(index))
 
-        ref_funcs.append(candidates.pop(index))
-
-        is_perfect = False
-        # Greedy select all subsequent functions
-        for _ in range(1, self.size + 1):
-            index = 0
-            num_exacts = 0
-            # cost = 2
-            result: list[EvalResult] = self.eval_func(candidates, ref_funcs)
-            for ith_result in range(len(result)):
-                if result[ith_result].get_unsolved_cases() == 0:
-                    is_perfect = True
-                    break
-                if result[ith_result].get_unsolved_exacts() > num_exacts:
-                    index = ith_result
-                    num_exacts = result[ith_result].get_unsolved_exacts()
-            # Xuanyu: temporarily comment this out since (1) now the cost depends on both mcmc_sampler and cmp_result (2) I think #exacts is enough to rank tfs
-            #     cost = result[ith_result].get_cost()
-            # elif (
-            #     result[ith_result].unsolved_exacts == num_exacts
-            #     and cost > result[ith_result].get_cost()
-            # ):
-            #     index = ith_result
-            #     cost = result[ith_result].get_cost()
-            ref_funcs.append(candidates.pop(index))
-
-        return SizedSolutionSet(
-            self.size,
-            ref_funcs,
-            self.lower_to_cpp,
-            self.eliminate_dead_code,
-            self.eval_func,
-            self.logger,
-            is_perfect,
-        )
+#         return SizedSolutionSet(
+#             self.size,
+#             ref_funcs,
+#             self.lower_to_cpp,
+#             self.eliminate_dead_code,
+#             self.eval_func,
+#             self.logger,
+#             is_perfect,
+#         )
 
 
 class UnsizedSolutionSet(SolutionSet):
+    """
+    This class maintains a list of solutions without a specified size
+    """
+
     def __init__(
         self,
         initial_solutions: list[FunctionWithCondition],
@@ -311,6 +332,7 @@ class UnsizedSolutionSet(SolutionSet):
             ],
             list[EvalResult],
         ],
+        tests_sampler: Callable[[list[FunctionWithCondition], int, int], None],
         logger: logging.Logger,
         eliminate_dead_code: Callable[[FuncOp], FuncOp],
         is_perfect: bool = False,
@@ -320,13 +342,10 @@ class UnsizedSolutionSet(SolutionSet):
             lower_to_cpp,
             eliminate_dead_code,
             eval_func_with_cond,
+            tests_sampler,
             logger,
             is_perfect,
         )
-
-    """
-    This class maintains a list of solutions without a specified size
-    """
 
     def handle_inconsistent_result(self, f: FunctionWithCondition):
         func_str, helper_str = f.get_function_str(self.lower_to_cpp)
@@ -459,6 +478,20 @@ class UnsizedSolutionSet(SolutionSet):
             )
             if to_learn:
                 learn_form_funcs.append(self.eliminate_dead_code(sol.func))
+
+        # unsound_sol_to_eval = [
+        #     FunctionWithCondition(f.clone()) for f in self.precise_set
+        # ]
+        # rename_functions(unsound_sol_to_eval, "precise_candidates_")
+        # unsound_cmp_results: list[EvalResult] = self.eval_improve(unsound_sol_to_eval)
+        # for i, unsound_sol in enumerate(self.precise_set):
+        #     res = unsound_cmp_results[i]
+        #     to_learn = res.get_unsolved_exact_prop() > 0.1
+        #     self.logger.info(
+        #         f"\tfunc {unsound_sol.attributes['number']}, new exact%: {res.get_new_exact_prop()}, learn?: {to_learn}"
+        #     )
+        #     if to_learn:
+        #         learn_form_funcs.append(self.eliminate_dead_code(unsound_sol))
 
         freq_of_learn_funcs = SynthesizerContext.count_op_frequency(learn_form_funcs)
         context.update_weights(freq_of_learn_funcs)

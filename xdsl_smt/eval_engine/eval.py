@@ -59,7 +59,7 @@ def reject_sampler(
     data_dir: str,
     samples: int,
     seed: int,
-    conc_op_src: str,
+    conc_op_and_helpers: list[str],
     base_names: list[str],
     base_srcs: list[str],
 ):
@@ -75,7 +75,7 @@ def reject_sampler(
     engine_params += f"{seed}\n"
     engine_params += f"{' '.join(base_names)}\n"
     engine_params += "using A::APInt;\n"
-    engine_params += f"{conc_op_src}"
+    engine_params += "\n".join(conc_op_and_helpers)
     engine_params += "\n".join(base_srcs)
 
     eval_output = run(
