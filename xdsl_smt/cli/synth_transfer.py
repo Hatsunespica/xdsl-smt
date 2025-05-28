@@ -61,7 +61,6 @@ from xdsl_smt.utils.synthesizer_utils.mcmc_sampler import MCMCSampler
 from xdsl_smt.utils.synthesizer_utils.solution_set import (
     SolutionSet,
     UnsizedSolutionSet,
-    SizedSolutionSet,
 )
 from xdsl_smt.utils.synthesizer_utils.synthesizer_context import SynthesizerContext
 from xdsl_smt.utils.synthesizer_utils.random import Random

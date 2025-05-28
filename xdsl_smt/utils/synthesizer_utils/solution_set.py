@@ -210,112 +210,110 @@ class SolutionSet(ABC):
             self.is_perfect = False
 
 
-"""
-This class maintains a list of solutions with a specified size
-"""
+# class SizedSolutionSet(SolutionSet):
+#     """
+#     This class maintains a list of solutions with a specified size
+#     """
+#     size: int
 
+#     def __init__(
+#         self,
+#         size: int,
+#         initial_solutions: list[FunctionWithCondition],
+#         lower_to_cpp: Callable[[FuncOp], str],
+#         eliminate_dead_code: Callable[[FuncOp], FuncOp],
+#         eval_func_with_cond: Callable[
+#             [
+#                 list[FunctionWithCondition],
+#                 list[FunctionWithCondition],
+#             ],
+#             list[EvalResult],
+#         ],
+#         logger: logging.Logger,
+#         is_perfect: bool = False,
+#     ):
+#         super().__init__(
+#             initial_solutions,
+#             lower_to_cpp,
+#             eliminate_dead_code,
+#             eval_func_with_cond,
+#             logger,
+#             is_perfect,
+#         )
+#         self.size = size
 
-class SizedSolutionSet(SolutionSet):
-    size: int
+#     def construct_new_solution_set(
+#         self,
+#         new_candidates_sp: list[FunctionWithCondition],
+#         new_candidates_p: list[FuncOp],
+#         new_candidates_c: list[FunctionWithCondition],
+#         concrete_op: FuncOp,
+#         helper_funcs: list[FuncOp],
+#         ctx: Context,
+#     ) -> SolutionSet:
+#         candidates = self.solutions + new_candidates_sp
+#         if len(candidates) <= self.size:
+#             return SizedSolutionSet(
+#                 self.size,
+#                 candidates.copy(),
+#                 self.lower_to_cpp,
+#                 self.eliminate_dead_code,
+#                 self.eval_func,
+#                 self.logger,
+#             )
+#         rename_functions(candidates, "part_solution_")
+#         ref_funcs: list[FunctionWithCondition] = []
 
-    def __init__(
-        self,
-        size: int,
-        initial_solutions: list[FunctionWithCondition],
-        lower_to_cpp: Callable[[FuncOp], str],
-        eliminate_dead_code: Callable[[FuncOp], FuncOp],
-        eval_func_with_cond: Callable[
-            [
-                list[FunctionWithCondition],
-                list[FunctionWithCondition],
-            ],
-            list[EvalResult],
-        ],
-        logger: logging.Logger,
-        is_perfect: bool = False,
-    ):
-        super().__init__(
-            initial_solutions,
-            lower_to_cpp,
-            eliminate_dead_code,
-            eval_func_with_cond,
-            logger,
-            is_perfect,
-        )
-        self.size = size
+#         # First select a function with maximal precise
+#         result: list[EvalResult] = self.eval_func(candidates, ref_funcs)
+#         index = 0
+#         num_exacts = 0
+#         # cost = 2
+#         for i in range(len(result)):
+#             if result[i].get_exacts() > num_exacts:
+#                 index = i
+#                 num_exacts = result[i].get_exacts()
+#             # temporarily comment this out since (1) now the cost depends on both synthcontext and cmpresult (2) I think #exacts is enough to rank tfs
+#             #     cost = result[i].get_cost()
+#             # elif result[i].exacts == num_exacts and result[i].get_cost() > cost:
+#             #     index = i
+#             #     cost = result[i].get_cost()
 
-    def construct_new_solution_set(
-        self,
-        new_candidates_sp: list[FunctionWithCondition],
-        new_candidates_p: list[FuncOp],
-        new_candidates_c: list[FunctionWithCondition],
-        concrete_op: FuncOp,
-        helper_funcs: list[FuncOp],
-        ctx: Context,
-    ) -> SolutionSet:
-        candidates = self.solutions + new_candidates_sp
-        if len(candidates) <= self.size:
-            return SizedSolutionSet(
-                self.size,
-                candidates.copy(),
-                self.lower_to_cpp,
-                self.eliminate_dead_code,
-                self.eval_func,
-                self.logger,
-            )
-        rename_functions(candidates, "part_solution_")
-        ref_funcs: list[FunctionWithCondition] = []
+#         ref_funcs.append(candidates.pop(index))
 
-        # First select a function with maximal precise
-        result: list[EvalResult] = self.eval_func(candidates, ref_funcs)
-        index = 0
-        num_exacts = 0
-        # cost = 2
-        for i in range(len(result)):
-            if result[i].get_exacts() > num_exacts:
-                index = i
-                num_exacts = result[i].get_exacts()
-            # temporarily comment this out since (1) now the cost depends on both synthcontext and cmpresult (2) I think #exacts is enough to rank tfs
-            #     cost = result[i].get_cost()
-            # elif result[i].exacts == num_exacts and result[i].get_cost() > cost:
-            #     index = i
-            #     cost = result[i].get_cost()
+#         is_perfect = False
+#         # Greedy select all subsequent functions
+#         for _ in range(1, self.size + 1):
+#             index = 0
+#             num_exacts = 0
+#             # cost = 2
+#             result: list[EvalResult] = self.eval_func(candidates, ref_funcs)
+#             for ith_result in range(len(result)):
+#                 if result[ith_result].get_unsolved_cases() == 0:
+#                     is_perfect = True
+#                     break
+#                 if result[ith_result].get_unsolved_exacts() > num_exacts:
+#                     index = ith_result
+#                     num_exacts = result[ith_result].get_unsolved_exacts()
+#             # Xuanyu: temporarily comment this out since (1) now the cost depends on both mcmc_sampler and cmp_result (2) I think #exacts is enough to rank tfs
+#             #     cost = result[ith_result].get_cost()
+#             # elif (
+#             #     result[ith_result].unsolved_exacts == num_exacts
+#             #     and cost > result[ith_result].get_cost()
+#             # ):
+#             #     index = ith_result
+#             #     cost = result[ith_result].get_cost()
+#             ref_funcs.append(candidates.pop(index))
 
-        ref_funcs.append(candidates.pop(index))
-
-        is_perfect = False
-        # Greedy select all subsequent functions
-        for _ in range(1, self.size + 1):
-            index = 0
-            num_exacts = 0
-            # cost = 2
-            result: list[EvalResult] = self.eval_func(candidates, ref_funcs)
-            for ith_result in range(len(result)):
-                if result[ith_result].get_unsolved_cases() == 0:
-                    is_perfect = True
-                    break
-                if result[ith_result].get_unsolved_exacts() > num_exacts:
-                    index = ith_result
-                    num_exacts = result[ith_result].get_unsolved_exacts()
-            # Xuanyu: temporarily comment this out since (1) now the cost depends on both mcmc_sampler and cmp_result (2) I think #exacts is enough to rank tfs
-            #     cost = result[ith_result].get_cost()
-            # elif (
-            #     result[ith_result].unsolved_exacts == num_exacts
-            #     and cost > result[ith_result].get_cost()
-            # ):
-            #     index = ith_result
-            #     cost = result[ith_result].get_cost()
-            ref_funcs.append(candidates.pop(index))
-
-        return SizedSolutionSet(
-            self.size,
-            ref_funcs,
-            self.lower_to_cpp,
-            self.eliminate_dead_code,
-            self.eval_func,
-            self.logger,
-            is_perfect,
-        )
+#         return SizedSolutionSet(
+#             self.size,
+#             ref_funcs,
+#             self.lower_to_cpp,
+#             self.eliminate_dead_code,
+#             self.eval_func,
+#             self.logger,
+#             is_perfect,
+#         )
 
 
 class UnsizedSolutionSet(SolutionSet):
