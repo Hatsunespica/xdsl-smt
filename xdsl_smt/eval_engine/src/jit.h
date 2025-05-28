@@ -1,7 +1,6 @@
 #ifndef jit_H
 #define jit_H
 
-#include <cstdio>
 #include <memory>
 #include <string>
 
@@ -80,24 +79,43 @@ public:
   }
 };
 
-std::unique_ptr<llvm::orc::LLJIT> getJit(const std::string &xferSrc) {
-  llvm::InitializeNativeTarget();
-  llvm::InitializeNativeTargetAsmPrinter();
-  std::string apintsrc = std::string(
-      reinterpret_cast<const char *>(___src_APInt_h), ___src_APInt_h_len);
+class Jit {
+private:
+  std::unique_ptr<llvm::orc::LLJIT> jit;
 
-  std::string sourceCode = apintsrc + xferSrc;
-  auto [context, module] = llvm::cantFail(Compiler().compile(sourceCode));
+public:
+  Jit(const std::string &xferSrc) {
+    llvm::InitializeNativeTarget();
+    llvm::InitializeNativeTargetAsmPrinter();
+    std::string apintsrc = std::string(
+        reinterpret_cast<const char *>(___src_APInt_h), ___src_APInt_h_len);
 
-  std::unique_ptr<llvm::orc::LLJIT> jit =
-      llvm::cantFail(llvm::orc::LLJITBuilder().create());
+    std::string sourceCode = apintsrc + xferSrc;
+    auto [context, module] = llvm::cantFail(Compiler().compile(sourceCode));
 
-  llvm::orc::ThreadSafeModule mod =
-      llvm::orc::ThreadSafeModule(std::move(module), std::move(context));
+    jit = llvm::cantFail(llvm::orc::LLJITBuilder().create());
 
-  llvm::cantFail(jit->addIRModule(std::move(mod)));
+    llvm::orc::ThreadSafeModule mod =
+        llvm::orc::ThreadSafeModule(std::move(module), std::move(context));
 
-  return jit;
-}
+    llvm::cantFail(jit->addIRModule(std::move(mod)));
+  }
+
+  template <typename T> T getFn(const std::string_view fnName) {
+    return llvm::cantFail(jit->lookup(fnName)).toPtr<T>();
+  }
+
+  template <typename T>
+  std::optional<T> getOptFn(const std::string_view fnName) {
+    llvm::Expected<llvm::orc::ExecutorAddr> addr = jit->lookup(fnName);
+
+    std::optional<T> r =
+        !addr ? std::nullopt : std::optional(addr.get().toPtr<T>());
+
+    llvm::consumeError(addr.takeError());
+
+    return r;
+  }
+};
 
 #endif

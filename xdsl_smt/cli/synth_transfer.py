@@ -61,7 +61,6 @@ from xdsl_smt.utils.synthesizer_utils.mcmc_sampler import MCMCSampler
 from xdsl_smt.utils.synthesizer_utils.solution_set import (
     SolutionSet,
     UnsizedSolutionSet,
-    SizedSolutionSet,
 )
 from xdsl_smt.utils.synthesizer_utils.synthesizer_context import SynthesizerContext
 from xdsl_smt.utils.synthesizer_utils.random import Random
@@ -405,6 +404,46 @@ def solution_set_eval_func(
     ]: (eval_transfer_func_helper(data_dir, transfer, base, domain, helper_funcs))
 
 
+def tests_sampler_helper(
+    domain: eval_engine.AbstractDomain,
+    data_dir: str,
+    samples: int,
+    seed: int,
+    helper_srcs: list[str],
+    base: list[FunctionWithCondition],
+):
+    base_func_names: list[str] = []
+    base_func_srcs: list[str] = []
+    callee_srcs: list[str] = []
+    for fc in base:
+        caller_str, callee_strs = fc.get_function_str(print_to_cpp)
+        base_func_names.append(fc.func_name)
+        base_func_srcs.append(caller_str)
+        callee_srcs += callee_strs
+
+    eval_engine.reject_sampler(
+        domain,
+        data_dir,
+        samples,
+        seed,
+        helper_srcs + callee_srcs,
+        base_func_names,
+        base_func_srcs,
+    )
+
+
+def solution_set_tests_sampler(
+    domain: eval_engine.AbstractDomain,
+    data_dir: str,
+    helper_srcs: list[str],
+) -> Callable[[list[FunctionWithCondition], int, int], None,]:
+    return lambda base=list[
+        FunctionWithCondition
+    ], samples=int, seed=int: tests_sampler_helper(
+        domain, data_dir, samples, seed, helper_srcs, base
+    )
+
+
 def build_eval_list(
     mcmc_proposals: list[FuncOp],
     sp: range,
@@ -592,9 +631,6 @@ def synthesize_transfer_function(
                 spl.accept_proposed(res)
                 cloned_func = spl.current.func.clone()
                 cloned_func.attributes["number"] = StringAttr(f"{ith_iter}_{rnd}_{i}")
-                # cloned_func.attributes["iter"] = IntegerAttr.from_index_int_value(ith_iter)
-                # cloned_func.attributes["step"] = IntegerAttr.from_index_int_value(rnd)
-                # cloned_func.attributes["proc"] = IntegerAttr.from_index_int_value(i)
                 tmp_tuple = (cloned_func, res, rnd)
                 # Update sound_most_exact_tfs
                 if (
@@ -679,21 +715,38 @@ def synthesize_transfer_function(
             if lowest_cost_tfs[i][1].is_sound():
                 candidates_sp.append(FunctionWithCondition(lowest_cost_tfs[i][0]))
 
+    # loaded_spls = mcmc_samplers
+    # neighbor_tfs : list[list[tuple[float, float, float]]] =[[] for _ in loaded_spls]
+    # for _ in range(300):
+    #     transfers = [spl.sample_next().get_current() for spl in loaded_spls]
+    #     func_with_cond_lst = build_eval_list(
+    #         transfers, sp_range, p_range, c_range, prec_set_after_distribute
+    #     )
+    #     cmp_results = solution_set.eval_improve(func_with_cond_lst)
+    #     cost_data = [[spl.compute_current_cost()] for spl in loaded_spls]
+    #     for i, (spl, res) in enumerate(zip(loaded_spls, cmp_results)):
+    #         proposed_cost = spl.compute_cost(res)
+    #         current_cost = spl.compute_current_cost()
+    #         neighbor_tfs[i].append((res.get_sound_prop(), res.get_unsolved_exact_prop(), proposed_cost - current_cost))
+    #         spl.reject_proposed()
+
+    # for i in range(num_programs):
+    #     cur_res = loaded_spls[i].current_cmp
+    #     logger.debug(f"Sampler {i}: {cur_res.get_sound_prop() * 100:.2f}% {cur_res.get_unsolved_exact_prop() * 100:.2f}%")
+    #     sorted_ls= sorted(neighbor_tfs[i], key=lambda x: x[2])
+    #     for t in sorted_ls:
+    #         logger.debug(f"{t[0]* 100:.3f}% {t[1]* 100:.3f}% {t[2]:.6f}")
+
     new_solution_set: SolutionSet = solution_set.construct_new_solution_set(
         candidates_sp, candidates_p, candidates_c, concrete_func, helper_funcs, ctx
     )
 
-    if solution_size == 0:
-        print_set_of_funcs_to_file(
-            [f.to_str(eliminate_dead_code) for f in new_solution_set.solutions],
-            ith_iter,
-            outputs_folder,
-        )
-
-    final_cmp_res = solution_set.eval_improve([])
-    logger.info(
-        f"Iter {ith_iter} Finished. Exact: {final_cmp_res[0].get_exact_prop() * 100:.4f}%   Dis:{final_cmp_res[0].get_base_dist()}"
+    print_set_of_funcs_to_file(
+        [f.to_str(eliminate_dead_code) for f in new_solution_set.solutions],
+        ith_iter,
+        outputs_folder,
     )
+
     return new_solution_set
 
 
@@ -707,6 +760,7 @@ def save_solution(solution_module: ModuleOp, solution_str: str, outputs_folder: 
 
 
 def run(
+    logger: logging.Logger,
     domain: eval_engine.AbstractDomain,
     num_programs: int,
     total_rounds: int,
@@ -744,8 +798,6 @@ def run(
 
     if not os.path.isdir(outputs_folder):
         os.mkdir(outputs_folder)
-
-    logger = setup_loggers(outputs_folder, VERBOSE)
 
     logger.debug("Round_ID\tSound%\tUExact%\tUDis(Norm)\tCost")
 
@@ -895,24 +947,19 @@ def run(
         domain,
         helper_funcs_cpp,
     )
-
-    if solution_size == 0:
-        solution_set: SolutionSet = UnsizedSolutionSet(
-            base_transfers,
-            print_to_cpp,
-            solution_eval_func,
-            logger,
-            eliminate_dead_code,
-        )
-    else:
-        solution_set: SolutionSet = SizedSolutionSet(
-            solution_size,
-            base_transfers,
-            print_to_cpp,
-            eliminate_dead_code,
-            solution_eval_func,
-            logger,
-        )
+    solution_tests_sampler = solution_set_tests_sampler(
+        domain,
+        data_dir,
+        helper_funcs_cpp,
+    )
+    solution_set: SolutionSet = UnsizedSolutionSet(
+        base_transfers,
+        print_to_cpp,
+        solution_eval_func,
+        solution_tests_sampler,
+        logger,
+        eliminate_dead_code,
+    )
 
     # eval the initial solutions in the solution set
 
@@ -926,7 +973,7 @@ def run(
 
     current_prog_len = program_length
     current_total_rounds = min(500, total_rounds)
-    current_num_abd_procs = 0
+    current_num_abd_procs = min(0, num_abd_procs)
     for ith_iter in range(num_iters):
         # gradually increase the program length
         current_prog_len += (program_length - current_prog_len) // (
@@ -965,6 +1012,11 @@ def run(
             inv_temp,
             outputs_folder,
         )
+        final_cmp_res = solution_set.eval_improve([])
+        logger.info(
+            f"Iter {ith_iter} Finished. Exact: {final_cmp_res[0].get_exact_prop() * 100:.4f}%   Dis:{final_cmp_res[0].get_base_dist()}"
+        )
+
         print(
             f"Iteration {ith_iter} finished. Size of the solution set: {solution_set.solutions_size}"
         )
@@ -972,6 +1024,12 @@ def run(
         if solution_set.is_perfect:
             print("Found a perfect solution")
             break
+
+        desired_unsolved_test_cases = 0
+        new_test = solution_set.sample_unsolved_tests_up_to(
+            desired_unsolved_test_cases, random.randint(0, 1_000_000)
+        )
+        logger.info(f"New test cases sampled: {new_test}")
 
     # Eval last solution:
     if not solution_set.has_solution():
@@ -1008,7 +1066,7 @@ def main() -> None:
     )
     inv_temp = INV_TEMP if args.inv_temp is None else args.inv_temp
     bitwidth = SYNTH_WIDTH if args.bitwidth is None else args.bitwidth
-    min_bitwidth = SYNTH_WIDTH if args.min_bitwidth is None else args.min_bitwidth
+    min_bitwidth = 1 if args.min_bitwidth is None else args.min_bitwidth
     solution_size = SOLUTION_SIZE if args.solution_size is None else args.solution_size
     num_iters = NUM_ITERS if args.num_iters is None else args.num_iters
     condition_length = (
@@ -1019,9 +1077,13 @@ def main() -> None:
     outputs_folder = (
         OUTPUTS_FOLDER if args.outputs_folder is None else args.outputs_folder
     )
+    logger = setup_loggers(outputs_folder, VERBOSE)
+    for k, v in vars(args).items():
+        logger.info(f"{k}: {v}")
 
     run(
-        eval_engine.AbstractDomain[args.domain],
+        logger=logger,
+        domain=eval_engine.AbstractDomain[args.domain],
         num_programs=num_programs,
         total_rounds=total_rounds,
         program_length=program_length,

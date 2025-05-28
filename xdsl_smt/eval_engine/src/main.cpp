@@ -46,22 +46,20 @@ int main() {
   std::vector<std::string> bFnNames = split_whitespace(tmpStr);
 
   std::string fnSrcCode(std::istreambuf_iterator<char>(std::cin), {});
-  std::unique_ptr<llvm::orc::LLJIT> jit = getJit(fnSrcCode);
+  Jit jit(fnSrcCode);
 
   std::pair<std::vector<unsigned int>, std::vector<Results>> r;
   if (domain == "KnownBits") {
     auto [bws, toEval] = getToEval<KnownBits>(fname);
-    r = {bws,
-         Eval<KnownBits>(std::move(jit), synNames, bFnNames, toEval).eval()};
+    r = {bws, Eval<KnownBits>(std::move(jit), synNames, bFnNames).eval(toEval)};
   } else if (domain == "ConstantRange") {
     auto [bws, toEval] = getToEval<ConstantRange>(fname);
-    r = {
-        bws,
-        Eval<ConstantRange>(std::move(jit), synNames, bFnNames, toEval).eval()};
+    r = {bws,
+         Eval<ConstantRange>(std::move(jit), synNames, bFnNames).eval(toEval)};
   } else if (domain == "IntegerModulo") {
     auto [bws, toEval] = getToEval<IntegerModulo<6>>(fname);
-    r = {bws, Eval<IntegerModulo<6>>(std::move(jit), synNames, bFnNames, toEval)
-                  .eval()};
+    r = {bws, Eval<IntegerModulo<6>>(std::move(jit), synNames, bFnNames)
+                  .eval(toEval)};
   } else
     std::cerr << "Unknown domain: " << domain << "\n";
 

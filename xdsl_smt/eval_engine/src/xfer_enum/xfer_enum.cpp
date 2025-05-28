@@ -8,18 +8,17 @@
 #include "../utils.cpp"
 
 template <typename D>
-void handleDomain(std::unique_ptr<llvm::orc::LLJIT> jit, unsigned int ubw,
-                  unsigned int lbw,
+void handleDomain(Jit jit, unsigned int ubw, unsigned int lbw,
                   std::optional<std::pair<unsigned int, unsigned int>> samples,
                   const std::string dirPath) {
-  EnumXfer<D> e(std::move(jit), ubw, lbw);
+  EnumXfer<D> e(std::move(jit), lbw, ubw);
   std::vector<std::vector<std::tuple<D, D, D>>> r =
       samples ? e.genAllBwsRand(samples->first, samples->second)
               : e.genAllBws();
-  for (unsigned int i = 0; i < r.size(); ++i) {
-    const std::string fname = dirPath + "bw " + std::to_string(i + lbw) +
-                              " samples " + std::to_string(r[i].size());
-    write_vecs(fname, r[i]);
+  for (const std::vector<std::tuple<D, D, D>> &vecs : r) {
+    const std::string fname =
+        makeVecFname(dirPath, std::get<0>(vecs[0]).bw(), vecs.size());
+    write_vecs(fname, vecs, false);
   }
 }
 
@@ -45,7 +44,7 @@ int main() {
                static_cast<unsigned int>(std::stoul(tmpVec[1]))};
 
   std::string fnSrcCode(std::istreambuf_iterator<char>(std::cin), {});
-  std::unique_ptr<llvm::orc::LLJIT> jit = getJit(fnSrcCode);
+  Jit jit(fnSrcCode);
 
   if (domain == "KnownBits") {
     handleDomain<KnownBits>(std::move(jit), ubw, lbw, samples, fname);

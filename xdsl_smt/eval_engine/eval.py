@@ -54,6 +54,44 @@ def setup_eval(
     return dirpath
 
 
+def reject_sampler(
+    domain: AbstractDomain,
+    data_dir: str,
+    samples: int,
+    seed: int,
+    conc_op_and_helpers: list[str],
+    base_names: list[str],
+    base_srcs: list[str],
+):
+    base_dir = path.join("xdsl_smt", "eval_engine")
+    engine_path = path.join(base_dir, "build", "reject_sampling")
+    if not path.exists(engine_path):
+        raise FileExistsError(f"Reject Sampler not found at: {engine_path}")
+
+    engine_params = ""
+    engine_params += f"{data_dir}\n"
+    engine_params += f"{domain}\n"
+    engine_params += f"{samples}\n"
+    engine_params += f"{seed}\n"
+    engine_params += f"{' '.join(base_names)}\n"
+    engine_params += "using A::APInt;\n"
+    engine_params += "\n".join(conc_op_and_helpers)
+    engine_params += "\n".join(base_srcs)
+
+    eval_output = run(
+        [engine_path],
+        input=engine_params,
+        text=True,
+        stdout=PIPE,
+        stderr=PIPE,
+    )
+
+    if eval_output.returncode != 0:
+        print("EvalEngine failed with this error:")
+        print(eval_output.stderr, end="")
+        exit(eval_output.returncode)
+
+
 def eval_transfer_func(
     data_dir: str,
     xfer_names: list[str],
