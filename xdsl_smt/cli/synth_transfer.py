@@ -1025,7 +1025,7 @@ def run(
             print("Found a perfect solution")
             break
 
-        desired_unsolved_test_cases = 10000
+        desired_unsolved_test_cases = 0
         new_test = solution_set.sample_unsolved_tests_up_to(
             desired_unsolved_test_cases, random.randint(0, 1_000_000)
         )
