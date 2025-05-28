@@ -1,11 +1,11 @@
-from xdsl_smt.cli.synth_transfer import run
+# from xdsl_smt.cli.synth_transfer import run
 from os import mkdir, path, listdir, remove
 from math import nan
 from multiprocessing import Pool
 from random import randint
 from json import dump
 
-from xdsl_smt.eval_engine.eval import AbstractDomain
+# from xdsl_smt.eval_engine.eval import AbstractDomain
 
 # vals that xuanyu sugessted
 # NUM_PROGS = 100
@@ -64,7 +64,7 @@ def setup_outputs(domain: str, func: str) -> str:
 def synth_run(args: tuple[str, str, str, int]) -> dict[str, float | str]:
     func_name = args[0]
     domain = args[1]
-    fname = args[2]
+    # fname = args[2]
     seed = args[3]
 
     # try:
