@@ -67,43 +67,43 @@ def synth_run(args: tuple[str, str, str, int]) -> dict[str, float | str]:
     fname = args[2]
     seed = args[3]
 
-    try:
-        output_folder = setup_outputs(domain, func_name)
-        res = run(
-            AbstractDomain[domain],
-            num_programs=NUM_PROGS,
-            num_iters=NUM_ITERS,
-            total_rounds=NUM_ROUNDS,
-            condition_length=COND_LEN,
-            solution_size=SOL_SIZE,
-            num_abd_procs=NUM_ABD_P,
-            bitwidth=BWIDTH,
-            min_bitwidth=MIN_BWIDTH,
-            weighted_dsl=WEIGHT_DSL,
-            program_length=PROGRAM_LENGTH,
-            inv_temp=INV_TEMP,
-            random_seed=seed,
-            transfer_functions=fname,
-            outputs_folder=output_folder,
-        )
-
-        return {
-            "Domain": domain,
-            "Function": func_name,
-            "Sound Proportion": res.get_sound_prop() * 100,
-            "Exact Proportion": res.get_exact_prop() * 100,
-            "Seed": seed,
-            "Notes": "",
-        }
-    except Exception as e:
-        return {
-            "Domain": domain,
-            "Function": func_name,
-            "Sound Proportion": nan,
-            "Exact Proportion": nan,
-            "Seed": seed,
-            "Notes": f"Run was terminated: {e}",
-        }
+    # try:
+    #     output_folder = setup_outputs(domain, func_name)
+    #     res = run(
+    #         AbstractDomain[domain],
+    #         num_programs=NUM_PROGS,
+    #         num_iters=NUM_ITERS,
+    #         total_rounds=NUM_ROUNDS,
+    #         condition_length=COND_LEN,
+    #         solution_size=SOL_SIZE,
+    #         num_abd_procs=NUM_ABD_P,
+    #         bitwidth=BWIDTH,
+    #         min_bitwidth=MIN_BWIDTH,
+    #         weighted_dsl=WEIGHT_DSL,
+    #         program_length=PROGRAM_LENGTH,
+    #         inv_temp=INV_TEMP,
+    #         random_seed=seed,
+    #         transfer_functions=fname,
+    #         outputs_folder=output_folder,
+    #     )
+    #
+    #     return {
+    #         "Domain": domain,
+    #         "Function": func_name,
+    #         "Sound Proportion": res.get_sound_prop() * 100,
+    #         "Exact Proportion": res.get_exact_prop() * 100,
+    #         "Seed": seed,
+    #         "Notes": "",
+    #     }
+    # except Exception as e:
+    return {
+        "Domain": domain,
+        "Function": func_name,
+        "Sound Proportion": nan,
+        "Exact Proportion": nan,
+        "Seed": seed,
+        # "Notes": f"Run was terminated: {e}",
+    }
 
 
 def main() -> None:
