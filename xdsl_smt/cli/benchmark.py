@@ -134,7 +134,7 @@ def main() -> None:
     with Pool() as p:
         data = p.map(synth_run, inputs)
 
-    with open("data.json", "w") as f:
+    with open(args.outputs_folder.joinpath("data.json"), "w") as f:
         dump(data, f, indent=2)
 
 
