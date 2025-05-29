@@ -1,14 +1,11 @@
-import argparse
 import logging
-import os.path
-import sys
 from typing import cast, Callable
+from io import StringIO, TextIOWrapper
+from dataclasses import dataclass
+from pathlib import Path
 
 from xdsl.context import Context
 from xdsl.parser import Parser
-
-from io import StringIO
-
 from xdsl.utils.hints import isa
 
 from xdsl_smt.cli.synth_one_iteration import synthesize_one_iteration
@@ -32,7 +29,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.func import Func, FuncOp, ReturnOp, CallOp
 from ..dialects.transfer import Transfer
-from xdsl.dialects.arith import Arith, ConstantOp
+from xdsl.dialects.arith import Arith
 from xdsl.dialects.comb import Comb
 from xdsl.dialects.hw import HW
 from ..passes.transfer_dead_code_elimination import TransferDeadCodeElimination
@@ -57,115 +54,7 @@ from xdsl_smt.utils.synthesizer_utils.solution_set import (
 )
 from xdsl_smt.utils.synthesizer_utils.synthesizer_context import SynthesizerContext
 from xdsl_smt.utils.synthesizer_utils.random import Random
-
-
-def register_all_arguments(arg_parser: argparse.ArgumentParser):
-    arg_parser.add_argument(
-        "transfer_functions", type=str, nargs="?", help="path to the transfer functions"
-    )
-    arg_parser.add_argument(
-        "-random_file", type=str, nargs="?", help="the file includes all random numbers"
-    )
-    arg_parser.add_argument(
-        "-random_seed", type=int, nargs="?", help="specify the random seed"
-    )
-    arg_parser.add_argument(
-        "-program_length",
-        type=int,
-        nargs="?",
-        help="Specify the maximal length of synthesized program. 40 by default.",
-    )
-    arg_parser.add_argument(
-        "-total_rounds",
-        type=int,
-        nargs="?",
-        help="Specify the number of rounds the synthesizer should run. 1000 by default.",
-    )
-    arg_parser.add_argument(
-        "-num_programs",
-        type=int,
-        nargs="?",
-        help="Specify the number of programs that runs at every round. 100 by default.",
-    )
-    arg_parser.add_argument(
-        "-inv_temp",
-        type=int,
-        nargs="?",
-        help="Inverse temperature \\beta for MCMC. The larger the value is, the lower the probability of accepting a program with a higher cost. 200 by default. "
-        "E.g., MCMC has a 1/2 probability of accepting a program with a cost 1/beta higher. ",
-    )
-    arg_parser.add_argument(
-        "-bitwidth",
-        type=int,
-        nargs="?",
-        help="Specify the bitwidth of the evaluation engine",
-    )
-    arg_parser.add_argument(
-        "-min_bitwidth",
-        type=int,
-        nargs="?",
-        help="Specify the minimum bitwidth of the evaluation engine",
-    )
-    arg_parser.add_argument(
-        "-solution_size",
-        type=int,
-        nargs="?",
-        help="Specify the size of solution set",
-    )
-    arg_parser.add_argument(
-        "-num_iters",
-        type=int,
-        nargs="?",
-        help="Specify the number of iterations of the synthesizer needs to run",
-    )
-    arg_parser.add_argument(
-        "-weighted_dsl",
-        action="store_true",
-        help="Learn weights for each DSL operations from previous for future iterations.",
-    )
-    arg_parser.add_argument(
-        "-condition_length",
-        type=int,
-        nargs="?",
-        help="Specify the maximal length of synthesized abduction. 6 by default.",
-    )
-    arg_parser.add_argument(
-        "-num_abd_procs",
-        type=int,
-        nargs="?",
-        help="Specify the number of mcmc processes that used for abduction. It should be less than num_programs. 0 by default (which means abduction is disabled).",
-    )
-    arg_parser.add_argument(
-        "-num_random_tests",
-        type=int,
-        nargs="?",
-        help="Specify the number of random test inputs at higher bitwidth. 0 by default",
-    )
-    arg_parser.add_argument(
-        "-outputs_folder",
-        type=str,
-        nargs="?",
-        help="Output folder for saving logs",
-    )
-    arg_parser.add_argument(
-        "-domain",
-        type=str,
-        choices=[str(x) for x in eval_engine.AbstractDomain],
-        required=True,
-        help="Abstract Domain to evaluate",
-    )
-
-
-def parse_file(ctx: Context, file: str | None) -> Operation:
-    if file is None:
-        f = sys.stdin
-        file = "<stdin>"
-    else:
-        f = open(file)
-
-    parser = Parser(ctx, f.read(), file)
-    module = parser.parse_op()
-    return module
+from xdsl_smt.cli.arg_parser import register_arguments
 
 
 def is_transfer_function(func: FuncOp) -> bool:
@@ -180,9 +69,7 @@ def is_forward(func: FuncOp) -> bool:
     return False
 
 
-def get_concrete_function(
-    concrete_op_name: str, width: int, extra: int | None
-) -> FuncOp:
+def get_concrete_function(concrete_op_name: str, extra: int | None) -> FuncOp:
     # iterate all semantics and find corresponding comb operation
 
     result = None
@@ -190,6 +77,9 @@ def get_concrete_function(
         if k.name == concrete_op_name:
             # generate a function with the only comb operation
             # for now, we only handle binary operations and mux
+            # TODO should this really be hardcoded to 4?
+            width = 4
+
             intTy = IntegerType(width)
             transIntTy = TransIntegerType()
             func_name = "concrete_op"
@@ -221,7 +111,7 @@ def get_concrete_function(
             returnOp = ReturnOp(combOp.results[0])
             result.body.block.add_ops([combOp, returnOp])
     assert result is not None and (
-        "Cannot find the concrete function for" + concrete_op_name
+        f"Cannot find the concrete function for {concrete_op_name}"
     )
     return result
 
@@ -242,50 +132,9 @@ def print_concrete_function_to_cpp(func: FuncOp) -> str:
     return sio.getvalue()
 
 
-def get_default_op_constraint(concrete_func: FuncOp):
-    cond_type = FunctionType.from_lists(concrete_func.function_type.inputs.data, [i1])
-    func = FuncOp("op_constraint", cond_type)
-    true_op: ConstantOp = ConstantOp(IntegerAttr.from_int_and_width(1, 1), i1)
-    return_op = ReturnOp(true_op)
-    func.body.block.add_ops([true_op, return_op])
-    return func
-
-
-def get_default_abs_op_constraint(abstract_func: FuncOp):
-    cond_type = FunctionType.from_lists(abstract_func.function_type.inputs.data, [i1])
-    func = FuncOp("abs_op_constraint", cond_type)
-    true_op: ConstantOp = ConstantOp(IntegerAttr.from_int_and_width(1, 1), i1)
-    return_op = ReturnOp(true_op)
-    func.body.block.add_ops([true_op, return_op])
-    return func
-
-
-SYNTH_WIDTH = 4
-TEST_SET_SIZE = 1000
-CONCRETE_VAL_PER_TEST_CASE = 10
-PROGRAM_LENGTH = 40
-CONDITION_LENGTH = 6
-NUM_PROGRAMS = 100
-INIT_COST = 1
-TOTAL_ROUNDS = 10000
-INV_TEMP = 200
-SOLUTION_SIZE = 8
-NUM_ITERS = 100
-NUM_ABD_PROCS = 0
-INSTANCE_CONSTRAINT = "getInstanceConstraint"
-DOMAIN_CONSTRAINT = "getConstraint"
-OP_CONSTRAINT = "op_constraint"
-ABS_OP_CONSTRAINT = "abs_op_constraint"
-MEET_FUNC = "meet"
-GET_TOP_FUNC = "getTop"
-CONCRETE_OP_FUNC = "concrete_op"
-get_top_func_op: FuncOp | None = None
+# TODO why are these global? is there a way we can make them local?
 ret_top_func: FunctionWithCondition
-TMP_MODULE: list[ModuleOp] = []
 ctx: Context
-
-OUTPUTS_FOLDER = "outputs"
-VERBOSE = 1  # todo: make it a cmd line arg
 
 
 def eliminate_dead_code(func: FuncOp) -> FuncOp:
@@ -352,7 +201,6 @@ def eval_transfer_func_helper(
     transfer_func_names: list[str] = []
     transfer_func_srcs: list[str] = []
     helper_func_srcs: list[str] = []
-    assert get_top_func_op is not None
     for fc in transfer:
         caller_str, helper_strs = fc.get_function_str(print_to_cpp)
         transfer_func_names.append(fc.func_name)
@@ -429,7 +277,10 @@ def solution_set_tests_sampler(
     domain: eval_engine.AbstractDomain,
     data_dir: str,
     helper_srcs: list[str],
-) -> Callable[[list[FunctionWithCondition], int, int], None,]:
+) -> Callable[
+    [list[FunctionWithCondition], int, int],
+    None,
+]:
     return lambda base=list[
         FunctionWithCondition
     ], samples=int, seed=int: tests_sampler_helper(
@@ -437,13 +288,115 @@ def solution_set_tests_sampler(
     )
 
 
-def save_solution(solution_module: ModuleOp, solution_str: str, outputs_folder: str):
-    if not outputs_folder.endswith("/"):
-        outputs_folder += "/"
-    with open(outputs_folder + "solution.cpp", "w") as fout:
+def save_solution(solution_module: ModuleOp, solution_str: str, outputs_folder: Path):
+    with open(outputs_folder.joinpath("solution.cpp"), "w") as fout:
         fout.write(solution_str)
-    with open(outputs_folder + "solution.mlir", "w") as fout:
+    with open(outputs_folder.joinpath("solution.mlir"), "w") as fout:
         print(solution_module, file=fout)
+
+
+@dataclass
+class HelperFuncs:
+    crt_func: FuncOp
+    instance_constraint_func: FuncOp
+    domain_constraint_func: FuncOp
+    op_constraint_func: FuncOp | None
+    abs_op_constraint_func: FuncOp | None
+    get_top_func: FuncOp
+    transfer_func: FuncOp
+    meet_func: FuncOp
+
+    def items_to_print(self) -> list[FuncOp]:
+        canditates = [
+            self.instance_constraint_func,
+            self.domain_constraint_func,
+            self.op_constraint_func,
+            self.abs_op_constraint_func,
+            self.get_top_func,
+        ]
+        return [x for x in canditates if x is not None]
+
+    def to_cpp(self) -> list[str]:
+        return [print_concrete_function_to_cpp(self.crt_func)] + [
+            print_to_cpp(x) for x in self.items_to_print()
+        ]
+
+    def meet_to_cpp(self) -> str:
+        return print_to_cpp(self.meet_func)
+
+
+def get_helper_funcs(module: ModuleOp) -> HelperFuncs:
+    INSTANCE_CONSTRAINT = "getInstanceConstraint"
+    DOMAIN_CONSTRAINT = "getConstraint"
+    OP_CONSTRAINT = "op_constraint"
+    ABS_OP_CONSTRAINT = "abs_op_constraint"
+    MEET_FUNC = "meet"
+    GET_TOP_FUNC = "getTop"
+    CONCRETE_OP_FUNC = "concrete_op"
+
+    transfer_func = None
+
+    func_name_to_func: dict[str, FuncOp] = {}
+    for func in module.ops:
+        if isinstance(func, FuncOp):
+            func_name_to_func[func.sym_name.data] = func
+    FunctionCallInline(False, func_name_to_func).apply(ctx, module)
+
+    crt_func = func_name_to_func.get(CONCRETE_OP_FUNC, None)
+
+    for func in module.ops:
+        if (
+            isinstance(func, FuncOp)
+            and is_transfer_function(func)
+            and not is_base_function(func)
+        ):
+            transfer_func = func
+            if crt_func is None and "applied_to" in func.attributes:
+                assert isa(
+                    applied_to := func.attributes["applied_to"], ArrayAttr[StringAttr]
+                )
+                concrete_func_name = applied_to.data[0].data
+                concrete_func = get_concrete_function(concrete_func_name, None)
+                crt_func = concrete_func
+                break
+
+    assert isinstance(
+        transfer_func, FuncOp
+    ), "No transfer function is found in input file"
+    assert crt_func is not None, "Failed to get concrete function from input file"
+
+    # Handle helper functions
+    domain_constraint_func: FuncOp | None = func_name_to_func.get(
+        DOMAIN_CONSTRAINT, None
+    )
+    instance_constraint_func: FuncOp | None = func_name_to_func.get(
+        INSTANCE_CONSTRAINT, None
+    )
+    op_constraint_func: FuncOp | None = func_name_to_func.get(OP_CONSTRAINT, None)
+    abs_op_constraint_func: FuncOp | None = func_name_to_func.get(
+        ABS_OP_CONSTRAINT, None
+    )
+    meet_func: FuncOp | None = func_name_to_func.get(MEET_FUNC, None)
+    get_top_func: FuncOp | None = func_name_to_func.get(GET_TOP_FUNC, None)
+    global ret_top_func
+    ret_top_func = FunctionWithCondition(construct_top_func(transfer_func))
+    ret_top_func.set_func_name("ret_top")
+
+    assert instance_constraint_func is not None
+    assert domain_constraint_func is not None
+    assert meet_func is not None
+    assert get_top_func is not None
+
+    return HelperFuncs(
+        crt_func,
+        instance_constraint_func,
+        domain_constraint_func,
+        op_constraint_func,
+        abs_op_constraint_func,
+        get_top_func,
+        transfer_func,
+        meet_func,
+    )
 
 
 def run(
@@ -453,18 +406,18 @@ def run(
     total_rounds: int,
     program_length: int,
     inv_temp: int,
-    bitwidth: int,
+    max_bitwidth: int,
     min_bitwidth: int,
-    solution_size: int = SOLUTION_SIZE,
-    num_iters: int = NUM_ITERS,
-    condition_length: int = CONDITION_LENGTH,
-    num_abd_procs: int = NUM_ABD_PROCS,
-    num_random_tests: int | None = None,
-    random_seed: int | None = None,
-    random_number_file: str | None = None,
-    transfer_functions: str | None = None,
-    weighted_dsl: bool = False,
-    outputs_folder: str = OUTPUTS_FOLDER,
+    solution_size: int,
+    num_iters: int,
+    condition_length: int,
+    num_abd_procs: int,
+    num_random_tests: int | None,
+    random_seed: int | None,
+    random_number_file: str | None,
+    transfer_functions: TextIOWrapper,
+    weighted_dsl: bool,
+    outputs_folder: Path,
 ) -> EvalResult:
     global ctx
     ctx = Context()
@@ -479,12 +432,8 @@ def run(
     ctx.load_dialect(Comb)
     ctx.load_dialect(HW)
 
-    module = parse_file(ctx, transfer_functions)
-
+    module = Parser(ctx, transfer_functions.read(), transfer_functions.name).parse_op()
     assert isinstance(module, ModuleOp)
-
-    if not os.path.isdir(outputs_folder):
-        os.mkdir(outputs_folder)
 
     logger.debug("Round_ID\tSound%\tUExact%\tUDis(Norm)\tCost")
 
@@ -517,85 +466,11 @@ def run(
     context_cond.use_full_int_ops()
     context_cond.use_full_i1_ops()
 
-    transfer_func = None
-
-    func_name_to_func: dict[str, FuncOp] = {}
-    for func in module.ops:
-        if isinstance(func, FuncOp):
-            func_name_to_func[func.sym_name.data] = func
-    FunctionCallInline(False, func_name_to_func).apply(ctx, module)
-
-    crt_func = func_name_to_func.get(CONCRETE_OP_FUNC, None)
-
-    for func in module.ops:
-        if (
-            isinstance(func, FuncOp)
-            and is_transfer_function(func)
-            and not is_base_function(func)
-        ):
-            transfer_func = func
-            if crt_func is None and "applied_to" in func.attributes:
-                assert isa(
-                    applied_to := func.attributes["applied_to"], ArrayAttr[StringAttr]
-                )
-                concrete_func_name = applied_to.data[0].data
-                concrete_func = get_concrete_function(
-                    concrete_func_name, SYNTH_WIDTH, None
-                )
-                crt_func = concrete_func
-                break
-
-    assert isinstance(
-        transfer_func, FuncOp
-    ), "No transfer function is found in input file"
-    assert crt_func is not None, "Failed to get concrete function from input file"
-
-    # Handle helper functions
-    domain_constraint_func: FuncOp | None = func_name_to_func.get(
-        DOMAIN_CONSTRAINT, None
-    )
-    instance_constraint_func: FuncOp | None = func_name_to_func.get(
-        INSTANCE_CONSTRAINT, None
-    )
-    op_constraint_func: FuncOp | None = func_name_to_func.get(OP_CONSTRAINT, None)
-    abs_op_constraint_func: FuncOp | None = func_name_to_func.get(
-        ABS_OP_CONSTRAINT, None
-    )
-    meet_func: FuncOp | None = func_name_to_func.get(MEET_FUNC, None)
-    get_top_func: FuncOp | None = func_name_to_func.get(GET_TOP_FUNC, None)
-    global get_top_func_op
-    get_top_func_op = get_top_func
-    global ret_top_func
-    ret_top_func = FunctionWithCondition(construct_top_func(transfer_func))
-    ret_top_func.set_func_name("ret_top")
-
-    if meet_func is None:
-        solution_size = 1
-
-    if op_constraint_func is None:
-        op_constraint_func = get_default_op_constraint(crt_func)
-    if abs_op_constraint_func is None:
-        abs_op_constraint_func = get_default_abs_op_constraint(transfer_func)
-    assert instance_constraint_func is not None
-    assert domain_constraint_func is not None
-    assert meet_func is not None
-    assert get_top_func is not None
-
-    helper_funcs: list[FuncOp] = [
-        crt_func,
-        instance_constraint_func,
-        domain_constraint_func,
-        op_constraint_func,
-        abs_op_constraint_func,
-        get_top_func,
-    ]
-
-    helper_funcs_cpp: list[str] = [print_concrete_function_to_cpp(crt_func)] + [
-        print_to_cpp(func) for func in helper_funcs[1:]
-    ]
+    helper_funcs = get_helper_funcs(module)
+    helper_funcs_cpp = helper_funcs.to_cpp()
 
     data_dir = eval_engine.setup_eval(
-        domain, bitwidth, min_bitwidth, samples, "\n".join(helper_funcs_cpp)
+        domain, max_bitwidth, min_bitwidth, samples, "\n".join(helper_funcs_cpp)
     )
 
     base_bodys: dict[str, FuncOp] = {}
@@ -649,7 +524,6 @@ def run(
     )
 
     # eval the initial solutions in the solution set
-
     init_cmp_res = solution_set.eval_improve([])
     logger.info(
         f"Initial Solution. Exact: {init_cmp_res[0].get_exact_prop() * 100:.4f}%   Dis:{init_cmp_res[0].get_base_dist()}"
@@ -680,15 +554,15 @@ def run(
             solution_set.learn_weights(context_weighted)
         solution_set = synthesize_one_iteration(
             ith_iter,
-            transfer_func,
+            helper_funcs.transfer_func,
             context,
             context_weighted,
             context_cond,
             random,
             solution_set,
             logger,
-            crt_func,
-            helper_funcs[1:],
+            helper_funcs.crt_func,
+            helper_funcs.items_to_print(),
             ctx,
             num_programs,
             current_prog_len,
@@ -699,6 +573,7 @@ def run(
             inv_temp,
             outputs_folder,
         )
+
         print_set_of_funcs_to_file(
             [f.to_str(eliminate_dead_code) for f in solution_set.solutions],
             ith_iter,
@@ -735,7 +610,7 @@ def run(
         [solution_str],
         [],
         [],
-        helper_funcs_cpp + [print_to_cpp(meet_func)],
+        helper_funcs_cpp + [helper_funcs.meet_to_cpp()],
         domain,
     )
 
@@ -748,51 +623,33 @@ def run(
 
 
 def main() -> None:
-    arg_parser = argparse.ArgumentParser()
-    register_all_arguments(arg_parser)
-    args = arg_parser.parse_args()
+    args = register_arguments("synth_transfer")
 
-    num_programs = NUM_PROGRAMS if args.num_programs is None else args.num_programs
-    total_rounds = TOTAL_ROUNDS if args.total_rounds is None else args.total_rounds
-    program_length = (
-        PROGRAM_LENGTH if args.program_length is None else args.program_length
-    )
-    inv_temp = INV_TEMP if args.inv_temp is None else args.inv_temp
-    bitwidth = SYNTH_WIDTH if args.bitwidth is None else args.bitwidth
-    min_bitwidth = 1 if args.min_bitwidth is None else args.min_bitwidth
-    solution_size = SOLUTION_SIZE if args.solution_size is None else args.solution_size
-    num_iters = NUM_ITERS if args.num_iters is None else args.num_iters
-    condition_length = (
-        CONDITION_LENGTH if args.condition_length is None else args.condition_length
-    )
-    num_abd_procs = NUM_ABD_PROCS if args.num_abd_procs is None else args.num_abd_procs
-    num_random_tests = None if args.num_random_tests is None else args.num_random_tests
-    outputs_folder = (
-        OUTPUTS_FOLDER if args.outputs_folder is None else args.outputs_folder
-    )
-    logger = setup_loggers(outputs_folder, VERBOSE)
-    for k, v in vars(args).items():
-        logger.info(f"{k}: {v}")
+    if not args.outputs_folder.is_dir():
+        args.outputs_folder.mkdir()
+
+    logger = setup_loggers(args.outputs_folder, not args.quiet)
+    [logger.info(f"{k}: {v}") for k, v in vars(args).items()]
 
     run(
         logger=logger,
         domain=eval_engine.AbstractDomain[args.domain],
-        num_programs=num_programs,
-        total_rounds=total_rounds,
-        program_length=program_length,
-        inv_temp=inv_temp,
-        bitwidth=bitwidth,
-        min_bitwidth=min_bitwidth,
-        solution_size=solution_size,
-        num_iters=num_iters,
-        condition_length=condition_length,
-        num_abd_procs=num_abd_procs,
-        num_random_tests=num_random_tests,
+        num_programs=args.num_programs,
+        total_rounds=args.total_rounds,
+        program_length=args.program_length,
+        inv_temp=args.inv_temp,
+        max_bitwidth=args.max_bitwidth,
+        min_bitwidth=args.min_bitwidth,
+        solution_size=args.solution_size,
+        num_iters=args.num_iters,
+        condition_length=args.condition_length,
+        num_abd_procs=args.num_abd_procs,
+        num_random_tests=args.num_random_tests,
         random_seed=args.random_seed,
         random_number_file=args.random_file,
         transfer_functions=args.transfer_functions,
         weighted_dsl=args.weighted_dsl,
-        outputs_folder=outputs_folder,
+        outputs_folder=args.outputs_folder,
     )
 
 

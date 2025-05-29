@@ -1,5 +1,6 @@
 import logging
 import time
+from pathlib import Path
 
 from xdsl.context import Context
 from xdsl.dialects.builtin import StringAttr
@@ -114,7 +115,7 @@ def synthesize_one_iteration(
     total_rounds: int,
     solution_size: int,
     inv_temp: int,
-    outputs_folder: str,
+    outputs_folder: Path,
 ) -> SolutionSet:
     """
     Given ith_iter, performs total_rounds mcmc sampling
