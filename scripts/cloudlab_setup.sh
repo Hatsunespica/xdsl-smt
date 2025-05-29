@@ -1,7 +1,11 @@
 #!/bin/bash
 
-# run this script on cloudlab with
-# sudo bash -c "./cloudlab_setup.sh > init_stdout_logs.txt 2> init_stderr_logs.txt &"
+# run this script on cloudlab with:
+# `nohup ./cloudlab_setup.sh > out_logs.txt 2> err_logs.txt < /dev/null &`
+# to check on the progress you can run any of the following:
+# `ps aux | grep cloudlab_setup.sh`
+# `tail -f out_logs.txt`
+# `tail -f err_logs.txt`
 
 # get system dependencies
 sudo apt update
