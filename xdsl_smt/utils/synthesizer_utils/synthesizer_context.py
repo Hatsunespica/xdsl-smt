@@ -41,6 +41,22 @@ from xdsl_smt.dialects.transfer import (
 from typing import TypeVar, Generic, Callable
 from xdsl.ir import Operation, SSAValue, Attribute
 import xdsl.dialects.arith as arith
+
+from xdsl_smt.utils.synthesizer_utils.dsl_operators import (
+    int_prior_uniform,
+    i1_prior_uniform,
+    bint_prior_uniform,
+    INT_T,
+    BOOL_T,
+    BINT_T,
+    enable_bint,
+    full_bint_ops,
+    full_int_ops,
+    full_i1_ops,
+    basic_int_ops,
+    basic_i1_ops,
+    OpWithSignature,
+)
 from xdsl_smt.utils.synthesizer_utils.random import Random
 
 T = TypeVar("T")
@@ -102,78 +118,6 @@ class Collection(Generic[T]):
             idx += 1
             idx %= self.lst_len
         return None
-
-
-enable_bint = True
-INT_T = "int"
-BOOL_T = "bool"
-BINT_T = "bint" if enable_bint else "int"
-OpWithSignature = tuple[type[Operation], tuple[str, ...]]
-
-full_bint_ops: list[OpWithSignature] = [
-    (AddOp, (BINT_T, BINT_T)),
-    (SubOp, (BINT_T, BINT_T)),
-    (SelectOp, (BOOL_T, BINT_T, BINT_T)),
-    (UMinOp, (BINT_T, BINT_T)),
-    (UMaxOp, (BINT_T, BINT_T)),
-    (CountLOneOp, (INT_T,)),
-    (CountLZeroOp, (INT_T,)),
-    (CountROneOp, (INT_T,)),
-    (CountRZeroOp, (INT_T,)),
-]
-
-
-basic_int_ops: list[OpWithSignature] = [
-    (NegOp, (INT_T,)),
-    (AndOp, (INT_T, INT_T)),
-    (OrOp, (INT_T, INT_T)),
-    (XorOp, (INT_T, INT_T)),
-    (AddOp, (INT_T, INT_T)),
-    # (AddOp, BINT_T, [BINT_T, BINT_T]),
-    # SubOp,
-    # SelectOp,
-]
-
-
-full_int_ops: list[OpWithSignature] = [
-    (NegOp, (INT_T,)),
-    (AndOp, (INT_T, INT_T)),
-    (OrOp, (INT_T, INT_T)),
-    (XorOp, (INT_T, INT_T)),
-    (AddOp, (INT_T, INT_T)),
-    (SubOp, (INT_T, INT_T)),
-    (SelectOp, (BOOL_T, INT_T, INT_T)),
-    (LShrOp, (INT_T, BINT_T)),
-    (ShlOp, (INT_T, BINT_T)),
-    (UMinOp, (INT_T, INT_T)),
-    (UMaxOp, (INT_T, INT_T)),
-    (SMinOp, (INT_T, INT_T)),
-    (SMaxOp, (INT_T, INT_T)),
-    (MulOp, (INT_T, INT_T)),
-    (SetHighBitsOp, (INT_T, BINT_T)),
-    (SetLowBitsOp, (INT_T, BINT_T)),
-    (ClearHighBitsOp, (INT_T, BINT_T)),
-    (ClearLowBitsOp, (INT_T, BINT_T)),
-    (SetSignBitOp, (INT_T,)),
-    (ClearSignBitOp, (INT_T,)),
-]
-
-if not enable_bint:
-    full_int_ops = list(set(full_int_ops + full_bint_ops))
-
-
-full_i1_ops: list[OpWithSignature] = [
-    (arith.AndIOp, (BOOL_T, BOOL_T)),
-    (arith.OrIOp, (BOOL_T, BOOL_T)),
-    (arith.XOrIOp, (BOOL_T, BOOL_T)),
-    (CmpOp, (INT_T, INT_T)),
-    (CmpOp, (BINT_T, BINT_T)),
-]
-
-basic_i1_ops: list[OpWithSignature] = [
-    (CmpOp, (INT_T, INT_T)),
-    (CmpOp, (BINT_T, BINT_T)),
-]
 
 
 def is_constant_constructor(constants: list[int]) -> Callable[[SSAValue], bool]:
@@ -373,31 +317,31 @@ class SynthesizerContext:
         self.cmp_flags = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
         self.dsl_ops = dict()
         self.op_weights = dict()
-        self.dsl_ops[BOOL_T] = Collection(basic_i1_ops, self.random)
-        self.dsl_ops[INT_T] = Collection(basic_int_ops, self.random)
-        self.op_weights[BOOL_T] = {key: 1 for key in basic_i1_ops}
-        self.op_weights[INT_T] = {key: 1 for key in basic_int_ops}
+        self.dsl_ops[BOOL_T] = Collection(full_i1_ops, self.random)
+        self.dsl_ops[INT_T] = Collection(full_int_ops, self.random)
+        self.op_weights[BOOL_T] = i1_prior_uniform
+        self.op_weights[INT_T] = int_prior_uniform
         if enable_bint:
             self.dsl_ops[BINT_T] = Collection(full_bint_ops, self.random)
-            self.op_weights[BINT_T] = {key: 1 for key in full_bint_ops}
+            self.op_weights[BINT_T] = bint_prior_uniform
 
         self.weighted = weighted
 
     def use_basic_int_ops(self):
         self.dsl_ops[INT_T] = Collection(basic_int_ops, self.random)
-        self.op_weights[INT_T] = {key: 1 for key in basic_int_ops}
+        # self.op_weights[INT_T] = {key:int_prior_uniform[key] for key in basic_int_ops}
 
     def use_full_int_ops(self):
         self.dsl_ops[INT_T] = Collection(full_int_ops, self.random)
-        self.op_weights[INT_T] = {key: 1 for key in full_int_ops}
+        # self.op_weights[INT_T] = int_prior_uniform
 
     def use_basic_i1_ops(self):
         self.dsl_ops[BOOL_T] = Collection(basic_i1_ops, self.random)
-        self.op_weights[BOOL_T] = {key: 1 for key in basic_i1_ops}
+        # self.op_weights[BOOL_T] = {key:i1_prior_uniform[key] for key in basic_i1_ops}
 
     def use_full_i1_ops(self):
         self.dsl_ops[BOOL_T] = Collection(full_i1_ops, self.random)
-        self.op_weights[BOOL_T] = {key: 1 for key in full_i1_ops}
+        # self.op_weights[BOOL_T] = i1_prior_uniform
 
     def update_weights(self, frequency: dict[str, dict[OpWithSignature, int]]):
         for ty, freq in frequency.items():
