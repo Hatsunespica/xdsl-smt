@@ -45,7 +45,7 @@ def synth_run(
 
     try:
         output_folder = setup_outputs(domain, func_name, args.outputs_folder)
-        logger = setup_loggers(args.outputs_folder, not args.quiet)
+        logger = setup_loggers(output_folder, not args.quiet)
         [logger.info(f"{k}: {v}") for k, v in vars(args).items()]
 
         res = run(
