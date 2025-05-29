@@ -3,7 +3,6 @@ from multiprocessing import Pool
 from json import dump
 from argparse import Namespace
 from pathlib import Path
-from shutil import rmtree
 
 from xdsl_smt.cli.synth_transfer import run
 from xdsl_smt.cli.arg_parser import register_arguments
