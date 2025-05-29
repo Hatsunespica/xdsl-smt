@@ -12,7 +12,7 @@ def register_arguments(prog: str) -> Namespace:
     NUM_PROGRAMS = 100
     TOTAL_ROUNDS = 10000
     INV_TEMP = 200
-    SOLUTION_SIZE = 8
+    SOLUTION_SIZE = 0
     NUM_ITERS = 100
     NUM_ABD_PROCS = 0
     OUTPUT_FOLDER = Path("outputs")
