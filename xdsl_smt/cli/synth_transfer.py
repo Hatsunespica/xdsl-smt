@@ -313,6 +313,7 @@ class HelperFuncs:
             self.op_constraint_func,
             self.abs_op_constraint_func,
             self.get_top_func,
+            self.meet_func,
         ]
         return [x for x in canditates if x is not None]
 
@@ -320,9 +321,6 @@ class HelperFuncs:
         return [print_concrete_function_to_cpp(self.crt_func)] + [
             print_to_cpp(x) for x in self.items_to_print()
         ]
-
-    def meet_to_cpp(self) -> str:
-        return print_to_cpp(self.meet_func)
 
 
 def get_helper_funcs(module: ModuleOp) -> HelperFuncs:
@@ -610,7 +608,7 @@ def run(
         [solution_str],
         [],
         [],
-        helper_funcs_cpp + [helper_funcs.meet_to_cpp()],
+        helper_funcs_cpp,
         domain,
     )
 
