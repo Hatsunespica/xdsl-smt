@@ -7,14 +7,14 @@ def register_arguments(prog: str) -> Namespace:
     ap = ArgumentParser(prog=prog, formatter_class=ArgumentDefaultsHelpFormatter)
     MIN_BITWIDTH = 1
     MAX_BITWIDTH = 4
-    PROGRAM_LENGTH = 40
-    CONDITION_LENGTH = 6
+    PROGRAM_LENGTH = 28
+    CONDITION_LENGTH = 10
     NUM_PROGRAMS = 100
-    TOTAL_ROUNDS = 10000
+    TOTAL_ROUNDS = 1500
     INV_TEMP = 200
     SOLUTION_SIZE = 0
-    NUM_ITERS = 100
-    NUM_ABD_PROCS = 0
+    NUM_ITERS = 10
+    NUM_ABD_PROCS = 30
     OUTPUT_FOLDER = Path("outputs")
 
     if prog == "synth_transfer":
