@@ -119,7 +119,7 @@ def synth_run(
     domain = x[1]
     tf_path = x[2]
     args = x[3]
-
+    print(f"Running {domain} {func_name}")
     try:
         output_folder = args.outputs_folder.joinpath(f"{domain}_{func_name}")
         output_folder.mkdir()
@@ -170,10 +170,12 @@ def main() -> None:
     args = register_arguments("benchmark")
     start_dir = Path("tests").joinpath("synth")
 
-    if args.outputs_folder.is_dir():
-        rmtree(args.outputs_folder)
-    args.outputs_folder.mkdir()
-
+    if not args.outputs_folder.exists():
+        args.outputs_folder.mkdir(parents=True, exist_ok=True)
+    else:
+        raise FileExistsError(
+            f"Output folder \"{args.outputs_folder}\" already exists. Please remove it or choose a different one."
+        )
     kb_inputs = [
         (
             x.split("Bits")[1].split(".")[0],
