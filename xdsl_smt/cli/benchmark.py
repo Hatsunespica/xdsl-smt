@@ -174,7 +174,7 @@ def main() -> None:
         args.outputs_folder.mkdir(parents=True, exist_ok=True)
     else:
         raise FileExistsError(
-            f"Output folder \"{args.outputs_folder}\" already exists. Please remove it or choose a different one."
+            f'Output folder "{args.outputs_folder}" already exists. Please remove it or choose a different one.'
         )
     kb_inputs = [
         (
