@@ -1,9 +1,9 @@
-from os import path, listdir, remove
 from math import nan
 from multiprocessing import Pool
 from json import dump
 from argparse import Namespace
 from pathlib import Path
+from shutil import rmtree
 
 from xdsl_smt.cli.synth_transfer import run
 from xdsl_smt.cli.arg_parser import register_arguments
@@ -11,28 +11,105 @@ from xdsl_smt.eval_engine.eval import AbstractDomain
 from xdsl_smt.utils.synthesizer_utils.log_utils import setup_loggers
 
 
-def rm_r(dir: Path):
-    try:
-        files = listdir(dir)
-        for file in files:
-            file_path = dir.joinpath(file)
-            if path.isfile(file_path):
-                remove(file_path)
-    except OSError:
-        print(f"Error occurred while deleting files in {dir}")
+kb_test_names = [
+    "knownBitsAbds.mlir",
+    "knownBitsAbdu.mlir",
+    "knownBitsAddConstRHS.mlir",
+    "knownBitsAdd.mlir",
+    "knownBitsAddNsw.mlir",
+    "knownBitsAddNswNuw.mlir",
+    "knownBitsAddNuw.mlir",
+    "knownBitsAndConstRHS.mlir",
+    "knownBitsAnd.mlir",
+    "knownBitsAshrConstRHS.mlir",
+    "knownBitsAshrExact.mlir",
+    "knownBitsAshr.mlir",
+    "knownBitsAvgCeilS.mlir",
+    "knownBitsAvgCeilU.mlir",
+    "knownBitsAvgFloorS.mlir",
+    "knownBitsAvgFloorU.mlir",
+    "knownBitsLshrConstRHS.mlir",
+    "knownBitsLshrExact.mlir",
+    "knownBitsLshr.mlir",
+    "knownBitsModsConstRHS.mlir",
+    "knownBitsMods.mlir",
+    "knownBitsModuConstRHS.mlir",
+    "knownBitsModu.mlir",
+    "knownBitsMulConstRHS.mlir",
+    "knownBitsMul.mlir",
+    "knownBitsOrConstRHS.mlir",
+    "knownBitsOr.mlir",
+    "KnownBitsSaddSat.mlir",
+    "knownBitsSdivConstRHS.mlir",
+    "knownBitsSdivExact.mlir",
+    "knownBitsSdiv.mlir",
+    "knownBitsShlConstRHS.mlir",
+    "knownBitsShl.mlir",
+    "knownBitsShlNsw.mlir",
+    "knownBitsShlNswNuw.mlir",
+    "knownBitsShlNuw.mlir",
+    "knownBitsSmax.mlir",
+    "knownBitsSmin.mlir",
+    "KnownBitsSsubSat.mlir",
+    "knownBitsSubConstRHS.mlir",
+    "knownBitsSub.mlir",
+    "knownBitsSubNsw.mlir",
+    "knownBitsSubNswNuw.mlir",
+    "knownBitsSubNuw.mlir",
+    "KnownBitsUaddSat.mlir",
+    "knownBitsUdivConstRHS.mlir",
+    "knownBitsUdivExact.mlir",
+    "knownBitsUdiv.mlir",
+    "knownBitsUmax.mlir",
+    "knownBitsUmin.mlir",
+    "KnownBitsUsubSat.mlir",
+    "knownBitsXorConstRHS.mlir",
+    "knownBitsXor.mlir",
+]
 
-
-def setup_outputs(domain: AbstractDomain, func: str, outputs: Path) -> Path:
-    if not outputs.is_dir():
-        outputs.mkdir()
-
-    output_folder = outputs.joinpath(f"{domain}_{func}")
-    if output_folder.is_dir():
-        rm_r(output_folder)
-    else:
-        output_folder.mkdir()
-
-    return output_folder
+cr_test_names = [
+    "integerRangeAdd.mlir",
+    "integerRangeAddNsw.mlir",
+    "integerRangeAddNswNuw.mlir",
+    "integerRangeAddNuw.mlir",
+    "integerRangeAnd.mlir",
+    "integerRangeAshrExact.mlir",
+    "integerRangeAshr.mlir",
+    "integerRangeLshrExact.mlir",
+    "integerRangeLshr.mlir",
+    "integerRangeMods.mlir",
+    "integerRangeModu.mlir",
+    "integerRangeMul.mlir",
+    "integerRangeMulNsw.mlir",
+    "integerRangeMulNswNuw.mlir",
+    "integerRangeMulNuw.mlir",
+    "integerRangeOr.mlir",
+    "integerRangeSaddSat.mlir",
+    "integerRangeSdivExact.mlir",
+    "integerRangeSdiv.mlir",
+    "integerRangeShl.mlir",
+    "integerRangeShlNsw.mlir",
+    "integerRangeShlNswNuw.mlir",
+    "integerRangeShlNuw.mlir",
+    "integerRangeSmax.mlir",
+    "integerRangeSmin.mlir",
+    "integerRangeSmulSat.mlir",
+    "integerRangeSshlSat.mlir",
+    "integerRangeSsubSat.mlir",
+    "integerRangeSub.mlir",
+    "integerRangeSubNsw.mlir",
+    "integerRangeSubNswNuw.mlir",
+    "integerRangeSubNuw.mlir",
+    "integerRangeUaddSat.mlir",
+    "integerRangeUdivExact.mlir",
+    "integerRangeUdiv.mlir",
+    "integerRangeUmax.mlir",
+    "integerRangeUmin.mlir",
+    "integerRangeUmulSat.mlir",
+    "integerRangeUshlSat.mlir",
+    "integerRangeUsubSat.mlir",
+    "integerRangeXor.mlir",
+]
 
 
 def synth_run(
@@ -44,7 +121,8 @@ def synth_run(
     args = x[3]
 
     try:
-        output_folder = setup_outputs(domain, func_name, args.outputs_folder)
+        output_folder = args.outputs_folder.joinpath(f"{domain}_{func_name}")
+        output_folder.mkdir()
         logger = setup_loggers(output_folder, not args.quiet)
         [logger.info(f"{k}: {v}") for k, v in vars(args).items()]
 
@@ -90,49 +168,34 @@ def synth_run(
 
 def main() -> None:
     args = register_arguments("benchmark")
+    start_dir = Path("tests").joinpath("synth")
 
-    start_dir = path.join("tests", "synth")
-    xfer_funcs = {
-        (AbstractDomain.KnownBits, "Add"): "knownBitsAdd.mlir",
-        (AbstractDomain.KnownBits, "And"): "knownBitsAnd.mlir",
-        (AbstractDomain.KnownBits, "Ashr"): "knownBitsAshr.mlir",
-        (AbstractDomain.KnownBits, "Lshr"): "knownBitsLshr.mlir",
-        (AbstractDomain.KnownBits, "Mods"): "knownBitsMods.mlir",
-        (AbstractDomain.KnownBits, "Modu"): "knownBitsModu.mlir",
-        (AbstractDomain.KnownBits, "Mul"): "knownBitsMul.mlir",
-        (AbstractDomain.KnownBits, "Or"): "knownBitsOr.mlir",
-        (AbstractDomain.KnownBits, "Sdiv"): "knownBitsSdiv.mlir",
-        (AbstractDomain.KnownBits, "Shl"): "knownBitsShl.mlir",
-        (AbstractDomain.KnownBits, "Udiv"): "knownBitsUdiv.mlir",
-        (AbstractDomain.KnownBits, "Xor"): "knownBitsXor.mlir",
-        (AbstractDomain.ConstantRange, "Add"): "integerRangeAdd.mlir",
-        (AbstractDomain.ConstantRange, "And"): "integerRangeAnd.mlir",
-        (AbstractDomain.ConstantRange, "Ashr"): "integerRangeAshr.mlir",
-        (AbstractDomain.ConstantRange, "Lshr"): "integerRangeLshr.mlir",
-        (AbstractDomain.ConstantRange, "Mods"): "integerRangeMods.mlir",
-        (AbstractDomain.ConstantRange, "Modu"): "integerRangeModu.mlir",
-        (AbstractDomain.ConstantRange, "Mul"): "integerRangeMul.mlir",
-        (AbstractDomain.ConstantRange, "Or"): "integerRangeOr.mlir",
-        (AbstractDomain.ConstantRange, "Sdiv"): "integerRangeSdiv.mlir",
-        (AbstractDomain.ConstantRange, "Shl"): "integerRangeShl.mlir",
-        (AbstractDomain.ConstantRange, "Udiv"): "integerRangeUdiv.mlir",
-        (AbstractDomain.ConstantRange, "Xor"): "integerRangeXor.mlir",
-    }
+    if args.outputs_folder.is_dir():
+        rmtree(args.outputs_folder)
+    args.outputs_folder.mkdir()
 
-    def get_path(x: AbstractDomain) -> str:
-        return "integerRange" if x == AbstractDomain.ConstantRange else "knownBits"
+    kb_inputs = [
+        (
+            x.split("Bits")[1].split(".")[0],
+            AbstractDomain.KnownBits,
+            start_dir.joinpath("KnownBits", x),
+            args,
+        )
+        for x in kb_test_names
+    ]
 
-    xfer_funcs = {
-        k: path.join(start_dir, get_path(k[0]), v) for k, v in xfer_funcs.items()
-    }
-
-    inputs = [
-        (func_name, domain, Path(xfer_func_fname), args)
-        for (domain, func_name), xfer_func_fname in xfer_funcs.items()
+    cr_inputs = [
+        (
+            x.split("Range")[1].split(".")[0],
+            AbstractDomain.ConstantRange,
+            start_dir.joinpath("ConstantRange", x),
+            args,
+        )
+        for x in cr_test_names
     ]
 
     with Pool() as p:
-        data = p.map(synth_run, inputs)
+        data = p.map(synth_run, kb_inputs + cr_inputs)
 
     with open(args.outputs_folder.joinpath("data.json"), "w") as f:
         dump(data, f, indent=2)
