@@ -275,10 +275,7 @@ def solution_set_tests_sampler(
     domain: eval_engine.AbstractDomain,
     data_dir: str,
     helper_srcs: list[str],
-) -> Callable[
-    [list[FunctionWithCondition], int, int],
-    None,
-]:
+) -> Callable[[list[FunctionWithCondition], int, int], None]:
     return lambda base=list[
         FunctionWithCondition
     ], samples=int, seed=int: tests_sampler_helper(
