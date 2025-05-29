@@ -11,13 +11,11 @@ from xdsl_smt.utils.synthesizer_utils.synthesizer_context import (
     SynthesizerContext,
     is_int_op,
     set_ret_type,
-    INT_T,
-    BOOL_T,
     get_ret_type,
-    BINT_T,
     not_in_main_body,
     get_op_with_signature,
 )
+from xdsl_smt.utils.synthesizer_utils.dsl_operators import INT_T, BOOL_T, BINT_T
 from xdsl_smt.utils.synthesizer_utils.random import Random
 from xdsl_smt.dialects.transfer import (
     AbstractValueType,
@@ -29,6 +27,7 @@ from xdsl_smt.dialects.transfer import (
     AndOp,
     CmpOp,
     AddOp,
+    GetBitWidthOp,
 )
 import xdsl.dialects.arith as arith
 from xdsl.dialects.func import FuncOp, ReturnOp
@@ -169,6 +168,8 @@ class MCMCSampler:
         set_ret_type(zero_bint, BINT_T)
         one_bint = Constant(tmp_int_ssavalue, 1)
         set_ret_type(one_bint, BINT_T)
+        get_bw = GetBitWidthOp(tmp_int_ssavalue)
+        set_ret_type(get_bw, BINT_T)
         block.add_op(true)
         block.add_op(false)
         block.add_op(zero)
@@ -176,6 +177,7 @@ class MCMCSampler:
         block.add_op(all_ones)
         block.add_op(zero_bint)
         block.add_op(one_bint)
+        block.add_op(get_bw)
 
         if not self.is_cond:
             # Part III: Main Body

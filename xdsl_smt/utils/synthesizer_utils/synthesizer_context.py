@@ -219,6 +219,7 @@ optimize_complex_operands_selection: dict[
     ClearLowBitsOp: [is_zero, is_zero_or_allones],
     ClearHighBitsOp: [is_zero, is_zero_or_allones],
 }
+# todo: add is_get_bitwidth
 
 """
 Idempotent property means we should not use the same operand for both operand.
