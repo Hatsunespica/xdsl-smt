@@ -38,7 +38,7 @@ def setup_loggers(output_dir: Path, verbose: int):
 
 
 def print_set_of_funcs_to_file(funcs: List[str], iter: int, path: Path):
-    with open(path.joinpath(f"res_after_iter{iter}.mlir"), "w") as file:
+    with open(path.joinpath(f"iter{iter}.mlir"), "w") as file:
         # file.write(
         #     f"Run: {c}_{rd}_{i}\nCost: {res.get_cost()}\nSound: {res.get_sound_prop()}\nUExact: {res.get_unsolved_exact_prop()}\nUDis: {res.get_unsolved_edit_dis_avg()}\n{res}\n"
         # )
