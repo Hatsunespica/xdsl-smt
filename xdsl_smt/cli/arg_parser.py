@@ -115,17 +115,3 @@ def register_arguments(prog: str) -> Namespace:
     ap.add_argument("-quiet", action="store_true")
 
     return ap.parse_args()
-
-
-# TODO remove this in the future
-if __name__ == "__main__":
-    a = register_arguments("test")
-    print(a)
-    # b: Random = a.random_seed
-    # print(b.getstate())
-    # print(b)
-    # print(b.randint(0, 1000000))
-
-    # assert isinstance(b, TextIOWrapper)
-    # print(b.read())
-    # print(b.name)
