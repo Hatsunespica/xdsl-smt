@@ -77,9 +77,7 @@ def get_concrete_function(concrete_op_name: str, extra: int | None) -> FuncOp:
         if k.name == concrete_op_name:
             # generate a function with the only comb operation
             # for now, we only handle binary operations and mux
-            # TODO should this really be hardcoded to 4?
             width = 4
-
             intTy = IntegerType(width)
             transIntTy = TransIntegerType()
             func_name = "concrete_op"
