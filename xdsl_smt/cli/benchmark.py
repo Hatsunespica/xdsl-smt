@@ -10,6 +10,19 @@ from xdsl_smt.cli.arg_parser import register_arguments
 from xdsl_smt.eval_engine.eval import AbstractDomain
 from xdsl_smt.utils.synthesizer_utils.log_utils import setup_loggers
 
+kb_representative_test_names = [
+    "knownBitsAdd.mlir",
+    "knownBitsAddNsw.mlir",
+    "knownBitsAddNuw.mlir",
+    "knownBitsAnd.mlir",
+    "knownBitsAvgFloorU.mlir",
+    "knownBitsLshrExact.mlir",
+    "knownBitsLshr.mlir",
+    "knownBitsShl.mlir",
+    "knownBitsUdivExact.mlir",
+    "knownBitsUdiv.mlir",
+    "knownBitsUmax.mlir",
+]
 
 kb_test_names = [
     "knownBitsAbds.mlir",
