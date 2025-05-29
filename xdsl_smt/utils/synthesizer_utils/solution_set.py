@@ -473,8 +473,10 @@ class UnsizedSolutionSet(SolutionSet):
             )
             res = cmp_results[0]
             to_learn = res.get_new_exact_prop() > 0.005
+            body_number = sol.func.attributes["number"]
+            cond_number = "None" if sol.cond is None else sol.cond.attributes["number"]
             self.logger.info(
-                f"\tfunc {i}: #exact {res.get_exacts() - res.get_unsolved_exacts()} -> {res.get_exacts()}, new exact%: {res.get_new_exact_prop()}, prec: {res.get_base_dist()} -> {res.get_dist()}, prec improve%: {res.get_improve()}, cond?: {self.solutions[i].cond is not None}, learn?: {to_learn}"
+                f"\tbody {body_number}, cond {cond_number} : #exact {res.get_exacts() - res.get_unsolved_exacts()} -> {res.get_exacts()}, new exact%: {res.get_new_exact_prop():3f}, dist: {res.get_base_dist()} -> {res.get_dist()}, dist decrease: {res.get_improve()}, cond?: {self.solutions[i].cond is not None}, learn?: {to_learn}"
             )
             if to_learn:
                 learn_form_funcs.append(self.eliminate_dead_code(sol.func))

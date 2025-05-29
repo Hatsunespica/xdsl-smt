@@ -248,13 +248,13 @@ def synthesize_one_iteration(
             for i in range(num_programs):
                 res = sound_most_improve_tfs[i][1]
                 if res.is_sound():
-                    logger.debug(f"{i}_{sound_most_improve_tfs[i][2]}\t{res}")
+                    logger.debug(f"{i}_{sound_most_improve_tfs[i][2]}\n{res}")
             logger.debug("Transformers with most unsolved exact outputs:")
             for i in range(num_programs):
-                logger.debug(f"{i}_{most_improve_tfs[i][2]}\t{most_improve_tfs[i][1]}")
+                logger.debug(f"{i}_{most_improve_tfs[i][2]}\n{most_improve_tfs[i][1]}")
             logger.debug("Transformers with lowest cost:")
             for i in range(num_programs):
-                logger.debug(f"{i}_{lowest_cost_tfs[i][2]}\t{lowest_cost_tfs[i][1]}")
+                logger.debug(f"{i}_{lowest_cost_tfs[i][2]}\n{lowest_cost_tfs[i][1]}")
 
     candidates_sp: list[FunctionWithCondition] = []
     candidates_p: list[FuncOp] = []
