@@ -1,6 +1,5 @@
 import logging
 import time
-from pathlib import Path
 
 from xdsl.context import Context
 from xdsl.dialects.builtin import StringAttr
@@ -115,11 +114,9 @@ def synthesize_one_iteration(
     total_rounds: int,
     solution_size: int,
     inv_temp: int,
-    outputs_folder: Path,
+    num_unsound_candidates: int,
 ) -> SolutionSet:
-    """
-    Given ith_iter, performs total_rounds mcmc sampling
-    """
+    "Given ith_iter, performs total_rounds mcmc sampling"
     mcmc_samplers: list[MCMCSampler] = []
 
     sp_range, p_range, c_range, num_programs, prec_set_after_distribute = mcmc_setup(
@@ -316,7 +313,13 @@ def synthesize_one_iteration(
     #         logger.debug(f"{t[0]* 100:.3f}% {t[1]* 100:.3f}% {t[2]:.6f}")
 
     new_solution_set: SolutionSet = solution_set.construct_new_solution_set(
-        candidates_sp, candidates_p, candidates_c, concrete_func, helper_funcs, ctx
+        candidates_sp,
+        candidates_p,
+        candidates_c,
+        concrete_func,
+        helper_funcs,
+        num_unsound_candidates,
+        ctx,
     )
 
     return new_solution_set

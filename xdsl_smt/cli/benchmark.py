@@ -153,6 +153,7 @@ def synth_run(
             total_rounds=args.total_rounds,
             transfer_functions=open(tf_path, "r"),
             weighted_dsl=args.weighted_dsl,
+            num_unsound_candidates=args.num_unsound_candidates,
             outputs_folder=output_folder,
         )
 
