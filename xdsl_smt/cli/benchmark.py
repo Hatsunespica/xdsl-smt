@@ -3,47 +3,49 @@ from multiprocessing import Pool
 from json import dump
 from argparse import Namespace
 from pathlib import Path
-from shutil import rmtree
 
 from xdsl_smt.cli.synth_transfer import run
 from xdsl_smt.cli.arg_parser import register_arguments
 from xdsl_smt.eval_engine.eval import AbstractDomain
 from xdsl_smt.utils.synthesizer_utils.log_utils import setup_loggers
 
+kb_representative_test_names = [
+    "knownBitsAdd.mlir",
+    "knownBitsAddNsw.mlir",
+    "knownBitsAddNuw.mlir",
+    "knownBitsAnd.mlir",
+    "knownBitsAvgFloorU.mlir",
+    "knownBitsLshrExact.mlir",
+    "knownBitsLshr.mlir",
+    "knownBitsShl.mlir",
+    "knownBitsUdivExact.mlir",
+    "knownBitsUdiv.mlir",
+    "knownBitsUmax.mlir",
+]
 
 kb_test_names = [
     "knownBitsAbds.mlir",
     "knownBitsAbdu.mlir",
-    "knownBitsAddConstRHS.mlir",
     "knownBitsAdd.mlir",
     "knownBitsAddNsw.mlir",
     "knownBitsAddNswNuw.mlir",
     "knownBitsAddNuw.mlir",
-    "knownBitsAndConstRHS.mlir",
     "knownBitsAnd.mlir",
-    "knownBitsAshrConstRHS.mlir",
     "knownBitsAshrExact.mlir",
     "knownBitsAshr.mlir",
     "knownBitsAvgCeilS.mlir",
     "knownBitsAvgCeilU.mlir",
     "knownBitsAvgFloorS.mlir",
     "knownBitsAvgFloorU.mlir",
-    "knownBitsLshrConstRHS.mlir",
     "knownBitsLshrExact.mlir",
     "knownBitsLshr.mlir",
-    "knownBitsModsConstRHS.mlir",
     "knownBitsMods.mlir",
-    "knownBitsModuConstRHS.mlir",
     "knownBitsModu.mlir",
-    "knownBitsMulConstRHS.mlir",
     "knownBitsMul.mlir",
-    "knownBitsOrConstRHS.mlir",
     "knownBitsOr.mlir",
     "KnownBitsSaddSat.mlir",
-    "knownBitsSdivConstRHS.mlir",
     "knownBitsSdivExact.mlir",
     "knownBitsSdiv.mlir",
-    "knownBitsShlConstRHS.mlir",
     "knownBitsShl.mlir",
     "knownBitsShlNsw.mlir",
     "knownBitsShlNswNuw.mlir",
@@ -51,19 +53,16 @@ kb_test_names = [
     "knownBitsSmax.mlir",
     "knownBitsSmin.mlir",
     "KnownBitsSsubSat.mlir",
-    "knownBitsSubConstRHS.mlir",
     "knownBitsSub.mlir",
     "knownBitsSubNsw.mlir",
     "knownBitsSubNswNuw.mlir",
     "knownBitsSubNuw.mlir",
     "KnownBitsUaddSat.mlir",
-    "knownBitsUdivConstRHS.mlir",
     "knownBitsUdivExact.mlir",
     "knownBitsUdiv.mlir",
     "knownBitsUmax.mlir",
     "knownBitsUmin.mlir",
     "KnownBitsUsubSat.mlir",
-    "knownBitsXorConstRHS.mlir",
     "knownBitsXor.mlir",
 ]
 
@@ -119,7 +118,7 @@ def synth_run(
     domain = x[1]
     tf_path = x[2]
     args = x[3]
-
+    print(f"Running {domain} {func_name}")
     try:
         output_folder = args.outputs_folder.joinpath(f"{domain}_{func_name}")
         output_folder.mkdir()
@@ -171,10 +170,12 @@ def main() -> None:
     args = register_arguments("benchmark")
     start_dir = Path("tests").joinpath("synth")
 
-    if args.outputs_folder.is_dir():
-        rmtree(args.outputs_folder)
-    args.outputs_folder.mkdir()
-
+    if not args.outputs_folder.exists():
+        args.outputs_folder.mkdir(parents=True, exist_ok=True)
+    else:
+        raise FileExistsError(
+            f'Output folder "{args.outputs_folder}" already exists. Please remove it or choose a different one.'
+        )
     kb_inputs = [
         (
             x.split("Bits")[1].split(".")[0],
