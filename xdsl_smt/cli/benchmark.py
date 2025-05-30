@@ -14,13 +14,23 @@ kb_representative_test_names = [
     "knownBitsAddNsw.mlir",
     "knownBitsAddNuw.mlir",
     "knownBitsAnd.mlir",
+    "knownBitsMul.mlir",
     "knownBitsAvgFloorU.mlir",
-    "knownBitsLshrExact.mlir",
     "knownBitsLshr.mlir",
     "knownBitsShl.mlir",
     "knownBitsUdivExact.mlir",
     "knownBitsUdiv.mlir",
     "knownBitsUmax.mlir",
+]
+
+cr_representative_test_names = [
+    "integerRangeAdd.mlir",
+    "integerRangeAddNuw.mlir",
+    "integerRangeAnd.mlir",
+    "integerRangeShl.mlir",
+    "integerRangeMul.mlir",
+    "integerRangeUdiv.mlir",
+    "integerRangeUmax.mlir",
 ]
 
 kb_test_names = [
@@ -182,7 +192,7 @@ def main() -> None:
             start_dir.joinpath("KnownBits", x),
             args,
         )
-        for x in kb_test_names
+        for x in kb_representative_test_names
     ]
 
     cr_inputs = [
@@ -192,10 +202,10 @@ def main() -> None:
             start_dir.joinpath("ConstantRange", x),
             args,
         )
-        for x in cr_test_names
+        for x in cr_representative_test_names
     ]
 
-    with Pool() as p:
+    with Pool(processes=20) as p:
         data = p.map(synth_run, kb_inputs + cr_inputs)
 
     with open(args.outputs_folder.joinpath("data.json"), "w") as f:
