@@ -36,7 +36,7 @@ cd ../../
 # bulid eval engine
 git clone https://github.com/Hatsunespica/xdsl-smt.git
 cd xdsl-smt/xdsl_smt/eval_engine/
-git checkout synth-transfer
+git checkout synth_transfer
 mkdir build && cd build
 # TODO this path too
 cmake .. -D  CMAKE_CXX_COMPILER=/users/dkennedy/experiment/llvm-project/build/bin/clang++ \
