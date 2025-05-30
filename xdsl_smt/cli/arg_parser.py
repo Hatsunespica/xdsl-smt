@@ -16,6 +16,7 @@ def register_arguments(prog: str) -> Namespace:
     NUM_ITERS = 100
     NUM_ABD_PROCS = 0
     OUTPUT_FOLDER = Path("outputs")
+    NUM_UNSOUND_CANDIDATES = 15
 
     if prog == "synth_transfer":
         ap.add_argument(
@@ -111,6 +112,12 @@ def register_arguments(prog: str) -> Namespace:
         "-num_random_tests",
         type=int,
         help="number of random test inputs at higher bitwidth",
+    )
+    ap.add_argument(
+        "-num_unsound_candidates",
+        type=int,
+        help="number of unsound candidates considered for abduction",
+        default=NUM_UNSOUND_CANDIDATES,
     )
     ap.add_argument("-quiet", action="store_true")
 

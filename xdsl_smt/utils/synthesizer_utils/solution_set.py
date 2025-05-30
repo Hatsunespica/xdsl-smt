@@ -123,9 +123,9 @@ class SolutionSet(ABC):
         # Parameters used by SMT verifier
         concrete_op: FuncOp,
         helper_funcs: list[FuncOp],
+        num_unsound_candidates: int,
         ctx: Context,
-    ) -> SolutionSet:
-        ...
+    ) -> SolutionSet: ...
 
     def has_solution(self) -> bool:
         return self.solutions_size != 0
@@ -317,9 +317,7 @@ class SolutionSet(ABC):
 
 
 class UnsizedSolutionSet(SolutionSet):
-    """
-    This class maintains a list of solutions without a specified size
-    """
+    "This class maintains a list of solutions without a specified size"
 
     def __init__(
         self,
@@ -369,6 +367,7 @@ class UnsizedSolutionSet(SolutionSet):
         new_candidates_c: list[FunctionWithCondition],
         concrete_op: FuncOp,
         helper_funcs: list[FuncOp],
+        num_unsound_candidates: int,
         ctx: Context,
     ) -> SolutionSet:
         candidates = self.solutions + new_candidates_sp + new_candidates_c
@@ -446,9 +445,8 @@ class UnsizedSolutionSet(SolutionSet):
             reverse=True,
             key=lambda x: x[1].get_unsolved_exacts(),
         )
-        K = 15
-        top_k = sorted_pairs[:K]
-        self.logger.info(f"Top {K} Precise candidates:")
+        top_k = sorted_pairs[:num_unsound_candidates]
+        self.logger.info(f"Top {num_unsound_candidates} Precise candidates:")
         self.precise_set = []
         for cand, res in top_k:
             body_number = cand.attributes["number"]
@@ -459,12 +457,9 @@ class UnsizedSolutionSet(SolutionSet):
 
         return self
 
-    """
-    Set weights in context according to the frequencies of each DSL operation that appear in func in solution set
-    """
-
     def learn_weights(self, context: SynthesizerContext):
-        self.logger.info(f"Improvement by each individual function")
+        "Set weights in context according to the frequencies of each DSL operation that appear in func in solution set"
+        self.logger.info("Improvement by each individual function")
         learn_form_funcs: list[FuncOp] = []
         for i, sol in enumerate(self.solutions):
             cmp_results: list[EvalResult] = self.eval_func(

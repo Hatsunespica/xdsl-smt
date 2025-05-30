@@ -410,6 +410,7 @@ def run(
     random_number_file: str | None,
     transfer_functions: TextIOWrapper,
     weighted_dsl: bool,
+    num_unsound_candidates: int,
     outputs_folder: Path,
 ) -> EvalResult:
     global ctx
@@ -564,7 +565,7 @@ def run(
             current_total_rounds,
             solution_size,
             inv_temp,
-            outputs_folder,
+            num_unsound_candidates,
         )
 
         print_set_of_funcs_to_file(
@@ -642,6 +643,7 @@ def main() -> None:
         random_number_file=args.random_file,
         transfer_functions=args.transfer_functions,
         weighted_dsl=args.weighted_dsl,
+        num_unsound_candidates=args.num_unsound_candidates,
         outputs_folder=args.outputs_folder,
     )
 
