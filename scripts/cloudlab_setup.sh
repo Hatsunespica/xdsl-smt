@@ -1,9 +1,15 @@
 #!/bin/bash
 
-start_setup=$(date +%s)
+# run this script on cloudlab with:
+# `nohup ./cloudlab_setup.sh > out_logs.txt 2> err_logs.txt < /dev/null &`
+# to check on the progress you can run any of the following:
+# `ps aux | grep cloudlab_setup.sh`
+# `tail -f out_logs.txt`
+# `tail -f err_logs.txt`
+
 # get system dependencies
 sudo apt update
-sudo apt install -y cmake ninja-build lld python3.10-venv
+sudo apt install -y neovim htop cmake ninja-build lld python3.10-venv
 
 mkdir experiment/
 cd experiment/
@@ -24,17 +30,19 @@ cmake -GNinja -DLLVM_ENABLE_RTTI=ON -DLLVM_ENABLE_EH=ON -DBUILD_SHARED_LIBS=ON \
 -DLLVM_USE_LINKER=lld \
 -DLLVM_ENABLE_PROJECTS="llvm;clang;mlir" ../llvm
 ninja
+echo "Built LLVM"
 cd ../../
 
 # bulid eval engine
 git clone https://github.com/Hatsunespica/xdsl-smt.git
 cd xdsl-smt/xdsl_smt/eval_engine/
-git checkout benchmark
+git checkout synth_transfer
 mkdir build && cd build
 # TODO this path too
 cmake .. -D  CMAKE_CXX_COMPILER=/users/dkennedy/experiment/llvm-project/build/bin/clang++ \
 -D CMAKE_PREFIX_PATH=/users/dkennedy/experiment/llvm-project/build
 make
+echo "Built Eval Engine"
 cd ../../../
 
 # setup python env
@@ -42,9 +50,4 @@ python -m venv venv
 source venv/bin/activate
 pip install .
 pip install -e '.[dev]'
-end_setup=$(date +%s)
-
-echo "export SETUP_TIME=$((end_setup-start_setup))" >> ~/.bashrc
-
-# run
-benchmark-synth
+echo "Setup Complete"

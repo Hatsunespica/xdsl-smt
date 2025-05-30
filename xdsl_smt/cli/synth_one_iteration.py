@@ -114,11 +114,9 @@ def synthesize_one_iteration(
     total_rounds: int,
     solution_size: int,
     inv_temp: int,
-    outputs_folder: str,
+    num_unsound_candidates: int,
 ) -> SolutionSet:
-    """
-    Given ith_iter, performs total_rounds mcmc sampling
-    """
+    "Given ith_iter, performs total_rounds mcmc sampling"
     mcmc_samplers: list[MCMCSampler] = []
 
     sp_range, p_range, c_range, num_programs, prec_set_after_distribute = mcmc_setup(
@@ -247,13 +245,13 @@ def synthesize_one_iteration(
             for i in range(num_programs):
                 res = sound_most_improve_tfs[i][1]
                 if res.is_sound():
-                    logger.debug(f"{i}_{sound_most_improve_tfs[i][2]}\t{res}")
+                    logger.debug(f"{i}_{sound_most_improve_tfs[i][2]}\n{res}")
             logger.debug("Transformers with most unsolved exact outputs:")
             for i in range(num_programs):
-                logger.debug(f"{i}_{most_improve_tfs[i][2]}\t{most_improve_tfs[i][1]}")
+                logger.debug(f"{i}_{most_improve_tfs[i][2]}\n{most_improve_tfs[i][1]}")
             logger.debug("Transformers with lowest cost:")
             for i in range(num_programs):
-                logger.debug(f"{i}_{lowest_cost_tfs[i][2]}\t{lowest_cost_tfs[i][1]}")
+                logger.debug(f"{i}_{lowest_cost_tfs[i][2]}\n{lowest_cost_tfs[i][1]}")
 
     candidates_sp: list[FunctionWithCondition] = []
     candidates_p: list[FuncOp] = []
@@ -315,7 +313,13 @@ def synthesize_one_iteration(
     #         logger.debug(f"{t[0]* 100:.3f}% {t[1]* 100:.3f}% {t[2]:.6f}")
 
     new_solution_set: SolutionSet = solution_set.construct_new_solution_set(
-        candidates_sp, candidates_p, candidates_c, concrete_func, helper_funcs, ctx
+        candidates_sp,
+        candidates_p,
+        candidates_c,
+        concrete_func,
+        helper_funcs,
+        num_unsound_candidates,
+        ctx,
     )
 
     return new_solution_set
