@@ -313,7 +313,13 @@ def synthesize_one_iteration(
     #         logger.debug(f"{t[0]* 100:.3f}% {t[1]* 100:.3f}% {t[2]:.6f}")
 
     new_solution_set: SolutionSet = solution_set.construct_new_solution_set(
-        candidates_sp, candidates_p, candidates_c, concrete_func, helper_funcs, num_unsound_candidates, ctx
+        candidates_sp,
+        candidates_p,
+        candidates_c,
+        concrete_func,
+        helper_funcs,
+        num_unsound_candidates,
+        ctx,
     )
 
     return new_solution_set
