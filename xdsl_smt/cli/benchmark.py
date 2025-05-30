@@ -206,7 +206,7 @@ def main() -> None:
         for x in cr_representative_test_names
     ]
 
-    with Pool(processes=20) as p:
+    with Pool() as p:
         data = p.map(synth_run, kb_inputs + cr_inputs)
 
     with open(args.outputs_folder.joinpath("data.json"), "w") as f:
