@@ -230,10 +230,11 @@ def synthesize_one_iteration(
             res_cost = spl.compute_current_cost()
             sound_prop = spl.current_cmp.get_sound_prop() * 100
             exact_prop = spl.current_cmp.get_unsolved_exact_prop() * 100
-            avg_dist_norm = spl.current_cmp.get_unsolved_dist_avg_norm()
-
+            # avg_dist_norm = spl.current_cmp.get_unsolved_dist_avg_norm()
+            base_dis = spl.current_cmp.get_base_dist()
+            new_dis = spl.current_cmp.get_sound_dist()
             logger.debug(
-                f"{ith_iter}_{rnd}_{i}\t{sound_prop:.2f}%\t{exact_prop:.2f}%\t{avg_dist_norm:.3f}\t{res_cost:.3f}"
+                f"{ith_iter}_{rnd}_{i}\t{sound_prop:.2f}%\t{exact_prop:.2f}%\t{base_dis}->{new_dis}\t{res_cost:.3f}"
             )
 
             cost_data[i].append(res_cost)

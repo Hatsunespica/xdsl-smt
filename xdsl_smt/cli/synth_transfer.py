@@ -429,7 +429,7 @@ def run(
     module = Parser(ctx, transfer_functions.read(), transfer_functions.name).parse_op()
     assert isinstance(module, ModuleOp)
 
-    logger.debug("Round_ID\tSound%\tUExact%\tUDis(Norm)\tCost")
+    logger.debug("Round_ID\tSound%\tUExact%\tDisReduce\tCost")
 
     random = Random(random_seed)
     random_seed = random.randint(0, 1_000_000) if random_seed is None else random_seed

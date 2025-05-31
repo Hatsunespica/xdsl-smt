@@ -7,7 +7,9 @@ def sound_and_precise_cost(res: EvalResult) -> float:
     a = 1
     b = 16
     sound = res.get_sound_prop()
-    dis = res.get_unsolved_dist_avg_norm()
+    dis = res.get_sound_dist() / res.get_base_dist()
+    # if dis == 1:
+    #     return 1
     return (a * (1 - sound) + b * dis) / (a + b)
 
 
@@ -15,7 +17,9 @@ def precise_cost(res: EvalResult) -> float:
     a = 0
     b = 1
     sound = res.get_sound_prop()
-    dis = res.get_unsolved_dist_avg_norm()
+    dis = res.get_sound_dist() / res.get_base_dist()
+    # if dis == 1:
+    #     return 1
     return (a * (1 - sound) + b * dis) / (a + b)
 
 
@@ -23,7 +27,9 @@ def abduction_cost(res: EvalResult) -> float:
     a = 1
     b = 2
     sound = res.get_sound_prop()
-    dis = res.get_unsolved_dist_avg_norm()
+    dis = res.get_sound_dist() / res.get_base_dist()
+    # if dis == 1:
+    #     return 1
     return (a * (1 - sound) + b * dis) / (a + b)
 
 
