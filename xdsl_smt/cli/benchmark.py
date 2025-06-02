@@ -1,4 +1,3 @@
-from math import nan
 from multiprocessing import Pool
 from json import dump
 from argparse import Namespace
