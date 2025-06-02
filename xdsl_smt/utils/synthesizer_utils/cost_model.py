@@ -14,7 +14,7 @@ def general_sound_and_dist_cost(a: float, b: float, res: EvalResult) -> float:
 
 
 def _more_sound(res: EvalResult) -> float:
-    return general_sound_and_dist_cost(1, 16, res)
+    return general_sound_and_dist_cost(1, 2, res)
 
 
 def _only_precise(res: EvalResult) -> float:
@@ -22,7 +22,7 @@ def _only_precise(res: EvalResult) -> float:
 
 
 def _less_sound(res: EvalResult) -> float:
-    return general_sound_and_dist_cost(1, 2, res)
+    return general_sound_and_dist_cost(2, 1, res)
 
 
 def _sound_first(res: EvalResult) -> float:
