@@ -5,7 +5,7 @@ from pathlib import Path
 
 def setup_loggers(output_dir: Path, verbose: int):
     """Sets up loggers to write INFO+DEBUG to one file, and only INFO to another."""
-    logger = logging.getLogger("custom_logger")
+    logger = logging.getLogger(f"custom_logger_{output_dir}")
     logger.setLevel(logging.DEBUG)  # Capture all log levels
     formatter = logging.Formatter("%(message)s")
 
@@ -34,6 +34,7 @@ def setup_loggers(output_dir: Path, verbose: int):
     error_handler.addFilter(lambda record: record.levelno == logging.ERROR)
     logger.addHandler(error_handler)
 
+    logger.info(f'LOG FILE FOR "{output_dir}"')
     return logger
 
 
