@@ -81,6 +81,12 @@ class PerBitEvalResult:
         s += f"sdis: {self.sound_dist:<6}"
         return s
 
+    def get_sound_prop(self) -> float:
+        return self.sounds / self.all_cases
+
+    def get_exact_prop(self) -> float:
+        return self.exacts / self.all_cases
+
 
 class EvalResult:
     per_bit: dict[int, PerBitEvalResult]
