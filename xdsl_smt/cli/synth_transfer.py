@@ -442,8 +442,8 @@ def run(
         EvalResult.get_max_dis = lambda x: x * 2
     elif domain == eval_engine.AbstractDomain.ConstantRange:
         EvalResult.get_max_dis = lambda x: (2**x - 1) * 2
-    else:
-        raise Exception("Unknown Maximum Distance of the domain")
+    elif domain == eval_engine.AbstractDomain.IntegerModulo:
+        EvalResult.get_max_dis = lambda _: 12
 
     context = SynthesizerContext(random)
     context.set_cmp_flags([0, 6, 7])
