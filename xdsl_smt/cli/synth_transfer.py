@@ -527,8 +527,11 @@ def run(
     )
 
     current_prog_len = program_length
-    current_total_rounds = min(500, total_rounds)
-    current_num_abd_procs = min(0, num_abd_procs)
+    # current_prog_len = min(4, current_prog_len) # enable this for increasing program length
+    current_total_rounds = total_rounds
+    # current_total_rounds = min(500, total_rounds) # enable this for increasing total rounds
+    current_num_abd_procs = num_abd_procs
+    # current_num_abd_procs = min(0, num_abd_procs) # enable this for increasing number of abd procs
     for ith_iter in range(num_iters):
         # gradually increase the program length
         current_prog_len += (program_length - current_prog_len) // (
