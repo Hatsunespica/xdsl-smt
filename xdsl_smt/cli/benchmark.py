@@ -8,6 +8,7 @@ from xdsl_smt.cli.synth_transfer import run
 from xdsl_smt.cli.arg_parser import register_arguments
 from xdsl_smt.eval_engine.eval import AbstractDomain
 from xdsl_smt.utils.synthesizer_utils.log_utils import setup_loggers
+from typing import Any
 
 kb_representative_test_names = [
     "knownBitsAdd.mlir",
@@ -123,7 +124,7 @@ cr_test_names = [
 
 def synth_run(
     x: tuple[str, AbstractDomain, Path, Namespace],
-) -> dict[str, float | str]:
+) -> dict[str, Any]:
     func_name = x[0]
     domain = x[1]
     tf_path = x[2]
@@ -160,8 +161,15 @@ def synth_run(
         return {
             "Domain": str(domain),
             "Function": func_name,
-            "Sound Proportion": res.get_sound_prop() * 100,
-            "Exact Proportion": res.get_exact_prop() * 100,
+            "Per Bit Result": [
+                {
+                    "Bitwidth": bw,
+                    "Sound Proportion": per_bit_res.get_sound_prop() * 100,
+                    "Exact Proportion": per_bit_res.get_exact_prop() * 100,
+                    "Distance": per_bit_res.dist,
+                }
+                for bw, per_bit_res in res.per_bit.items()
+            ],
             "Seed": args.random_seed,
             "Notes": "",
         }
@@ -169,8 +177,8 @@ def synth_run(
         return {
             "Domain": str(domain),
             "Function": func_name,
-            "Sound Proportion": nan,
-            "Exact Proportion": nan,
+            # "Sound Proportion": nan,
+            # "Exact Proportion": nan,
             "Seed": args.random_seed,
             "Notes": f"Run was terminated: {e}",
         }
