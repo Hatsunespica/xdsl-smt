@@ -56,6 +56,27 @@ from xdsl_smt.utils.synthesizer_utils.synthesizer_context import SynthesizerCont
 from xdsl_smt.utils.synthesizer_utils.random import Random
 from xdsl_smt.cli.arg_parser import register_arguments
 
+# TODO this should be made local
+ctx = Context()
+ctx.load_dialect(Arith)
+ctx.load_dialect(Builtin)
+ctx.load_dialect(Func)
+ctx.load_dialect(SMTDialect)
+ctx.load_dialect(SMTBitVectorDialect)
+ctx.load_dialect(SMTUtilsDialect)
+ctx.load_dialect(Transfer)
+ctx.load_dialect(Index)
+ctx.load_dialect(Comb)
+ctx.load_dialect(HW)
+
+def parse_file(file: Path) -> ModuleOp:
+    with open(file, "r") as f:
+        module = Parser(ctx, f.read(), file.name).parse_op()
+
+    assert isinstance(module, ModuleOp)
+
+    return module
+
 
 def is_forward(func: FuncOp) -> bool:
     if "is_forward" in func.attributes:
@@ -124,10 +145,6 @@ def print_concrete_function_to_cpp(func: FuncOp) -> str:
     else:
         LowerToCpp(sio, True).apply(ctx, cast(ModuleOp, func))
     return sio.getvalue()
-
-
-# TODO this should be made local
-ctx: Context
 
 
 def eliminate_dead_code(func: FuncOp) -> FuncOp:
@@ -448,19 +465,6 @@ def run(
     num_unsound_candidates: int,
     outputs_folder: Path,
 ) -> EvalResult:
-    global ctx
-    ctx = Context()
-    ctx.load_dialect(Arith)
-    ctx.load_dialect(Builtin)
-    ctx.load_dialect(Func)
-    ctx.load_dialect(SMTDialect)
-    ctx.load_dialect(SMTBitVectorDialect)
-    ctx.load_dialect(SMTUtilsDialect)
-    ctx.load_dialect(Transfer)
-    ctx.load_dialect(Index)
-    ctx.load_dialect(Comb)
-    ctx.load_dialect(HW)
-
     assert min_bitwidth >= 4 or domain != eval_engine.AbstractDomain.IntegerModulo
     EvalResult.get_max_dis = domain.max_dist
 
