@@ -1,6 +1,6 @@
 import logging
 from typing import cast, Callable
-from io import StringIO, TextIOWrapper
+from io import StringIO
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -13,10 +13,15 @@ from xdsl_smt.passes.transfer_inline import FunctionCallInline
 from xdsl_smt.utils.synthesizer_utils.compare_result import EvalResult
 from ..dialects.smt_dialect import SMTDialect
 from ..dialects.smt_bitvector_dialect import SMTBitVectorDialect
-from xdsl_smt.dialects.transfer import TransIntegerType
+from xdsl_smt.dialects.transfer import TransIntegerType, AbstractValueType
 from ..dialects.index_dialect import Index
 from ..dialects.smt_utils_dialect import SMTUtilsDialect
-import xdsl_smt.eval_engine.eval as eval_engine
+from xdsl_smt.eval_engine.eval import (
+    AbstractDomain,
+    setup_eval,
+    eval_transfer_func,
+    reject_sampler,
+)
 from xdsl.dialects.builtin import (
     Builtin,
     ModuleOp,
@@ -56,9 +61,27 @@ from xdsl_smt.utils.synthesizer_utils.synthesizer_context import SynthesizerCont
 from xdsl_smt.utils.synthesizer_utils.random import Random
 from xdsl_smt.cli.arg_parser import register_arguments
 
+# TODO this should be made local
+ctx = Context()
+ctx.load_dialect(Arith)
+ctx.load_dialect(Builtin)
+ctx.load_dialect(Func)
+ctx.load_dialect(SMTDialect)
+ctx.load_dialect(SMTBitVectorDialect)
+ctx.load_dialect(SMTUtilsDialect)
+ctx.load_dialect(Transfer)
+ctx.load_dialect(Index)
+ctx.load_dialect(Comb)
+ctx.load_dialect(HW)
 
-def is_transfer_function(func: FuncOp) -> bool:
-    return "applied_to" in func.attributes
+
+def parse_file(file: Path) -> ModuleOp:
+    with open(file, "r") as f:
+        module = Parser(ctx, f.read(), file.name).parse_op()
+
+    assert isinstance(module, ModuleOp)
+
+    return module
 
 
 def is_forward(func: FuncOp) -> bool:
@@ -130,11 +153,6 @@ def print_concrete_function_to_cpp(func: FuncOp) -> str:
     return sio.getvalue()
 
 
-# TODO why are these global? is there a way we can make them local?
-ret_top_func: FunctionWithCondition
-ctx: Context
-
-
 def eliminate_dead_code(func: FuncOp) -> FuncOp:
     """
     WARNING: this function modifies the func passed to it in place!
@@ -157,15 +175,6 @@ def print_to_cpp(func: FuncOp) -> str:
     return sio.getvalue()
 
 
-def is_base_function(func: FuncOp) -> bool:
-    # if "is_base" in func.attributes:
-    #     base = func.attributes["is_base"]
-    #     assert isinstance(base, IntegerAttr)
-    #     return base.value.data == -1
-    # return False
-    return func.sym_name.data.startswith("part_solution_")
-
-
 def construct_top_func(transfer: FuncOp) -> FuncOp:
     func = FuncOp("top_transfer_function", transfer.function_type)
     func.attributes["applied_to"] = transfer.attributes["applied_to"]
@@ -186,7 +195,8 @@ def eval_transfer_func_helper(
     data_dir: str,
     transfer: list[FunctionWithCondition],
     base: list[FunctionWithCondition],
-    domain: eval_engine.AbstractDomain,
+    ret_top_func: FunctionWithCondition,
+    domain: AbstractDomain,
     helper_funcs: list[str],
 ) -> list[EvalResult]:
     """
@@ -213,7 +223,7 @@ def eval_transfer_func_helper(
         base_func_srcs.append(caller_str)
         helper_func_srcs += helper_strs
 
-    return eval_engine.eval_transfer_func(
+    return eval_transfer_func(
         data_dir,
         transfer_func_names,
         transfer_func_srcs,
@@ -226,8 +236,9 @@ def eval_transfer_func_helper(
 
 def solution_set_eval_func(
     data_dir: str,
-    domain: eval_engine.AbstractDomain,
+    domain: AbstractDomain,
     helper_funcs: list[str],
+    ret_top_func: FunctionWithCondition,
 ) -> Callable[
     [
         list[FunctionWithCondition],
@@ -235,16 +246,18 @@ def solution_set_eval_func(
     ],
     list[EvalResult],
 ]:
-    """
-    This function returns a simplified eval_func receiving transfer functions and base functions
-    """
+    "This function returns a simplified eval_func receiving transfer functions and base functions"
     return lambda transfer=list[FunctionWithCondition], base=list[
         FunctionWithCondition
-    ]: (eval_transfer_func_helper(data_dir, transfer, base, domain, helper_funcs))
+    ]: (
+        eval_transfer_func_helper(
+            data_dir, transfer, base, ret_top_func, domain, helper_funcs
+        )
+    )
 
 
 def tests_sampler_helper(
-    domain: eval_engine.AbstractDomain,
+    domain: AbstractDomain,
     data_dir: str,
     samples: int,
     seed: int,
@@ -260,7 +273,7 @@ def tests_sampler_helper(
         base_func_srcs.append(caller_str)
         callee_srcs += callee_strs
 
-    eval_engine.reject_sampler(
+    reject_sampler(
         domain,
         data_dir,
         samples,
@@ -272,7 +285,7 @@ def tests_sampler_helper(
 
 
 def solution_set_tests_sampler(
-    domain: eval_engine.AbstractDomain,
+    domain: AbstractDomain,
     data_dir: str,
     helper_srcs: list[str],
 ) -> Callable[[list[FunctionWithCondition], int, int], None]:
@@ -303,11 +316,11 @@ class HelperFuncs:
 
     def items_to_print(self) -> list[FuncOp]:
         canditates = [
+            self.get_top_func,
             self.instance_constraint_func,
             self.domain_constraint_func,
             self.op_constraint_func,
             self.abs_op_constraint_func,
-            self.get_top_func,
             self.meet_func,
         ]
         return [x for x in canditates if x is not None]
@@ -318,83 +331,130 @@ class HelperFuncs:
         ]
 
 
-def get_helper_funcs(module: ModuleOp) -> HelperFuncs:
-    INSTANCE_CONSTRAINT = "getInstanceConstraint"
-    DOMAIN_CONSTRAINT = "getConstraint"
-    OP_CONSTRAINT = "op_constraint"
-    ABS_OP_CONSTRAINT = "abs_op_constraint"
-    MEET_FUNC = "meet"
-    GET_TOP_FUNC = "getTop"
-    CONCRETE_OP_FUNC = "concrete_op"
+def is_transfer_function(func: FuncOp) -> bool:
+    return "applied_to" in func.attributes
 
-    transfer_func = None
 
-    func_name_to_func: dict[str, FuncOp] = {}
-    for func in module.ops:
-        if isinstance(func, FuncOp):
-            func_name_to_func[func.sym_name.data] = func
-    FunctionCallInline(False, func_name_to_func).apply(ctx, module)
+def is_base_function(func: FuncOp) -> bool:
+    return func.sym_name.data.startswith("part_solution_")
 
-    crt_func = func_name_to_func.get(CONCRETE_OP_FUNC, None)
 
-    for func in module.ops:
-        if (
-            isinstance(func, FuncOp)
-            and is_transfer_function(func)
-            and not is_base_function(func)
-        ):
-            transfer_func = func
-            if crt_func is None and "applied_to" in func.attributes:
-                assert isa(
-                    applied_to := func.attributes["applied_to"], ArrayAttr[StringAttr]
-                )
-                concrete_func_name = applied_to.data[0].data
-                concrete_func = get_concrete_function(concrete_func_name, None)
-                crt_func = concrete_func
-                break
+def convert_xfer_func(fn: FuncOp, ty: AbstractValueType):
+    "Warning: this modifies the `FuncOp` in place"
+    fn.function_type = FunctionType.from_lists([ty, ty], [ty])
+    fn.body.block.insert_arg(ty, 0)
+    fn.body.block.insert_arg(ty, 0)
 
-    assert isinstance(
-        transfer_func, FuncOp
-    ), "No transfer function is found in input file"
-    assert crt_func is not None, "Failed to get concrete function from input file"
+    *_, op = fn.body.block.ops
+    op.operands[-1].replace_by(fn.body.block.args[0])
 
-    # Handle helper functions
-    domain_constraint_func: FuncOp | None = func_name_to_func.get(
-        DOMAIN_CONSTRAINT, None
+    fn.body.block.erase_arg(fn.body.block.args[2])
+    fn.body.block.erase_arg(fn.body.block.args[2])
+
+
+def get_helper_funcs(
+    p: Path, d: AbstractDomain, const_rhs: bool
+) -> tuple[ModuleOp, HelperFuncs]:
+    with open(p, "r") as f:
+        module = Parser(ctx, f.read(), p.name).parse_op()
+        assert isinstance(module, ModuleOp)
+
+    fns = {x.sym_name.data: x for x in module.ops if isinstance(x, FuncOp)}
+    FunctionCallInline(False, fns).apply(ctx, module)
+
+    x = [x for x in fns.values() if is_transfer_function(x) and not is_base_function(x)]
+    assert len(x) != 0, "No transfer function is found in input file"
+    transfer_func = x[0]
+
+    ty = AbstractValueType([TransIntegerType() for _ in range(d.vec_size)])
+    convert_xfer_func(transfer_func, ty)
+
+    if "concrete_op" in fns:
+        crt_func = fns["concrete_op"]
+    else:
+        assert isa(at := transfer_func.attributes["applied_to"], ArrayAttr[StringAttr])
+        concrete_func_name = at.data[0].data
+        crt_func = get_concrete_function(concrete_func_name, None)
+
+    op_con_fn = fns.get("op_constraint", None)
+
+    def get_domain_fns(fp: str) -> FuncOp:
+        dp = p.resolve().parent.parent.joinpath(str(d), fp)
+        with open(dp, "r") as f:
+            fn = Parser(ctx, f.read(), f.name).parse_op()
+            assert isinstance(fn, FuncOp)
+
+        return fn
+
+    top = get_domain_fns("top.mlir")
+    meet = get_domain_fns("meet.mlir")
+    constraint = get_domain_fns("get_constraint.mlir")
+    instance_constraint = get_domain_fns("get_instance_constraint.mlir")
+    abs_op_con_fn = get_domain_fns("const_rhs.mlir") if const_rhs else None
+
+    return module, HelperFuncs(
+        crt_func=crt_func,
+        instance_constraint_func=instance_constraint,
+        domain_constraint_func=constraint,
+        op_constraint_func=op_con_fn,
+        abs_op_constraint_func=abs_op_con_fn,
+        get_top_func=top,
+        transfer_func=transfer_func,
+        meet_func=meet,
     )
-    instance_constraint_func: FuncOp | None = func_name_to_func.get(
-        INSTANCE_CONSTRAINT, None
-    )
-    op_constraint_func: FuncOp | None = func_name_to_func.get(OP_CONSTRAINT, None)
-    abs_op_constraint_func: FuncOp | None = func_name_to_func.get(
-        ABS_OP_CONSTRAINT, None
-    )
-    meet_func: FuncOp | None = func_name_to_func.get(MEET_FUNC, None)
-    get_top_func: FuncOp | None = func_name_to_func.get(GET_TOP_FUNC, None)
-    global ret_top_func
-    ret_top_func = FunctionWithCondition(construct_top_func(transfer_func))
-    ret_top_func.set_func_name("ret_top")
 
-    assert instance_constraint_func is not None
-    assert domain_constraint_func is not None
-    assert meet_func is not None
-    assert get_top_func is not None
 
-    return HelperFuncs(
-        crt_func,
-        instance_constraint_func,
-        domain_constraint_func,
-        op_constraint_func,
-        abs_op_constraint_func,
-        get_top_func,
-        transfer_func,
-        meet_func,
-    )
+def get_base_xfers(module: ModuleOp) -> list[FunctionWithCondition]:
+    base_bodys: dict[str, FuncOp] = {}
+    base_conds: dict[str, FuncOp] = {}
+    base_transfers: list[FunctionWithCondition] = []
+    fs = [x for x in module.ops if isinstance(x, FuncOp) and is_base_function(x)]
+
+    for func in fs:
+        func_name = func.sym_name.data
+        if func_name.endswith("_body"):
+            main_name = func_name[: -len("_body")]
+            if main_name in base_conds:
+                body = func
+                cond = base_conds.pop(main_name)
+                body.attributes["number"] = StringAttr("init")
+                cond.attributes["number"] = StringAttr("init")
+                base_transfers.append(FunctionWithCondition(body, cond))
+            else:
+                base_bodys[main_name] = func
+        elif func_name.endswith("_cond"):
+            main_name = func_name[: -len("_cond")]
+            if main_name in base_bodys:
+                body = base_bodys.pop(main_name)
+                cond = func
+                body.attributes["number"] = StringAttr("init")
+                cond.attributes["number"] = StringAttr("init")
+                base_transfers.append(FunctionWithCondition(body, func))
+            else:
+                base_conds[main_name] = func
+
+    assert len(base_conds) == 0
+    for _, func in base_bodys.items():
+        func.attributes["number"] = StringAttr("init")
+        base_transfers.append(FunctionWithCondition(func))
+
+    return base_transfers
+
+
+def setup_context(r: Random, use_full_i1_ops: bool) -> SynthesizerContext:
+    c = SynthesizerContext(r)
+    c.set_cmp_flags([0, 6, 7])
+    c.use_full_int_ops()
+    if use_full_i1_ops:
+        c.use_full_i1_ops()
+    else:
+        c.use_basic_i1_ops()
+    return c
 
 
 def run(
     logger: logging.Logger,
-    domain: eval_engine.AbstractDomain,
+    domain: AbstractDomain,
     num_programs: int,
     total_rounds: int,
     program_length: int,
@@ -408,26 +468,14 @@ def run(
     num_random_tests: int | None,
     random_seed: int | None,
     random_number_file: str | None,
-    transfer_functions: TextIOWrapper,
+    transfer_functions: Path,
     weighted_dsl: bool,
+    const_rhs: bool,
     num_unsound_candidates: int,
     outputs_folder: Path,
 ) -> EvalResult:
-    global ctx
-    ctx = Context()
-    ctx.load_dialect(Arith)
-    ctx.load_dialect(Builtin)
-    ctx.load_dialect(Func)
-    ctx.load_dialect(SMTDialect)
-    ctx.load_dialect(SMTBitVectorDialect)
-    ctx.load_dialect(SMTUtilsDialect)
-    ctx.load_dialect(Transfer)
-    ctx.load_dialect(Index)
-    ctx.load_dialect(Comb)
-    ctx.load_dialect(HW)
-
-    module = Parser(ctx, transfer_functions.read(), transfer_functions.name).parse_op()
-    assert isinstance(module, ModuleOp)
+    assert min_bitwidth >= 4 or domain != AbstractDomain.IntegerModulo
+    EvalResult.get_max_dis = domain.max_dist
 
     logger.debug("Round_ID\tSound%\tUExact%\tUDis(Norm)\tCost")
 
@@ -438,70 +486,23 @@ def run(
 
     samples = (random_seed, num_random_tests) if num_random_tests is not None else None
 
-    if domain == eval_engine.AbstractDomain.KnownBits:
-        EvalResult.get_max_dis = lambda x: x * 2
-    elif domain == eval_engine.AbstractDomain.ConstantRange:
-        EvalResult.get_max_dis = lambda x: (2**x - 1) * 2
-    else:
-        raise Exception("Unknown Maximum Distance of the domain")
+    context = setup_context(random, False)
+    context_weighted = setup_context(random, False)
+    context_cond = setup_context(random, True)
 
-    context = SynthesizerContext(random)
-    context.set_cmp_flags([0, 6, 7])
-    context.use_full_int_ops()
-    context.use_basic_i1_ops()
-
-    context_weighted = SynthesizerContext(random)
-    context_weighted.set_cmp_flags([0, 6, 7])
-    context_weighted.use_full_int_ops()
-    context_weighted.use_basic_i1_ops()
-
-    context_cond = SynthesizerContext(random)
-    context_cond.set_cmp_flags([0, 6, 7])
-    context_cond.use_full_int_ops()
-    context_cond.use_full_i1_ops()
-
-    helper_funcs = get_helper_funcs(module)
+    module, helper_funcs = get_helper_funcs(transfer_functions, domain, const_rhs)
     helper_funcs_cpp = helper_funcs.to_cpp()
+    base_transfers = get_base_xfers(module)
 
-    data_dir = eval_engine.setup_eval(
+    ret_top_func = FunctionWithCondition(construct_top_func(helper_funcs.transfer_func))
+    ret_top_func.set_func_name("ret_top")
+
+    data_dir = setup_eval(
         domain, max_bitwidth, min_bitwidth, samples, "\n".join(helper_funcs_cpp)
     )
 
-    base_bodys: dict[str, FuncOp] = {}
-    base_conds: dict[str, FuncOp] = {}
-    base_transfers: list[FunctionWithCondition] = []
-    for func in module.ops:
-        if isinstance(func, FuncOp) and is_base_function(func):
-            func_name = func.sym_name.data
-            if func_name.endswith("_body"):
-                main_name = func_name[: -len("_body")]
-                if main_name in base_conds:
-                    body = func
-                    cond = base_conds.pop(main_name)
-                    body.attributes["number"] = StringAttr("init")
-                    cond.attributes["number"] = StringAttr("init")
-                    base_transfers.append(FunctionWithCondition(body, cond))
-                else:
-                    base_bodys[main_name] = func
-            elif func_name.endswith("_cond"):
-                main_name = func_name[: -len("_cond")]
-                if main_name in base_bodys:
-                    body = base_bodys.pop(main_name)
-                    cond = func
-                    body.attributes["number"] = StringAttr("init")
-                    cond.attributes["number"] = StringAttr("init")
-                    base_transfers.append(FunctionWithCondition(body, func))
-                else:
-                    base_conds[main_name] = func
-    assert len(base_conds) == 0
-    for _, func in base_bodys.items():
-        func.attributes["number"] = StringAttr("init")
-        base_transfers.append(FunctionWithCondition(func))
-
     solution_eval_func = solution_set_eval_func(
-        data_dir,
-        domain,
-        helper_funcs_cpp,
+        data_dir, domain, helper_funcs_cpp, ret_top_func
     )
     solution_tests_sampler = solution_set_tests_sampler(
         domain,
@@ -601,7 +602,7 @@ def run(
         raise Exception("Found no solutions")
     solution_module, solution_str = solution_set.generate_solution_and_cpp()
     save_solution(solution_module, solution_str, outputs_folder)
-    cmp_results: list[EvalResult] = eval_engine.eval_transfer_func(
+    cmp_results: list[EvalResult] = eval_transfer_func(
         data_dir,
         ["solution"],
         [solution_str],
@@ -630,7 +631,7 @@ def main() -> None:
 
     run(
         logger=logger,
-        domain=eval_engine.AbstractDomain[args.domain],
+        domain=AbstractDomain[args.domain],
         num_programs=args.num_programs,
         total_rounds=args.total_rounds,
         program_length=args.program_length,
@@ -646,6 +647,7 @@ def main() -> None:
         random_number_file=args.random_file,
         transfer_functions=args.transfer_functions,
         weighted_dsl=args.weighted_dsl,
+        const_rhs=args.const_rhs,
         num_unsound_candidates=args.num_unsound_candidates,
         outputs_folder=args.outputs_folder,
     )

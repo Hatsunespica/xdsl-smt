@@ -20,7 +20,7 @@ def register_arguments(prog: str) -> Namespace:
 
     if prog == "synth_transfer":
         ap.add_argument(
-            "transfer_functions", type=FileType("r"), help="path to transfer function"
+            "transfer_functions", type=Path, help="path to transfer function"
         )
         ap.add_argument(
             "-random_file", type=FileType("r"), help="file for preset operation picks"
@@ -31,6 +31,11 @@ def register_arguments(prog: str) -> Namespace:
             choices=[str(x) for x in AbstractDomain],
             required=True,
             help="Abstract Domain to evaluate",
+        )
+        ap.add_argument(
+            "-const_rhs",
+            action="store_true",
+            help="Add a constraint to the abstract value on the RHS must be constant",
         )
 
     if prog == "benchmark":

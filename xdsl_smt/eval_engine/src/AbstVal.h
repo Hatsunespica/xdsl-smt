@@ -471,8 +471,13 @@ public:
   unsigned int distance(const IntegerModulo &rhs) const {
     unsigned int d = 0;
     for (unsigned int i = 0; i < N; ++i)
-      if (residues()[i] != rhs.residues()[i])
-        d += 1;
+      if (residues()[i] != rhs.residues()[i]) {
+        if (residues()[i] == IM::primes[i] ||
+            rhs.residues()[i] == IM::primes[i])
+          d += 1;
+        else
+          d += 2;
+      }
 
     return d;
   }
