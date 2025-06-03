@@ -2,8 +2,36 @@
 #include "../APInt.h"
 
 bool nonZeroRhs(const A::APInt &_, const A::APInt &rhs) { return !rhs == 0; }
+
+bool udivExact(const A::APInt &lhs, const A::APInt &rhs) {
+  if (rhs == 0)
+    return false;
+
+  if (lhs.urem(rhs) != 0)
+    return false;
+
+  return true;
+}
+
+bool sdivExact(const A::APInt &lhs, const A::APInt &rhs) {
+  if (rhs == 0)
+    return false;
+
+  if (lhs.srem(rhs) != 0)
+    return false;
+
+  return true;
+}
+
 bool validShftAmnt(const A::APInt &l, const A::APInt &r) {
   return r.getZExtValue() < l.getBitWidth();
+}
+
+bool shiftExact(const A::APInt &lhs, const A::APInt &rhs) {
+  if (rhs.getZExtValue() >= lhs.getBitWidth())
+    return false;
+
+  return lhs.countr_zero() >= rhs.getZExtValue();
 }
 
 opConFn getNW(ovFn fn) {
@@ -46,9 +74,9 @@ const std::vector<std::tuple<std::string, concFn, std::optional<opConFn>>>
         {"abdu", OP(A::APIntOps::abdu(l, r)), std::nullopt},
         {"abds", OP(A::APIntOps::abds(l, r)), std::nullopt},
         {"udiv", OP(l.udiv(r)), nonZeroRhs},
-        {"udiv exact", OP(l.udiv(r)), nonZeroRhs},
+        {"udiv exact", OP(l.udiv(r)), udivExact},
         {"sdiv", OP(l.sdiv(r)), nonZeroRhs},
-        {"sdiv exact", OP(l.sdiv(r)), nonZeroRhs},
+        {"sdiv exact", OP(l.sdiv(r)), sdivExact},
         {"urem", OP(l.urem(r)), nonZeroRhs},
         {"srem", OP(l.srem(r)), nonZeroRhs},
         {"mul", OP(l *r), std::nullopt},
@@ -63,9 +91,9 @@ const std::vector<std::tuple<std::string, concFn, std::optional<opConFn>>>
         {"shl nsuw", OP(l.shl(r)),
          getNW(&A::APInt::sshl_ov, &A::APInt::ushl_ov)},
         {"lshr", OP(l.lshr(r)), validShftAmnt},
-        {"lshr exact", OP(l.lshr(r)), validShftAmnt},
+        {"lshr exact", OP(l.lshr(r)), shiftExact},
         {"ashr", OP(l.ashr(r)), validShftAmnt},
-        {"ashr exact", OP(l.ashr(r)), validShftAmnt},
+        {"ashr exact", OP(l.ashr(r)), shiftExact},
         {"avgfloors", OP(A::APIntOps::avgFloorS(l, r)), std::nullopt},
         {"avgflooru", OP(A::APIntOps::avgFloorU(l, r)), std::nullopt},
         {"avgceils", OP(A::APIntOps::avgCeilS(l, r)), std::nullopt},

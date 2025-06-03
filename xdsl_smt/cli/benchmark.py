@@ -9,115 +9,79 @@ from xdsl_smt.eval_engine.eval import AbstractDomain
 from xdsl_smt.utils.synthesizer_utils.log_utils import setup_loggers
 from typing import Any
 
+
+all_test_names = [
+    "Abds.mlir",
+    "Abdu.mlir",
+    "Add.mlir",
+    "AddNsw.mlir",
+    "AddNswNuw.mlir",
+    "AddNuw.mlir",
+    "And.mlir",
+    "AshrExact.mlir",
+    "Ashr.mlir",
+    "AvgCeilS.mlir",
+    "AvgCeilU.mlir",
+    "AvgFloorS.mlir",
+    "AvgFloorU.mlir",
+    "LshrExact.mlir",
+    "Lshr.mlir",
+    "Mods.mlir",
+    "Modu.mlir",
+    "Mul.mlir",
+    "MulNsw.mlir",
+    "MulNswNuw.mlir",
+    "MulNuw.mlir",
+    "Or.mlir",
+    "SaddSat.mlir",
+    "SdivExact.mlir",
+    "Sdiv.mlir",
+    "Shl.mlir",
+    "ShlNsw.mlir",
+    "ShlNswNuw.mlir",
+    "ShlNuw.mlir",
+    "Smax.mlir",
+    "Smin.mlir",
+    "SmulSat.mlir",
+    "SshlSat.mlir",
+    "SsubSat.mlir",
+    "Sub.mlir",
+    "SubNsw.mlir",
+    "SubNswNuw.mlir",
+    "SubNuw.mlir",
+    "UaddSat.mlir",
+    "UdivExact.mlir",
+    "Udiv.mlir",
+    "Umax.mlir",
+    "Umin.mlir",
+    "UmulSat.mlir",
+    "UshlSat.mlir",
+    "UsubSat.mlir",
+    "Xor.mlir",
+]
+
 kb_representative_test_names = [
-    "knownBitsAdd.mlir",
-    "knownBitsAddNsw.mlir",
-    "knownBitsAddNuw.mlir",
-    "knownBitsAnd.mlir",
-    "knownBitsMul.mlir",
-    "knownBitsAvgFloorU.mlir",
-    "knownBitsLshr.mlir",
-    "knownBitsShl.mlir",
-    "knownBitsUdivExact.mlir",
-    "knownBitsUdiv.mlir",
-    "knownBitsUmax.mlir",
+    "Add.mlir",
+    "AddNsw.mlir",
+    "AddNuw.mlir",
+    "And.mlir",
+    "Mul.mlir",
+    "AvgFloorU.mlir",
+    "Lshr.mlir",
+    "Shl.mlir",
+    "UdivExact.mlir",
+    "Udiv.mlir",
+    "Umax.mlir",
 ]
 
 cr_representative_test_names = [
-    "integerRangeAdd.mlir",
-    "integerRangeAddNuw.mlir",
-    "integerRangeAnd.mlir",
-    "integerRangeShl.mlir",
-    "integerRangeMul.mlir",
-    "integerRangeUdiv.mlir",
-    "integerRangeUmax.mlir",
-]
-
-kb_test_names = [
-    "knownBitsAbds.mlir",
-    "knownBitsAbdu.mlir",
-    "knownBitsAdd.mlir",
-    "knownBitsAddNsw.mlir",
-    "knownBitsAddNswNuw.mlir",
-    "knownBitsAddNuw.mlir",
-    "knownBitsAnd.mlir",
-    "knownBitsAshrExact.mlir",
-    "knownBitsAshr.mlir",
-    "knownBitsAvgCeilS.mlir",
-    "knownBitsAvgCeilU.mlir",
-    "knownBitsAvgFloorS.mlir",
-    "knownBitsAvgFloorU.mlir",
-    "knownBitsLshrExact.mlir",
-    "knownBitsLshr.mlir",
-    "knownBitsMods.mlir",
-    "knownBitsModu.mlir",
-    "knownBitsMul.mlir",
-    "knownBitsOr.mlir",
-    "KnownBitsSaddSat.mlir",
-    "knownBitsSdivExact.mlir",
-    "knownBitsSdiv.mlir",
-    "knownBitsShl.mlir",
-    "knownBitsShlNsw.mlir",
-    "knownBitsShlNswNuw.mlir",
-    "knownBitsShlNuw.mlir",
-    "knownBitsSmax.mlir",
-    "knownBitsSmin.mlir",
-    "KnownBitsSsubSat.mlir",
-    "knownBitsSub.mlir",
-    "knownBitsSubNsw.mlir",
-    "knownBitsSubNswNuw.mlir",
-    "knownBitsSubNuw.mlir",
-    "KnownBitsUaddSat.mlir",
-    "knownBitsUdivExact.mlir",
-    "knownBitsUdiv.mlir",
-    "knownBitsUmax.mlir",
-    "knownBitsUmin.mlir",
-    "KnownBitsUsubSat.mlir",
-    "knownBitsXor.mlir",
-]
-
-cr_test_names = [
-    "integerRangeAdd.mlir",
-    "integerRangeAddNsw.mlir",
-    "integerRangeAddNswNuw.mlir",
-    "integerRangeAddNuw.mlir",
-    "integerRangeAnd.mlir",
-    "integerRangeAshrExact.mlir",
-    "integerRangeAshr.mlir",
-    "integerRangeLshrExact.mlir",
-    "integerRangeLshr.mlir",
-    "integerRangeMods.mlir",
-    "integerRangeModu.mlir",
-    "integerRangeMul.mlir",
-    "integerRangeMulNsw.mlir",
-    "integerRangeMulNswNuw.mlir",
-    "integerRangeMulNuw.mlir",
-    "integerRangeOr.mlir",
-    "integerRangeSaddSat.mlir",
-    "integerRangeSdivExact.mlir",
-    "integerRangeSdiv.mlir",
-    "integerRangeShl.mlir",
-    "integerRangeShlNsw.mlir",
-    "integerRangeShlNswNuw.mlir",
-    "integerRangeShlNuw.mlir",
-    "integerRangeSmax.mlir",
-    "integerRangeSmin.mlir",
-    "integerRangeSmulSat.mlir",
-    "integerRangeSshlSat.mlir",
-    "integerRangeSsubSat.mlir",
-    "integerRangeSub.mlir",
-    "integerRangeSubNsw.mlir",
-    "integerRangeSubNswNuw.mlir",
-    "integerRangeSubNuw.mlir",
-    "integerRangeUaddSat.mlir",
-    "integerRangeUdivExact.mlir",
-    "integerRangeUdiv.mlir",
-    "integerRangeUmax.mlir",
-    "integerRangeUmin.mlir",
-    "integerRangeUmulSat.mlir",
-    "integerRangeUshlSat.mlir",
-    "integerRangeUsubSat.mlir",
-    "integerRangeXor.mlir",
+    "Add.mlir",
+    "AddNuw.mlir",
+    "And.mlir",
+    "Shl.mlir",
+    "Mul.mlir",
+    "Udiv.mlir",
+    "Umax.mlir",
 ]
 
 
@@ -128,7 +92,9 @@ def synth_run(
     domain = x[1]
     tf_path = x[2]
     args = x[3]
+
     print(f"Running {domain} {func_name}")
+
     try:
         output_folder = args.outputs_folder.joinpath(f"{domain}_{func_name}")
         output_folder.mkdir()
@@ -151,8 +117,9 @@ def synth_run(
             random_seed=args.random_seed,
             random_number_file=None,
             total_rounds=args.total_rounds,
-            transfer_functions=open(tf_path, "r"),
+            transfer_functions=tf_path,
             weighted_dsl=args.weighted_dsl,
+            const_rhs=False,
             num_unsound_candidates=args.num_unsound_candidates,
             outputs_folder=output_folder,
         )
@@ -170,14 +137,11 @@ def synth_run(
                 for bw, per_bit_res in res.per_bit.items()
             ],
             "Seed": args.random_seed,
-            "Notes": "",
         }
     except Exception as e:
         return {
             "Domain": str(domain),
             "Function": func_name,
-            # "Sound Proportion": nan,
-            # "Exact Proportion": nan,
             "Seed": args.random_seed,
             "Notes": f"Run was terminated: {e}",
         }
@@ -185,7 +149,7 @@ def synth_run(
 
 def main() -> None:
     args = register_arguments("benchmark")
-    start_dir = Path("tests").joinpath("synth")
+    start_dir = Path("tests").joinpath("synth", "Operations")
 
     if not args.outputs_folder.exists():
         args.outputs_folder.mkdir(parents=True, exist_ok=True)
@@ -193,23 +157,14 @@ def main() -> None:
         raise FileExistsError(
             f'Output folder "{args.outputs_folder}" already exists. Please remove it or choose a different one.'
         )
+
     kb_inputs = [
-        (
-            x.split("Bits")[1].split(".")[0],
-            AbstractDomain.KnownBits,
-            start_dir.joinpath("KnownBits", x),
-            args,
-        )
+        (x.split(".")[0], AbstractDomain.KnownBits, start_dir.joinpath(x), args)
         for x in kb_representative_test_names
     ]
 
     cr_inputs = [
-        (
-            x.split("Range")[1].split(".")[0],
-            AbstractDomain.ConstantRange,
-            start_dir.joinpath("ConstantRange", x),
-            args,
-        )
+        (x.split(".")[0], AbstractDomain.ConstantRange, start_dir.joinpath(x), args)
         for x in cr_representative_test_names
     ]
 

@@ -91,7 +91,7 @@ class PerBitEvalResult:
 class EvalResult:
     per_bit: dict[int, PerBitEvalResult]
     max_bit: int
-    get_max_dis: Callable[[int], int] = lambda _: 0
+    get_max_dis: Callable[[int], int] = lambda _: int(1 / 0)
     all_cases: int
     sounds: int
     exacts: int
@@ -148,9 +148,6 @@ class EvalResult:
         return self.unsolved_exacts / self.unsolved_cases
 
     def get_unsolved_dist_avg_norm(self) -> float:
-        # return self.per_bit[
-        #     self.max_bit
-        # ].get_unsolved_dist_avg() / EvalResult.get_max_dis(self.max_bit)
         return (
             sum(
                 res.unsolved_dist / EvalResult.get_max_dis(bw)
