@@ -52,7 +52,7 @@ int main() {
   if (domain == "KnownBits") {
     auto [bws, toEval] = getToEval<KnownBits>(fname);
     r = {bws, Eval<KnownBits>(std::move(jit), synNames, bFnNames).eval(toEval)};
-  } else if (domain == "ConstantRange") {
+  } else if (domain == "UConstRange") {
     auto [bws, toEval] = getToEval<UConstRange>(fname);
     r = {bws,
          Eval<UConstRange>(std::move(jit), synNames, bFnNames).eval(toEval)};

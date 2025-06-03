@@ -72,9 +72,11 @@ int main() {
 
   if (domain == "KnownBits")
     results = eval<KnownBits, llvm::KnownBits>(bw, kb_tests(), kb_xfer_wrapper);
-  else if (domain == "ConstantRange")
+  else if (domain == "UConstRange")
     results = eval<UConstRange, llvm::ConstantRange>(bw, cr_tests(),
                                                        cr_xfer_wrapper);
+  else if (domain == "SConstRange")
+    std::cerr << "SConstRange not impl'd yet.\n";
   else if (domain == "IntegerModulo")
     results =
         eval<IntegerModulo<6>, std::nullopt_t>(bw, im_tests(), im_xfer_wrapper);

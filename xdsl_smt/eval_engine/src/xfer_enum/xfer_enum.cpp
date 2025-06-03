@@ -48,7 +48,7 @@ int main() {
 
   if (domain == "KnownBits") {
     handleDomain<KnownBits>(std::move(jit), ubw, lbw, samples, fname);
-  } else if (domain == "ConstantRange") {
+  } else if (domain == "UConstRange") {
     handleDomain<UConstRange>(std::move(jit), ubw, lbw, samples, fname);
   } else if (domain == "SConstRange") {
     handleDomain<SConstRange>(std::move(jit), ubw, lbw, samples, fname);

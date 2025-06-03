@@ -66,10 +66,10 @@ extern "C" Vec<2> kb_xor(const Vec<2> arg0, const Vec<2> arg1) {
 """,
 )
 
-cr_add = (
-    "cr_add",
+ucr_add = (
+    "ucr_add",
     """
-extern "C" Vec<2> cr_add(const Vec<2> arg0, const Vec<2> arg1) {
+extern "C" Vec<2> ucr_add(const Vec<2> arg0, const Vec<2> arg1) {
   bool res0_ov;
   bool res1_ov;
   APInt res0 = arg0[0].uadd_ov(arg1[0], res0_ov);
@@ -82,10 +82,10 @@ extern "C" Vec<2> cr_add(const Vec<2> arg0, const Vec<2> arg1) {
 """,
 )
 
-cr_sub = (
-    "cr_sub",
+ucr_sub = (
+    "ucr_sub",
     """
-extern "C" Vec<2> cr_sub(const Vec<2> arg0, const Vec<2> arg1) {
+extern "C" Vec<2> ucr_sub(const Vec<2> arg0, const Vec<2> arg1) {
   bool res0_ov;
   bool res1_ov;
   APInt res0 = arg0[0].usub_ov(arg1[1], res0_ov);
@@ -93,6 +93,22 @@ extern "C" Vec<2> cr_sub(const Vec<2> arg0, const Vec<2> arg1) {
   if (res0.ugt(res1) || (res0_ov ^ res1_ov))
     return {APInt::getMinValue(arg0[0].getBitWidth()),
             APInt::getMaxValue(arg0[0].getBitWidth())};
+  return {res0, res1};
+}
+""",
+)
+
+scr_add = (
+    "scr_add",
+    """
+extern "C" Vec<2> scr_add(const Vec<2> arg0, const Vec<2> arg1) {
+  bool res0_ov;
+  bool res1_ov;
+  APInt res0 = arg0[0].sadd_ov(arg1[0], res0_ov);
+  APInt res1 = arg0[1].sadd_ov(arg1[1], res1_ov);
+  if (res0.sgt(res1) || (res0_ov ^ res1_ov))
+    return {APInt::getSignedMinValue(arg0[0].getBitWidth()),
+            APInt::getSignedMaxValue(arg0[0].getBitWidth())};
   return {res0, res1};
 }
 """,
@@ -271,11 +287,11 @@ bw: 4  all: 6561  s: 897   e: 897   uall: 4220  us: 816   ue: 816   dis: 14974 u
     ],
 )
 
-cr_add_test = TestInput(
+ucr_add_test = TestInput(
     cnc_add,
     None,
-    AbstractDomain.ConstantRange,
-    [cr_add, cr_sub],
+    AbstractDomain.UConstRange,
+    [ucr_add, ucr_sub],
     [
         """
 bw: 1  all: 9     s: 9     e: 9     uall: 4     us: 4     ue: 4     dis: 0     udis: 0     bdis: 4     sdis: 0
@@ -292,11 +308,11 @@ bw: 4  all: 18496 s: 11951 e: 8906  uall: 6920  us: 3420  ue: 375   dis: 75432 u
     ],
 )
 
-cr_sub_test = TestInput(
+ucr_sub_test = TestInput(
     cnc_sub,
     None,
-    AbstractDomain.ConstantRange,
-    [cr_sub, cr_add],
+    AbstractDomain.UConstRange,
+    [ucr_sub, ucr_add],
     [
         """
 bw: 1  all: 9     s: 9     e: 9     uall: 4     us: 4     ue: 4     dis: 0     udis: 0     bdis: 4     sdis: 0
@@ -309,6 +325,21 @@ bw: 1  all: 9     s: 9     e: 9     uall: 4     us: 4     ue: 4     dis: 0     u
 bw: 2  all: 100   s: 71    e: 59    uall: 46    us: 29    ue: 17    dis: 88    udis: 71    bdis: 96    sdis: 58
 bw: 3  all: 1296  s: 839   e: 636   uall: 532   us: 278   ue: 75    dis: 2620  udis: 1950  bdis: 2352  sdis: 1994
 bw: 4  all: 18496 s: 11951 e: 8906  uall: 6920  us: 3420  ue: 375   dis: 75432 udis: 53340 bdis: 63648 sdis: 59948
+        """,
+    ],
+)
+
+scr_add_test = TestInput(
+    cnc_add,
+    None,
+    AbstractDomain.SConstRange,
+    [scr_add],
+    [
+        """
+bw: 1  all: 9     s: 9     e: 9     uall: 4     us: 4     ue: 4     dis: 0     udis: 0     bdis: 4     sdis: 0
+bw: 2  all: 100   s: 100   e: 100   uall: 47    us: 47    ue: 47    dis: 0     udis: 0     bdis: 97    sdis: 0
+bw: 3  all: 1296  s: 1296  e: 1296  uall: 580   us: 580   ue: 580   dis: 0     udis: 0     bdis: 2452  sdis: 0
+bw: 4  all: 18496 s: 18496 e: 18496 uall: 7872  us: 7872  ue: 7872  dis: 0     udis: 0     bdis: 68016 sdis: 0
         """,
     ],
 )
@@ -334,6 +365,7 @@ if __name__ == "__main__":
     test(kb_and_test)
     test(kb_xor_test)
     test(kb_add_test)
-    test(cr_add_test)
-    test(cr_sub_test)
+    test(ucr_add_test)
+    test(ucr_sub_test)
+    test(scr_add_test)
     test(im_add_nsw_test)

@@ -69,7 +69,7 @@ int main() {
   if (domain == "KnownBits") {
     Eval<KnownBits> e(std::move(jit), {}, bFnNames);
     handleDomain(e, dirPath, samples, seed);
-  } else if (domain == "ConstantRange") {
+  } else if (domain == "UConstRange") {
     Eval<UConstRange> e(std::move(jit), {}, bFnNames);
     handleDomain(e, dirPath, samples, seed);
   } else if (domain == "SConstRange") {

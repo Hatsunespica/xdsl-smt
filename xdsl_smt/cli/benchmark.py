@@ -164,7 +164,7 @@ def main() -> None:
     ]
 
     cr_inputs = [
-        (x.split(".")[0], AbstractDomain.ConstantRange, start_dir.joinpath(x), args)
+        (x.split(".")[0], AbstractDomain.UConstRange, start_dir.joinpath(x), args)
         for x in cr_representative_test_names
     ]
 

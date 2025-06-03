@@ -9,7 +9,8 @@ from xdsl_smt.utils.synthesizer_utils.compare_result import EvalResult, PerBitEv
 
 class AbstractDomain(Enum):
     KnownBits = ("KnownBits", 2, lambda x: x * 2)  # type: ignore
-    ConstantRange = ("ConstantRange", 2, lambda x: (2**x - 1) * 2)  # type: ignore
+    UConstRange = ("UConstRange", 2, lambda x: (2**x - 1) * 2)  # type: ignore
+    SConstRange = ("SConstRange", 2, lambda x: (2**x - 1) * 2)  # type: ignore
     IntegerModulo = ("IntegerModulo", 6, lambda _: 12)  # type: ignore
 
     vec_size: int
