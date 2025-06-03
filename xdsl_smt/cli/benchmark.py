@@ -60,7 +60,7 @@ all_test_names = [
     "Xor.mlir",
 ]
 
-kb_representative_test_names = [
+kb_tests = [
     "Add.mlir",
     "AddNsw.mlir",
     "AddNuw.mlir",
@@ -74,7 +74,7 @@ kb_representative_test_names = [
     "Umax.mlir",
 ]
 
-cr_representative_test_names = [
+cr_tests = [
     "Add.mlir",
     "AddNuw.mlir",
     "And.mlir",
@@ -82,6 +82,25 @@ cr_representative_test_names = [
     "Mul.mlir",
     "Udiv.mlir",
     "Umax.mlir",
+]
+
+im_tests = [
+    "AddNsw.mlir",
+    "AddNswNuw.mlir",
+    "AddNuw.mlir",
+    "Mods.mlir",
+    "Modu.mlir",
+    "Mul.mlir",
+    "MulNsw.mlir",
+    "MulNswNuw.mlir",
+    "MulNuw.mlir",
+    "SdivExact.mlir",
+    "Sdiv.mlir",
+    "SmulSat.mlir",
+    "UaddSat.mlir",
+    "UdivExact.mlir",
+    "Udiv.mlir",
+    "UmulSat.mlir",
 ]
 
 
@@ -160,16 +179,21 @@ def main() -> None:
 
     kb_inputs = [
         (x.split(".")[0], AbstractDomain.KnownBits, start_dir.joinpath(x), args)
-        for x in kb_representative_test_names
+        for x in kb_tests
     ]
 
     cr_inputs = [
         (x.split(".")[0], AbstractDomain.ConstantRange, start_dir.joinpath(x), args)
-        for x in cr_representative_test_names
+        for x in cr_tests
+    ]
+
+    im_inputs = [
+        (x.split(".")[0], AbstractDomain.IntegerModulo, start_dir.joinpath(x), args)
+        for x in im_tests
     ]
 
     with Pool() as p:
-        data = p.map(synth_run, kb_inputs + cr_inputs)
+        data = p.map(synth_run, im_inputs)
 
     with open(args.outputs_folder.joinpath("data.json"), "w") as f:
         dump(data, f, indent=2)
