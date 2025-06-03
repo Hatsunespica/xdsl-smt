@@ -97,10 +97,12 @@ def register_arguments(prog: str) -> Namespace:
         default=NUM_ITERS,
     )
     ap.add_argument(
-        "-weighted_dsl",
-        action="store_true",
-        help="Learn weights for each DSL operations from previous for future iterations",
+        "-no_weighted_dsl",
+        dest="weighted_dsl",
+        action="store_false",
+        help="Disable learning weights for each DSL operation from previous for future iterations",
     )
+    ap.set_defaults(weighted_dsl=True)
     ap.add_argument(
         "-condition_length",
         type=int,
