@@ -91,7 +91,18 @@ def run(
     return res[0]
 
 
-# TODO use a threadpool
+def run_wrapper(x: tuple[Namespace, AbstractDomain, Path, Path, str]):
+    return run(
+        domain=x[1],
+        bitwidth=x[0].max_bitwidth,
+        min_bitwidth=x[0].min_bitwidth,
+        input_path=x[2],
+        solution_path=x[3],
+        num_random_tests=x[0].num_random_tests,
+        random_seed=x[0].random_seed,
+    )
+
+
 def main() -> None:
     args = register_all_arguments()
 
@@ -102,7 +113,7 @@ def main() -> None:
     else:
         solution_files = [args.solution_path]
 
-    inputs: list[tuple[AbstractDomain, Path, Path, str]] = []
+    inputs: list[tuple[Namespace, AbstractDomain, Path, Path, str]] = []
     for solution_dir in solution_files:
         if not solution_dir.is_dir():
             continue
@@ -118,24 +129,13 @@ def main() -> None:
         input_path = args.transfer_functions.joinpath(f"{op}.mlir")
         assert input_path.exists()
 
-        inputs.append((domain, input_path, solution_path, op))
-
-    def run_wrapper(x: tuple[AbstractDomain, Path, Path, str]):
-        return run(
-            domain=x[0],
-            bitwidth=args.max_bitwidth,
-            min_bitwidth=args.min_bitwidth,
-            input_path=x[1],
-            solution_path=x[2],
-            num_random_tests=args.num_random_tests,
-            random_seed=args.random_seed,
-        )
+        inputs.append((args, domain, input_path, solution_path, op))
 
     with Pool() as p:
         data = p.map(run_wrapper, inputs)
 
     print("\nResults:")
-    for (domain, _, _, op), r in zip(inputs, data):
+    for (_, domain, _, _, op), r in zip(inputs, data):
         print(f"{domain} {op}")
         print(r)
         percent = r.per_bit[r.max_bit].exacts / r.per_bit[r.max_bit].all_cases * 100
