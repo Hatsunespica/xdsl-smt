@@ -34,6 +34,11 @@ from xdsl_smt.dialects.transfer import (
     ClearLowBitsOp,
     SetSignBitOp,
     ClearSignBitOp,
+    UDivOp,
+    SDivOp,
+    URemOp,
+    SRemOp,
+    AShrOp,
     # SetLowBitsOp,
     # SetHighBitsOp,
     # TransIntegerType,
@@ -65,13 +70,22 @@ basic_int_ops: list[OpWithSignature] = [
     (OrOp, (INT_T, INT_T)),
     (XorOp, (INT_T, INT_T)),
     (AddOp, (INT_T, INT_T)),
-    # (AddOp, BINT_T, [BINT_T, BINT_T]),
-    # SubOp,
-    # SelectOp,
 ]
 
+custom_int_ops1: list[OpWithSignature] = [
+    (NegOp, (INT_T,)),
+    (AndOp, (INT_T, INT_T)),
+    (OrOp, (INT_T, INT_T)),
+    (XorOp, (INT_T, INT_T)),
+    (AddOp, (INT_T, INT_T)),
+    (SubOp, (INT_T, INT_T)),
+    (SelectOp, (BOOL_T, INT_T, INT_T)),
+    (UMinOp, (INT_T, INT_T)),
+    (UMaxOp, (INT_T, INT_T)),
+    (MulOp, (INT_T, INT_T)),
+]
 
-full_int_ops: list[OpWithSignature] = [
+custom_int_ops2: list[OpWithSignature] = [
     (NegOp, (INT_T,)),
     (AndOp, (INT_T, INT_T)),
     (OrOp, (INT_T, INT_T)),
@@ -85,6 +99,32 @@ full_int_ops: list[OpWithSignature] = [
     (UMaxOp, (INT_T, INT_T)),
     (SMinOp, (INT_T, INT_T)),
     (SMaxOp, (INT_T, INT_T)),
+    (UDivOp, (INT_T, INT_T)),
+    (SDivOp, (INT_T, INT_T)),
+    (URemOp, (INT_T, INT_T)),
+    (SRemOp, (INT_T, INT_T)),
+    (MulOp, (INT_T, INT_T)),
+]
+
+full_int_ops: list[OpWithSignature] = [
+    (NegOp, (INT_T,)),
+    (AndOp, (INT_T, INT_T)),
+    (OrOp, (INT_T, INT_T)),
+    (XorOp, (INT_T, INT_T)),
+    (AddOp, (INT_T, INT_T)),
+    (SubOp, (INT_T, INT_T)),
+    (SelectOp, (BOOL_T, INT_T, INT_T)),
+    (LShrOp, (INT_T, BINT_T)),
+    (AShrOp, (INT_T, BINT_T)),
+    (ShlOp, (INT_T, BINT_T)),
+    (UMinOp, (INT_T, INT_T)),
+    (UMaxOp, (INT_T, INT_T)),
+    (SMinOp, (INT_T, INT_T)),
+    (SMaxOp, (INT_T, INT_T)),
+    (UDivOp, (INT_T, INT_T)),
+    (SDivOp, (INT_T, INT_T)),
+    (URemOp, (INT_T, INT_T)),
+    (SRemOp, (INT_T, INT_T)),
     (MulOp, (INT_T, INT_T)),
     (SetHighBitsOp, (INT_T, BINT_T)),
     (SetLowBitsOp, (INT_T, BINT_T)),
@@ -96,6 +136,8 @@ full_int_ops: list[OpWithSignature] = [
 
 if not enable_bint:
     full_int_ops = list(set(full_int_ops + full_bint_ops))
+    custom_int_ops1 = list(set(custom_int_ops1 + full_bint_ops))
+    custom_int_ops2 = list(set(custom_int_ops2 + full_bint_ops))
 
 
 full_i1_ops: list[OpWithSignature] = [
