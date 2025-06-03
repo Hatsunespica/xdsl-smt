@@ -49,7 +49,9 @@ int main() {
   if (domain == "KnownBits") {
     handleDomain<KnownBits>(std::move(jit), ubw, lbw, samples, fname);
   } else if (domain == "ConstantRange") {
-    handleDomain<ConstantRange>(std::move(jit), ubw, lbw, samples, fname);
+    handleDomain<UConstRange>(std::move(jit), ubw, lbw, samples, fname);
+  } else if (domain == "SConstRange") {
+    handleDomain<SConstRange>(std::move(jit), ubw, lbw, samples, fname);
   } else if (domain == "IntegerModulo") {
     handleDomain<IntegerModulo<6>>(std::move(jit), ubw, lbw, samples, fname);
   } else

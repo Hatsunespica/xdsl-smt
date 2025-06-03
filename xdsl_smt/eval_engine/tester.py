@@ -278,16 +278,16 @@ cr_add_test = TestInput(
     [cr_add, cr_sub],
     [
         """
-bw: 1  all: 16    s: 16    e: 16    uall: 4     us: 4     ue: 4     dis: 0     udis: 0     bdis: 4     sdis: 0
-bw: 2  all: 121   s: 121   e: 121   uall: 46    us: 46    ue: 46    dis: 0     udis: 0     bdis: 96    sdis: 0
-bw: 3  all: 1369  s: 1369  e: 1369  uall: 532   us: 532   ue: 532   dis: 0     udis: 0     bdis: 2352  sdis: 0
-bw: 4  all: 18769 s: 18769 e: 18769 uall: 6920  us: 6920  ue: 6920  dis: 0     udis: 0     bdis: 63648 sdis: 0
+bw: 1  all: 9     s: 9     e: 9     uall: 4     us: 4     ue: 4     dis: 0     udis: 0     bdis: 4     sdis: 0
+bw: 2  all: 100   s: 100   e: 100   uall: 46    us: 46    ue: 46    dis: 0     udis: 0     bdis: 96    sdis: 0
+bw: 3  all: 1296  s: 1296  e: 1296  uall: 532   us: 532   ue: 532   dis: 0     udis: 0     bdis: 2352  sdis: 0
+bw: 4  all: 18496 s: 18496 e: 18496 uall: 6920  us: 6920  ue: 6920  dis: 0     udis: 0     bdis: 63648 sdis: 0
         """,
         """
-bw: 1  all: 16    s: 16    e: 16    uall: 4     us: 4     ue: 4     dis: 0     udis: 0     bdis: 4     sdis: 0
-bw: 2  all: 121   s: 92    e: 80    uall: 46    us: 29    ue: 17    dis: 88    udis: 71    bdis: 96    sdis: 58
-bw: 3  all: 1369  s: 912   e: 709   uall: 532   us: 278   ue: 75    dis: 2620  udis: 1950  bdis: 2352  sdis: 1994
-bw: 4  all: 18769 s: 12224 e: 9179  uall: 6920  us: 3420  ue: 375   dis: 75432 udis: 53340 bdis: 63648 sdis: 59948
+bw: 1  all: 9     s: 9     e: 9     uall: 4     us: 4     ue: 4     dis: 0     udis: 0     bdis: 4     sdis: 0
+bw: 2  all: 100   s: 71    e: 59    uall: 46    us: 29    ue: 17    dis: 88    udis: 71    bdis: 96    sdis: 58
+bw: 3  all: 1296  s: 839   e: 636   uall: 532   us: 278   ue: 75    dis: 2620  udis: 1950  bdis: 2352  sdis: 1994
+bw: 4  all: 18496 s: 11951 e: 8906  uall: 6920  us: 3420  ue: 375   dis: 75432 udis: 53340 bdis: 63648 sdis: 59948
         """,
     ],
 )
@@ -299,16 +299,16 @@ cr_sub_test = TestInput(
     [cr_sub, cr_add],
     [
         """
-bw: 1  all: 16    s: 16    e: 16    uall: 4     us: 4     ue: 4     dis: 0     udis: 0     bdis: 4     sdis: 0
-bw: 2  all: 121   s: 121   e: 121   uall: 46    us: 46    ue: 46    dis: 0     udis: 0     bdis: 96    sdis: 0
-bw: 3  all: 1369  s: 1369  e: 1369  uall: 532   us: 532   ue: 532   dis: 0     udis: 0     bdis: 2352  sdis: 0
-bw: 4  all: 18769 s: 18769 e: 18769 uall: 6920  us: 6920  ue: 6920  dis: 0     udis: 0     bdis: 63648 sdis: 0
+bw: 1  all: 9     s: 9     e: 9     uall: 4     us: 4     ue: 4     dis: 0     udis: 0     bdis: 4     sdis: 0
+bw: 2  all: 100   s: 100   e: 100   uall: 46    us: 46    ue: 46    dis: 0     udis: 0     bdis: 96    sdis: 0
+bw: 3  all: 1296  s: 1296  e: 1296  uall: 532   us: 532   ue: 532   dis: 0     udis: 0     bdis: 2352  sdis: 0
+bw: 4  all: 18496 s: 18496 e: 18496 uall: 6920  us: 6920  ue: 6920  dis: 0     udis: 0     bdis: 63648 sdis: 0
         """,
         """
-bw: 1  all: 16    s: 16    e: 16    uall: 4     us: 4     ue: 4     dis: 0     udis: 0     bdis: 4     sdis: 0
-bw: 2  all: 121   s: 92    e: 80    uall: 46    us: 29    ue: 17    dis: 88    udis: 71    bdis: 96    sdis: 58
-bw: 3  all: 1369  s: 912   e: 709   uall: 532   us: 278   ue: 75    dis: 2620  udis: 1950  bdis: 2352  sdis: 1994
-bw: 4  all: 18769 s: 12224 e: 9179  uall: 6920  us: 3420  ue: 375   dis: 75432 udis: 53340 bdis: 63648 sdis: 59948
+bw: 1  all: 9     s: 9     e: 9     uall: 4     us: 4     ue: 4     dis: 0     udis: 0     bdis: 4     sdis: 0
+bw: 2  all: 100   s: 71    e: 59    uall: 46    us: 29    ue: 17    dis: 88    udis: 71    bdis: 96    sdis: 58
+bw: 3  all: 1296  s: 839   e: 636   uall: 532   us: 278   ue: 75    dis: 2620  udis: 1950  bdis: 2352  sdis: 1994
+bw: 4  all: 18496 s: 11951 e: 8906  uall: 6920  us: 3420  ue: 375   dis: 75432 udis: 53340 bdis: 63648 sdis: 59948
         """,
     ],
 )

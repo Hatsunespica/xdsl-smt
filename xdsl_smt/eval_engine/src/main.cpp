@@ -53,9 +53,13 @@ int main() {
     auto [bws, toEval] = getToEval<KnownBits>(fname);
     r = {bws, Eval<KnownBits>(std::move(jit), synNames, bFnNames).eval(toEval)};
   } else if (domain == "ConstantRange") {
-    auto [bws, toEval] = getToEval<ConstantRange>(fname);
+    auto [bws, toEval] = getToEval<UConstRange>(fname);
     r = {bws,
-         Eval<ConstantRange>(std::move(jit), synNames, bFnNames).eval(toEval)};
+         Eval<UConstRange>(std::move(jit), synNames, bFnNames).eval(toEval)};
+  } else if (domain == "SConstRange") {
+    auto [bws, toEval] = getToEval<SConstRange>(fname);
+    r = {bws,
+         Eval<SConstRange>(std::move(jit), synNames, bFnNames).eval(toEval)};
   } else if (domain == "IntegerModulo") {
     auto [bws, toEval] = getToEval<IntegerModulo<6>>(fname);
     r = {bws, Eval<IntegerModulo<6>>(std::move(jit), synNames, bFnNames)

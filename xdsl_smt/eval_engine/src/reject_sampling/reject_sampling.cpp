@@ -70,7 +70,10 @@ int main() {
     Eval<KnownBits> e(std::move(jit), {}, bFnNames);
     handleDomain(e, dirPath, samples, seed);
   } else if (domain == "ConstantRange") {
-    Eval<ConstantRange> e(std::move(jit), {}, bFnNames);
+    Eval<UConstRange> e(std::move(jit), {}, bFnNames);
+    handleDomain(e, dirPath, samples, seed);
+  } else if (domain == "SConstRange") {
+    Eval<SConstRange> e(std::move(jit), {}, bFnNames);
     handleDomain(e, dirPath, samples, seed);
   } else if (domain == "IntegerModulo") {
     Eval<IntegerModulo<6>> e(std::move(jit), {}, bFnNames);

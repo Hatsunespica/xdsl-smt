@@ -13,7 +13,7 @@ SUPPRESS_WARNINGS_BEGIN
 #include <llvm/IR/ConstantRange.h>
 SUPPRESS_WARNINGS_END
 
-inline llvm::ConstantRange make_llvm_cr(const ConstantRange &x) {
+inline llvm::ConstantRange make_llvm_cr(const UConstRange &x) {
   if (x.isTop())
     return llvm::ConstantRange::getFull(x.bw());
   if (x.isBottom())
@@ -23,19 +23,19 @@ inline llvm::ConstantRange make_llvm_cr(const ConstantRange &x) {
                              llvm::APInt(x.bw(), x.v[1].getZExtValue()) + 1);
 }
 
-inline const ConstantRange
-cr_xfer_wrapper(const ConstantRange &lhs, const ConstantRange &rhs,
+inline const UConstRange
+cr_xfer_wrapper(const UConstRange &lhs, const UConstRange &rhs,
                 const XferFn<llvm::ConstantRange> &fn) {
   llvm::ConstantRange x = fn(make_llvm_cr(lhs), make_llvm_cr(rhs));
 
   if (x.isWrappedSet())
-    return ConstantRange::top(lhs.bw());
+    return UConstRange::top(lhs.bw());
   if (x.isFullSet())
-    return ConstantRange::top(lhs.bw());
+    return UConstRange::top(lhs.bw());
   if (x.isEmptySet())
-    return ConstantRange::bottom(lhs.bw());
+    return UConstRange::bottom(lhs.bw());
 
-  return ConstantRange({A::APInt(lhs.bw(), x.getLower().getZExtValue()),
+  return UConstRange({A::APInt(lhs.bw(), x.getLower().getZExtValue()),
                         A::APInt(lhs.bw(), x.getUpper().getZExtValue()) - 1});
 }
 

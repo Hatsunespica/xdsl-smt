@@ -70,11 +70,11 @@ int main() {
   unsigned int bw = static_cast<unsigned int>(std::stoul(tmpStr));
   std::vector<std::pair<std::string, Results>> results;
 
-  if (domain == "ConstantRange")
-    results = eval<ConstantRange, llvm::ConstantRange>(bw, cr_tests(),
-                                                       cr_xfer_wrapper);
-  else if (domain == "KnownBits")
+  if (domain == "KnownBits")
     results = eval<KnownBits, llvm::KnownBits>(bw, kb_tests(), kb_xfer_wrapper);
+  else if (domain == "ConstantRange")
+    results = eval<UConstRange, llvm::ConstantRange>(bw, cr_tests(),
+                                                       cr_xfer_wrapper);
   else if (domain == "IntegerModulo")
     results =
         eval<IntegerModulo<6>, std::nullopt_t>(bw, im_tests(), im_xfer_wrapper);
