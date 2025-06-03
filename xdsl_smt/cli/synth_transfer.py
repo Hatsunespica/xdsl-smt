@@ -441,11 +441,14 @@ def get_base_xfers(module: ModuleOp) -> list[FunctionWithCondition]:
     return base_transfers
 
 
-def setup_context(r: Random) -> SynthesizerContext:
+def setup_context(r: Random, use_full_i1_ops: bool) -> SynthesizerContext:
     c = SynthesizerContext(r)
     c.set_cmp_flags([0, 6, 7])
     c.use_full_int_ops()
-    c.use_basic_i1_ops()
+    if use_full_i1_ops:
+        c.use_full_i1_ops()
+    else:
+        c.use_basic_i1_ops()
     return c
 
 
@@ -483,9 +486,9 @@ def run(
 
     samples = (random_seed, num_random_tests) if num_random_tests is not None else None
 
-    context = setup_context(random)
-    context_weighted = setup_context(random)
-    context_cond = setup_context(random)
+    context = setup_context(random, False)
+    context_weighted = setup_context(random, False)
+    context_cond = setup_context(random, True)
 
     module, helper_funcs = get_helper_funcs(transfer_functions, domain, const_rhs)
     helper_funcs_cpp = helper_funcs.to_cpp()
