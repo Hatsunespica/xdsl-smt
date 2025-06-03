@@ -17,15 +17,15 @@ def general_sound_and_dist_cost(a: float, b: float, res: EvalResult) -> float:
     return general_cost(a, b, sound, 1 - dis)
 
 
-def _more_sound(res: EvalResult) -> float:
+def more_sound(res: EvalResult) -> float:
     return general_sound_and_dist_cost(1, 2, res)
 
 
-def _only_precise(res: EvalResult) -> float:
+def only_precise(res: EvalResult) -> float:
     return general_sound_and_dist_cost(0, 1, res)
 
 
-def _less_sound(res: EvalResult) -> float:
+def less_sound(res: EvalResult) -> float:
     return general_sound_and_dist_cost(2, 1, res)
 
 
@@ -69,13 +69,13 @@ def non_gradual_cost(
     return lambda res, t: cost0(res)
 
 
-sound_and_precise_cost = non_gradual_cost(_more_sound)
-precise_cost = non_gradual_cost(_only_precise)
-abduction_cost = non_gradual_cost(_less_sound)
+sound_and_precise_cost = non_gradual_cost(more_sound)
+precise_cost = non_gradual_cost(only_precise)
+abduction_cost = non_gradual_cost(less_sound)
 
-# sound_and_precise_cost = gradual_cost(_more_sound, _must_sound)
-# precise_cost = non_gradual_cost(_only_precise)
-# abduction_cost = gradual_cost(_less_sound, _must_sound)
+# sound_and_precise_cost = gradual_cost(more_sound, must_sound)
+# precise_cost = non_gradual_cost(only_precise)
+# abduction_cost = gradual_cost(less_sound, must_sound)
 
 
 def decide(p: float, beta: float, current_cost: float, proposed_cost: float) -> bool:

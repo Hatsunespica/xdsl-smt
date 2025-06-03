@@ -57,7 +57,7 @@ class MCMCSampler:
     current_cmp: EvalResult
     context: SynthesizerContext
     random: Random
-    cost_func: Callable[[EvalResult], float]
+    cost_func: Callable[[EvalResult, float], float]
     step_cnt: int
     total_steps: int
     is_cond: bool
