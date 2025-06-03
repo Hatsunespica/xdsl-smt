@@ -90,7 +90,7 @@ class MCMCSampler:
             if random_init_program:
                 self.reset_to_random_prog(length)
 
-    def compute_cost(self, cmp: EvalResult):
+    def compute_cost(self, cmp: EvalResult) -> float:
         return self.cost_func(cmp, self.step_cnt / self.total_steps)
 
     def compute_current_cost(self):

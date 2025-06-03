@@ -29,7 +29,7 @@ def _less_sound(res: EvalResult) -> float:
     return general_sound_and_dist_cost(2, 1, res)
 
 
-def _sound_first(res: EvalResult) -> float:
+def sound_first(res: EvalResult) -> float:
     """
     cost(s, p) = ((1 - s) + 1) / 2, if unsound
                = (0 + (1 - p)) / 2, if sound
@@ -39,7 +39,7 @@ def _sound_first(res: EvalResult) -> float:
     return general_cost(1, 1, sound, 1 - dis)
 
 
-def _must_sound(res: EvalResult) -> float:
+def must_sound(res: EvalResult) -> float:
     """
     cost(s, p) = 1, if unsound
                = 1 - p, if sound
