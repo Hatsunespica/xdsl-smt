@@ -477,7 +477,7 @@ def run(
     assert min_bitwidth >= 4 or domain != AbstractDomain.IntegerModulo
     EvalResult.get_max_dis = domain.max_dist
 
-    logger.debug("Round_ID\tSound%\tUExact%\tUDis(Norm)\tCost")
+    logger.debug("Round_ID\tSound%\tUExact%\tDisReduce\tCost")
 
     random = Random(random_seed)
     random_seed = random.randint(0, 1_000_000) if random_seed is None else random_seed

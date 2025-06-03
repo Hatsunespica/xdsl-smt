@@ -444,7 +444,7 @@ class UnsizedSolutionSet(SolutionSet):
         sorted_pairs = sorted(
             zip(precise_candidates, result),
             reverse=True,
-            key=lambda x: x[1].get_unsolved_exacts(),
+            key=lambda x: x[1].get_potential_improve(),
         )
         top_k = sorted_pairs[:num_unsound_candidates]
         self.logger.info(f"Top {num_unsound_candidates} Precise candidates:")
@@ -452,7 +452,7 @@ class UnsizedSolutionSet(SolutionSet):
         for cand, res in top_k:
             body_number = cand.attributes["number"]
             self.logger.info(
-                f"{body_number}\tunsolved_exact: {res.get_unsolved_exact_prop() * 100:.2f}%, sound: {res.get_sound_prop() * 100:.2f}%"
+                f"{body_number}\tunsolved_exact: {res.get_unsolved_exact_prop() * 100:.2f}%, sound: {res.get_sound_prop() * 100:.2f}%, dist_reduce: {res.base_dist} -> {res.sound_dist}"
             )
             self.precise_set.append(cand)
 
