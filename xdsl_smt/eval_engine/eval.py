@@ -1,15 +1,26 @@
 from os import path
 from subprocess import run, PIPE
-from enum import Enum, auto
+from enum import Enum
 from tempfile import mkdtemp
+from typing import Callable
 
 from xdsl_smt.utils.synthesizer_utils.compare_result import EvalResult, PerBitEvalResult
 
 
 class AbstractDomain(Enum):
-    KnownBits = auto()
-    ConstantRange = auto()
-    IntegerModulo = auto()
+    KnownBits = ("KnownBits", 2, lambda x: x * 2)  # type: ignore
+    ConstantRange = ("ConstantRange", 2, lambda x: (2**x - 1) * 2)  # type: ignore
+    IntegerModulo = ("IntegerModulo", 6, lambda _: 12)  # type: ignore
+
+    vec_size: int
+    max_dist: Callable[[int], int]
+
+    def __new__(cls, value: str, vec_size: int, max_dist: Callable[[int], int]):
+        obj = object.__new__(cls)
+        obj._value_ = value
+        obj.vec_size = vec_size
+        obj.max_dist = max_dist
+        return obj
 
     def __str__(self) -> str:
         return self.name
