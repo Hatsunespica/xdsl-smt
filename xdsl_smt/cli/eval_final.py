@@ -1,9 +1,10 @@
 from pathlib import Path
 from argparse import ArgumentParser, Namespace
+from multiprocessing import Pool
 
 
 from xdsl_smt.utils.synthesizer_utils.compare_result import EvalResult
-import xdsl_smt.eval_engine.eval as eval_engine
+from xdsl_smt.eval_engine.eval import AbstractDomain, setup_eval, eval_transfer_func
 from xdsl.dialects.func import FuncOp
 from xdsl_smt.utils.synthesizer_utils.random import Random
 from xdsl_smt.cli.synth_transfer import print_to_cpp, get_helper_funcs, parse_file
@@ -41,7 +42,7 @@ def register_all_arguments() -> Namespace:
 
 
 def run(
-    domain: eval_engine.AbstractDomain,
+    domain: AbstractDomain,
     bitwidth: int,
     min_bitwidth: int,
     input_path: Path,
@@ -49,7 +50,7 @@ def run(
     num_random_tests: int | None = None,
     random_seed: int | None = None,
 ) -> EvalResult:
-    assert min_bitwidth >= 4 or domain != eval_engine.AbstractDomain.IntegerModulo
+    assert min_bitwidth >= 4 or domain != AbstractDomain.IntegerModulo
     EvalResult.get_max_dis = domain.max_dist
 
     _, helpers = get_helper_funcs(input_path, domain, False)
@@ -73,11 +74,11 @@ def run(
         print_to_cpp(func) for func in solution_helpers
     ]
 
-    data_dir = eval_engine.setup_eval(
+    data_dir = setup_eval(
         domain, bitwidth, min_bitwidth, samples, "\n".join(helper_funcs_cpp)
     )
 
-    res = eval_engine.eval_transfer_func(
+    res = eval_transfer_func(
         data_dir,
         [solution.sym_name.data],
         [print_to_cpp(solution)],
@@ -101,37 +102,40 @@ def main() -> None:
     else:
         solution_files = [args.solution_path]
 
-    results: dict[tuple[eval_engine.AbstractDomain, str], EvalResult] = {}
+    inputs: list[tuple[AbstractDomain, Path, Path, str]] = []
     for solution_dir in solution_files:
         if not solution_dir.is_dir():
             continue
 
         solution_path = solution_dir.joinpath("solution.mlir")
         domain_str, op = solution_dir.name.split("_")
-        domain = eval_engine.AbstractDomain[domain_str]
+        domain = AbstractDomain[domain_str]
 
         if not solution_path.exists():
-            print(f"No solution file: {domain} {op}")
+            print(f"No solution file for: {domain} {op}")
             continue
 
-        print(f"Final eval for: {domain} {op}")
         input_path = args.transfer_functions.joinpath(f"{op}.mlir")
         assert input_path.exists()
 
-        r = run(
-            domain=domain,
+        inputs.append((domain, input_path, solution_path, op))
+
+    def run_wrapper(x: tuple[AbstractDomain, Path, Path, str]):
+        return run(
+            domain=x[0],
             bitwidth=args.max_bitwidth,
             min_bitwidth=args.min_bitwidth,
-            input_path=input_path,
-            solution_path=solution_path,
+            input_path=x[1],
+            solution_path=x[2],
             num_random_tests=args.num_random_tests,
             random_seed=args.random_seed,
         )
 
-        results[domain, op] = r
+    with Pool() as p:
+        data = p.map(run_wrapper, inputs)
 
     print("\nResults:")
-    for (domain, op), r in results.items():
+    for (domain, _, _, op), r in zip(inputs, data):
         print(f"{domain} {op}")
         print(r)
         percent = r.per_bit[r.max_bit].exacts / r.per_bit[r.max_bit].all_cases * 100

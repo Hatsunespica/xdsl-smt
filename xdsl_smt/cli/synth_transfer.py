@@ -16,7 +16,12 @@ from ..dialects.smt_bitvector_dialect import SMTBitVectorDialect
 from xdsl_smt.dialects.transfer import TransIntegerType, AbstractValueType
 from ..dialects.index_dialect import Index
 from ..dialects.smt_utils_dialect import SMTUtilsDialect
-import xdsl_smt.eval_engine.eval as eval_engine
+from xdsl_smt.eval_engine.eval import (
+    AbstractDomain,
+    setup_eval,
+    eval_transfer_func,
+    reject_sampler,
+)
 from xdsl.dialects.builtin import (
     Builtin,
     ModuleOp,
@@ -191,7 +196,7 @@ def eval_transfer_func_helper(
     transfer: list[FunctionWithCondition],
     base: list[FunctionWithCondition],
     ret_top_func: FunctionWithCondition,
-    domain: eval_engine.AbstractDomain,
+    domain: AbstractDomain,
     helper_funcs: list[str],
 ) -> list[EvalResult]:
     """
@@ -218,7 +223,7 @@ def eval_transfer_func_helper(
         base_func_srcs.append(caller_str)
         helper_func_srcs += helper_strs
 
-    return eval_engine.eval_transfer_func(
+    return eval_transfer_func(
         data_dir,
         transfer_func_names,
         transfer_func_srcs,
@@ -231,7 +236,7 @@ def eval_transfer_func_helper(
 
 def solution_set_eval_func(
     data_dir: str,
-    domain: eval_engine.AbstractDomain,
+    domain: AbstractDomain,
     helper_funcs: list[str],
     ret_top_func: FunctionWithCondition,
 ) -> Callable[
@@ -252,7 +257,7 @@ def solution_set_eval_func(
 
 
 def tests_sampler_helper(
-    domain: eval_engine.AbstractDomain,
+    domain: AbstractDomain,
     data_dir: str,
     samples: int,
     seed: int,
@@ -268,7 +273,7 @@ def tests_sampler_helper(
         base_func_srcs.append(caller_str)
         callee_srcs += callee_strs
 
-    eval_engine.reject_sampler(
+    reject_sampler(
         domain,
         data_dir,
         samples,
@@ -280,7 +285,7 @@ def tests_sampler_helper(
 
 
 def solution_set_tests_sampler(
-    domain: eval_engine.AbstractDomain,
+    domain: AbstractDomain,
     data_dir: str,
     helper_srcs: list[str],
 ) -> Callable[[list[FunctionWithCondition], int, int], None]:
@@ -348,7 +353,7 @@ def convert_xfer_func(fn: FuncOp, ty: AbstractValueType):
 
 
 def get_helper_funcs(
-    p: Path, d: eval_engine.AbstractDomain, const_rhs: bool
+    p: Path, d: AbstractDomain, const_rhs: bool
 ) -> tuple[ModuleOp, HelperFuncs]:
     with open(p, "r") as f:
         module = Parser(ctx, f.read(), p.name).parse_op()
@@ -446,7 +451,7 @@ def setup_context(r: Random) -> SynthesizerContext:
 
 def run(
     logger: logging.Logger,
-    domain: eval_engine.AbstractDomain,
+    domain: AbstractDomain,
     num_programs: int,
     total_rounds: int,
     program_length: int,
@@ -466,7 +471,7 @@ def run(
     num_unsound_candidates: int,
     outputs_folder: Path,
 ) -> EvalResult:
-    assert min_bitwidth >= 4 or domain != eval_engine.AbstractDomain.IntegerModulo
+    assert min_bitwidth >= 4 or domain != AbstractDomain.IntegerModulo
     EvalResult.get_max_dis = domain.max_dist
 
     logger.debug("Round_ID\tSound%\tUExact%\tUDis(Norm)\tCost")
@@ -489,7 +494,7 @@ def run(
     ret_top_func = FunctionWithCondition(construct_top_func(helper_funcs.transfer_func))
     ret_top_func.set_func_name("ret_top")
 
-    data_dir = eval_engine.setup_eval(
+    data_dir = setup_eval(
         domain, max_bitwidth, min_bitwidth, samples, "\n".join(helper_funcs_cpp)
     )
 
@@ -594,7 +599,7 @@ def run(
         raise Exception("Found no solutions")
     solution_module, solution_str = solution_set.generate_solution_and_cpp()
     save_solution(solution_module, solution_str, outputs_folder)
-    cmp_results: list[EvalResult] = eval_engine.eval_transfer_func(
+    cmp_results: list[EvalResult] = eval_transfer_func(
         data_dir,
         ["solution"],
         [solution_str],
@@ -623,7 +628,7 @@ def main() -> None:
 
     run(
         logger=logger,
-        domain=eval_engine.AbstractDomain[args.domain],
+        domain=AbstractDomain[args.domain],
         num_programs=args.num_programs,
         total_rounds=args.total_rounds,
         program_length=args.program_length,
