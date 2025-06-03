@@ -69,17 +69,13 @@ def non_gradual_cost(
     return lambda res, t: cost0(res)
 
 
-# sound_and_precise_cost = non_gradual_cost(_more_sound)
-# precise_cost = non_gradual_cost(_only_precise)
-# abduction_cost = non_gradual_cost(_less_sound)
-
-# sound_and_precise_cost = _sound_first
-# precise_cost = _sound_first
-# abduction_cost = _sound_first
-
-sound_and_precise_cost = gradual_cost(_more_sound, _must_sound)
+sound_and_precise_cost = non_gradual_cost(_more_sound)
 precise_cost = non_gradual_cost(_only_precise)
-abduction_cost = gradual_cost(_less_sound, _must_sound)
+abduction_cost = non_gradual_cost(_less_sound)
+
+# sound_and_precise_cost = gradual_cost(_more_sound, _must_sound)
+# precise_cost = non_gradual_cost(_only_precise)
+# abduction_cost = gradual_cost(_less_sound, _must_sound)
 
 
 def decide(p: float, beta: float, current_cost: float, proposed_cost: float) -> bool:
