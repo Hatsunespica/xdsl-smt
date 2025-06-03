@@ -137,14 +137,11 @@ def synth_run(
                 for bw, per_bit_res in res.per_bit.items()
             ],
             "Seed": args.random_seed,
-            "Notes": "",
         }
     except Exception as e:
         return {
             "Domain": str(domain),
             "Function": func_name,
-            # "Sound Proportion": nan,
-            # "Exact Proportion": nan,
             "Seed": args.random_seed,
             "Notes": f"Run was terminated: {e}",
         }
