@@ -69,6 +69,7 @@ ctx.load_dialect(Index)
 ctx.load_dialect(Comb)
 ctx.load_dialect(HW)
 
+
 def parse_file(file: Path) -> ModuleOp:
     with open(file, "r") as f:
         module = Parser(ctx, f.read(), file.name).parse_op()
