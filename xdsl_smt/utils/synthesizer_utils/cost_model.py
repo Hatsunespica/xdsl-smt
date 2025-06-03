@@ -1,9 +1,13 @@
 import math
+from collections.abc import Callable
 
 from xdsl_smt.utils.synthesizer_utils.compare_result import EvalResult
 
 
 def general_cost(a: float, b: float, s: float, p: float) -> float:
+    """
+    General cost function that combines soundness and precision.
+    """
     return (a * (1 - s) + b * (1 - p)) / (a + b)
 
 
@@ -26,14 +30,56 @@ def _less_sound(res: EvalResult) -> float:
 
 
 def _sound_first(res: EvalResult) -> float:
+    """
+    cost(s, p) = ((1 - s) + 1) / 2, if unsound
+               = (0 + (1 - p)) / 2, if sound
+    """
     sound = res.get_sound_prop()
     dis = res.get_sound_dist() / res.get_base_dist() if sound == 1 else 1
     return general_cost(1, 1, sound, 1 - dis)
 
 
-sound_and_precise_cost = _more_sound
-precise_cost = _only_precise
-abduction_cost = _less_sound
+def _must_sound(res: EvalResult) -> float:
+    """
+    cost(s, p) = 1, if unsound
+               = 1 - p, if sound
+    """
+    sound = res.get_sound_prop()
+    dis = res.get_sound_dist() / res.get_base_dist() if sound == 1 else 1
+    return dis
+
+
+def gradual_cost(
+    cost0: Callable[[EvalResult], float], cost1: Callable[[EvalResult], float]
+) -> Callable[[EvalResult, float], float]:
+    """
+    Returns a function that computes a gradual cost based on the result and a parameter t.
+    The cost is a linear interpolation between cost0 and cost1 based on t.
+    """
+
+    def cost(res: EvalResult, t: float) -> float:
+        return (1 - t) * cost0(res) + t * cost1(res)
+
+    return cost
+
+
+def non_gradual_cost(
+    cost0: Callable[[EvalResult], float]
+) -> Callable[[EvalResult, float], float]:
+    return lambda res, t: cost0(res)
+
+
+# sound_and_precise_cost = non_gradual_cost(_more_sound)
+# precise_cost = non_gradual_cost(_only_precise)
+# abduction_cost = non_gradual_cost(_less_sound)
+
+# sound_and_precise_cost = _sound_first
+# precise_cost = _sound_first
+# abduction_cost = _sound_first
+
+sound_and_precise_cost = gradual_cost(_more_sound, _must_sound)
+precise_cost = non_gradual_cost(_only_precise)
+abduction_cost = gradual_cost(_less_sound, _must_sound)
 
 
 def decide(p: float, beta: float, current_cost: float, proposed_cost: float) -> bool:
