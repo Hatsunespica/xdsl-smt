@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "APInt.h"
+#include "AbstVal.h"
 #include "Results.h"
 #include "jit.h"
 #include "warning_suppresor.h"
@@ -18,12 +19,10 @@ SUPPRESS_WARNINGS_BEGIN
 #include <llvm/Support/Error.h>
 SUPPRESS_WARNINGS_END
 
-// TODO rename all the classes
-// TODO maybe hide these types in a class
 typedef A::APInt (*ConcOpFn)(A::APInt, A::APInt);
 typedef bool (*OpConFn)(A::APInt, A::APInt);
 
-template <typename D> class EnumEval {
+template <AbstractDomain D> class EnumEval {
 private:
   std::optional<OpConFn> opCon;
   ConcOpFn concOp;
@@ -54,7 +53,7 @@ public:
   }
 };
 
-template <typename D> class EnumXfer {
+template <AbstractDomain D> class EnumXfer {
 private:
   // members
   Jit jit;
@@ -118,7 +117,7 @@ public:
   }
 };
 
-template <typename D> class Eval {
+template <AbstractDomain D> class Eval {
 private:
   // types
   typedef bool (*AbsOpConFn)(D, D);

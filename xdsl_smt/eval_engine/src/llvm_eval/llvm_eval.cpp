@@ -9,7 +9,7 @@
 #include "im_tests.h"
 #include "kb_tests.h"
 
-template <typename D>
+template <AbstractDomain D>
 const D to_best_abst(const D &lhs, const D &rhs, const concFn &fn,
                      const std::optional<opConFn> &opCon) {
   std::vector<D> crtVals;
@@ -23,7 +23,7 @@ const D to_best_abst(const D &lhs, const D &rhs, const concFn &fn,
   return D::joinAll(crtVals, lhs.bw());
 }
 
-template <typename D, typename D2>
+template <AbstractDomain D, typename D2>
 std::vector<std::pair<std::string, Results>>
 eval(unsigned int bw, const std::vector<Test<D2>> &tsts,
      XferWrap<D, D2> &xfer_wrapper) {
@@ -73,8 +73,8 @@ int main() {
   if (domain == "KnownBits")
     results = eval<KnownBits, llvm::KnownBits>(bw, kb_tests(), kb_xfer_wrapper);
   else if (domain == "UConstRange")
-    results = eval<UConstRange, llvm::ConstantRange>(bw, cr_tests(),
-                                                       cr_xfer_wrapper);
+    results =
+        eval<UConstRange, llvm::ConstantRange>(bw, cr_tests(), cr_xfer_wrapper);
   else if (domain == "SConstRange")
     std::cerr << "SConstRange not impl'd yet.\n";
   else if (domain == "IntegerModulo")

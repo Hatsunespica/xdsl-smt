@@ -7,7 +7,7 @@
 #include "../jit.h"
 #include "../utils.cpp"
 
-template <typename D>
+template <AbstractDomain D>
 void handleDomain(Jit jit, unsigned int ubw, unsigned int lbw,
                   std::optional<std::pair<unsigned int, unsigned int>> samples,
                   const std::string dirPath) {

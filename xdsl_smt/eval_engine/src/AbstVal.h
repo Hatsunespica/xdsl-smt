@@ -9,6 +9,42 @@
 
 #include "APInt.h"
 
+// TODO isBottom vs isValid?
+// could I just consider all invalid vals as bottom
+// alternative is start using optional
+
+template <typename D>
+concept AbstractDomain = requires(const D d, unsigned int bw, const A::APInt &a,
+                                  const std::vector<D> &v, std::mt19937 &rng,
+                                  unsigned char *p, unsigned int o) {
+  { D::N } -> std::convertible_to<unsigned int>;
+  { d.v } -> std::same_as<const Vec<D::N> &>;
+  std::constructible_from<D, Vec<D::N>>;
+
+  // Static methods
+  { D::bottom(bw) } -> std::same_as<const D>;
+  { D::top(bw) } -> std::same_as<const D>;
+  { D::enumVals(bw) } -> std::same_as<const std::vector<D>>;
+  { D::fromConcrete(a) } -> std::same_as<const D>;
+  { D::deserialize(p, o) } -> std::same_as<const D>;
+  { D::joinAll(v, bw) } -> std::same_as<const D>;
+  { D::meetAll(v, bw) } -> std::same_as<const D>;
+
+  // Instance methods
+  { d == d } -> std::convertible_to<bool>;
+  { d.serialize(p, o) } -> std::same_as<void>;
+  { d.isSuperset(d) } -> std::same_as<bool>;
+  { d.isValid() } -> std::same_as<bool>;
+  { d.isBottom() } -> std::same_as<bool>;
+  { d.isTop() } -> std::same_as<bool>;
+  { d.meet(d) } -> std::same_as<const D>;
+  { d.join(d) } -> std::same_as<const D>;
+  { d.toConcrete() } -> std::same_as<const std::vector<A::APInt>>;
+  { d.display() } -> std::same_as<const std::string>;
+  { d.distance(d) } -> std::same_as<unsigned int>;
+  { d.bw() } -> std::same_as<unsigned int>;
+};
+
 template <typename Domain, unsigned int N_> class AbstVal {
 public:
   static constexpr unsigned int N = N_;
@@ -146,16 +182,16 @@ public:
     return (zero() ^ rhs.zero()).popcount() + (one() ^ rhs.one()).popcount();
   }
 
-  static KnownBits fromConcrete(const A::APInt &x) {
+  static const KnownBits fromConcrete(const A::APInt &x) {
     return KnownBits({~x, x});
   }
 
-  static KnownBits bottom(unsigned int bw) {
+  static const KnownBits bottom(unsigned int bw) {
     const A::APInt max = A::APInt::getMaxValue(bw);
     return KnownBits({max, max});
   }
 
-  static KnownBits top(unsigned int bw) {
+  static const KnownBits top(unsigned int bw) {
     const A::APInt min = A::APInt::getMinValue(bw);
     return KnownBits({min, min});
   }
@@ -260,17 +296,17 @@ public:
     return static_cast<unsigned int>(ld + ud);
   }
 
-  static UConstRange fromConcrete(const A::APInt &x) {
+  static const UConstRange fromConcrete(const A::APInt &x) {
     return UConstRange({x, x});
   }
 
-  static UConstRange bottom(unsigned int bw) {
+  static const UConstRange bottom(unsigned int bw) {
     const A::APInt min = A::APInt::getMinValue(bw);
     const A::APInt max = A::APInt::getMaxValue(bw);
     return UConstRange({max, min});
   }
 
-  static UConstRange top(unsigned int bw) {
+  static const UConstRange top(unsigned int bw) {
     const A::APInt min = A::APInt::getMinValue(bw);
     const A::APInt max = A::APInt::getMaxValue(bw);
     return UConstRange({min, max});
@@ -373,17 +409,17 @@ public:
     return static_cast<unsigned int>(ld + ud);
   }
 
-  static SConstRange fromConcrete(const A::APInt &x) {
+  static const SConstRange fromConcrete(const A::APInt &x) {
     return SConstRange({x, x});
   }
 
-  static SConstRange bottom(unsigned int bw) {
+  static const SConstRange bottom(unsigned int bw) {
     const A::APInt min = A::APInt::getSignedMinValue(bw);
     const A::APInt max = A::APInt::getSignedMaxValue(bw);
     return SConstRange({max, min});
   }
 
-  static SConstRange top(unsigned int bw) {
+  static const SConstRange top(unsigned int bw) {
     const A::APInt min = A::APInt::getSignedMinValue(bw);
     const A::APInt max = A::APInt::getSignedMaxValue(bw);
     return SConstRange({min, max});
@@ -595,7 +631,7 @@ public:
     return d;
   }
 
-  static IntegerModulo fromConcrete(const A::APInt &x) {
+  static const IntegerModulo fromConcrete(const A::APInt &x) {
     Vec<N> r(x.getBitWidth());
     unsigned long p = 1;
 
@@ -610,7 +646,7 @@ public:
     return IntegerModulo(r, x.getZExtValue(), p, 0);
   }
 
-  static IntegerModulo top(unsigned int bw) {
+  static const IntegerModulo top(unsigned int bw) {
     Vec<N> x(bw);
     for (unsigned int i = 0; i < N; ++i) {
       if (IM::primeOv(bw, i))
@@ -622,7 +658,7 @@ public:
     return IntegerModulo(x, 0, 1, N);
   }
 
-  static IntegerModulo bottom(unsigned int bw) {
+  static const IntegerModulo bottom(unsigned int bw) {
     Vec<N> x(bw);
     unsigned long p = 1;
     for (unsigned int i = 0; i < N; ++i) {
@@ -662,5 +698,10 @@ public:
     return r;
   }
 };
+
+static_assert(AbstractDomain<KnownBits>);
+static_assert(AbstractDomain<UConstRange>);
+static_assert(AbstractDomain<SConstRange>);
+static_assert(AbstractDomain<IntegerModulo<6>>);
 
 #endif

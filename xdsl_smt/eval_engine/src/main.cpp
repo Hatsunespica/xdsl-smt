@@ -9,7 +9,7 @@
 #include "jit.h"
 #include "utils.cpp"
 
-template <typename D>
+template <AbstractDomain D>
 const std::pair<std::vector<unsigned int>,
                 std::vector<std::vector<std::tuple<D, D, D>>>>
 getToEval(const std::string dirName) {

@@ -26,7 +26,7 @@ const std::vector<std::string> getFiles(const std::string dirName) {
   return fnames;
 }
 
-template <typename D>
+template <AbstractDomain D>
 void handleDomain(const Eval<D> &e, const std::string &dirPath,
                   unsigned int samples, unsigned int seed) {
   std::vector<std::string> fnames = getFiles(dirPath);

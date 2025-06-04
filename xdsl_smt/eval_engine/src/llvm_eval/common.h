@@ -3,6 +3,7 @@
 #include <string>
 
 #include "../APInt.h"
+#include "../AbstVal.h"
 
 typedef A::APInt (A::APInt::*ovFn)(const A::APInt &, bool &) const;
 typedef std::function<const A::APInt(const A::APInt, const A::APInt)> concFn;
@@ -15,7 +16,7 @@ template <typename D>
 using Test = std::tuple<std::string, concFn, std::optional<opConFn>,
                         std::optional<XferFn<D>>>;
 
-template <typename D, typename D2>
+template <AbstractDomain D, typename D2>
 using XferWrap =
     const std::function<const D(const D &, const D &, const XferFn<D2> &)>;
 

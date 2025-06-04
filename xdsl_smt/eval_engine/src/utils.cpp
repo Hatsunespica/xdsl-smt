@@ -1,6 +1,7 @@
 #ifndef Utils_H
 #define Utils_H
 
+#include "AbstVal.h"
 #include <fcntl.h>
 #include <iostream>
 #include <sstream>
@@ -25,7 +26,7 @@ const std::string makeVecFname(const std::string &dirPath, unsigned int bw,
          std::to_string(samples);
 }
 
-template <typename D>
+template <AbstractDomain D>
 void write_vecs(const std::string &fname,
                 const std::vector<std::tuple<D, D, D>> &x, bool append) {
   const size_t data_size =
@@ -80,7 +81,7 @@ void write_vecs(const std::string &fname,
   close(fd);
 }
 
-template <typename D>
+template <AbstractDomain D>
 std::vector<std::tuple<D, D, D>> read_vecs(const std::string &fname,
                                            unsigned int num_elemnts) {
   const size_t total_size =
