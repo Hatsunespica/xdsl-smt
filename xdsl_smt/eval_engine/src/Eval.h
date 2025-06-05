@@ -22,14 +22,14 @@ SUPPRESS_WARNINGS_END
 typedef A::APInt (*ConcOpFn)(A::APInt, A::APInt);
 typedef bool (*OpConFn)(A::APInt, A::APInt);
 
-template <AbstractDomain D> class EnumEval {
+template <AbstractDomain D> class EvalAbstOp {
 private:
-  std::optional<OpConFn> opCon;
   ConcOpFn concOp;
+  std::optional<OpConFn> opCon;
 
 public:
-  EnumEval(ConcOpFn _concOp, std::optional<OpConFn> _opCon)
-      : opCon(_opCon), concOp(_concOp) {}
+  EvalAbstOp(ConcOpFn _concOp, std::optional<OpConFn> _opCon)
+      : concOp(_concOp), opCon(_opCon) {}
 
   const D toBestAbst(const D &lhs, const D &rhs) const {
     D res = D::bottom(lhs.bw());
@@ -53,27 +53,25 @@ public:
   }
 };
 
-template <AbstractDomain D> class EnumXfer {
+template <AbstractDomain D> class EnumAbstDomain {
 private:
   // members
   Jit jit;
   unsigned int lbw;
   unsigned int ubw;
-  EnumEval<D> enumEval;
+  EvalAbstOp<D> evalAbstOp;
 
 public:
-  EnumXfer(Jit _jit, unsigned int _lbw, unsigned int _ubw)
-      : jit(std::move(_jit)), lbw(_lbw), ubw(_ubw), enumEval(nullptr, nullptr) {
-    ConcOpFn concOpFn = jit.getFn<ConcOpFn>("concrete_op");
-    std::optional<OpConFn> opConFn = jit.getOptFn<OpConFn>("op_constraint");
-    enumEval = EnumEval<D>(concOpFn, opConFn);
-  }
+  EnumAbstDomain(Jit _jit, unsigned int _lbw, unsigned int _ubw)
+      : jit(std::move(_jit)), lbw(_lbw), ubw(_ubw),
+        evalAbstOp(jit.getFn<ConcOpFn>("concrete_op"),
+                   jit.getOptFn<OpConFn>("op_constraint")) {}
 
   const std::vector<std::tuple<D, D, D>>
   genRands(unsigned int samples, unsigned int ebw, std::mt19937 &rng) {
     std::vector<std::tuple<D, D, D>> r;
     for (unsigned int i = 0; i < samples; ++i)
-      r.push_back(enumEval.genRand(ebw, rng));
+      r.push_back(evalAbstOp.genRand(ebw, rng));
 
     return r;
   }
@@ -84,7 +82,7 @@ public:
 
     for (D lhs : fullLattice)
       for (D rhs : fullLattice)
-        r.push_back({lhs, rhs, enumEval.toBestAbst(lhs, rhs)});
+        r.push_back({lhs, rhs, evalAbstOp.toBestAbst(lhs, rhs)});
 
     return r;
   }
@@ -128,7 +126,7 @@ private:
   std::vector<XferFn> xferFns;
   std::vector<XferFn> baseFns;
   std::optional<AbsOpConFn> absOpCon;
-  EnumEval<D> enumEval;
+  EvalAbstOp<D> evalAbstOp;
 
   // methods
   std::vector<D> synth_function_wrapper(const D &lhs, const D &rhs) const {
@@ -150,20 +148,11 @@ private:
 public:
   Eval(Jit _jit, const std::vector<std::string> synthFnNames,
        const std::vector<std::string> baseFnNames)
-      : jit(std::move(_jit)), enumEval(nullptr, nullptr) {
-    std::transform(
-        synthFnNames.begin(), synthFnNames.end(), std::back_inserter(xferFns),
-        [this](const std::string &x) { return jit.getFn<XferFn>(x); });
-
-    std::transform(
-        baseFnNames.begin(), baseFnNames.end(), std::back_inserter(baseFns),
-        [this](const std::string &x) { return jit.getFn<XferFn>(x); });
-
-    absOpCon = jit.getOptFn<AbsOpConFn>("abs_op_constraint");
-    ConcOpFn concOpFn = jit.getFn<ConcOpFn>("concrete_op");
-    std::optional<OpConFn> opConFn = jit.getOptFn<OpConFn>("op_constraint");
-    enumEval = EnumEval<D>(concOpFn, opConFn);
-  }
+      : jit(std::move(_jit)), xferFns(jit.getFns<XferFn>(synthFnNames)),
+        baseFns(jit.getFns<XferFn>(baseFnNames)),
+        absOpCon(jit.getOptFn<AbsOpConFn>("abs_op_constraint")),
+        evalAbstOp(EvalAbstOp<D>(jit.getFn<ConcOpFn>("concrete_op"),
+                                 jit.getOptFn<OpConFn>("op_constraint"))) {}
 
   void evalSingle(const D &lhs, const D &rhs, const D &best, Results &r) {
     // skip this pair if absOpCon returns false
@@ -198,7 +187,7 @@ public:
 
     for (unsigned int i = 0; i < samples; ++i) {
       while (true) {
-        auto [lhs, rhs, res] = enumEval.genRand(bw, rng);
+        auto [lhs, rhs, res] = evalAbstOp.genRand(bw, rng);
 
         if (absOpCon && !absOpCon.value()(lhs, rhs))
           continue;

@@ -11,7 +11,7 @@ template <AbstractDomain D>
 void handleDomain(Jit jit, unsigned int ubw, unsigned int lbw,
                   std::optional<std::pair<unsigned int, unsigned int>> samples,
                   const std::string dirPath) {
-  EnumXfer<D> e(std::move(jit), lbw, ubw);
+  EnumAbstDomain<D> e(std::move(jit), lbw, ubw);
   std::vector<std::vector<std::tuple<D, D, D>>> r =
       samples ? e.genAllBwsRand(samples->first, samples->second)
               : e.genAllBws();
