@@ -85,7 +85,7 @@ custom_int_ops1: list[OpWithSignature] = [
     (MulOp, (INT_T, INT_T)),
 ]
 
-custom_int_ops2: list[OpWithSignature] = [
+custom_int_ops_w_mul: list[OpWithSignature] = [
     (NegOp, (INT_T,)),
     (AndOp, (INT_T, INT_T)),
     (OrOp, (INT_T, INT_T)),
@@ -104,6 +104,28 @@ custom_int_ops2: list[OpWithSignature] = [
     (URemOp, (INT_T, INT_T)),
     (SRemOp, (INT_T, INT_T)),
     (MulOp, (INT_T, INT_T)),
+]
+
+custom_int_ops_w_bit: list[OpWithSignature] = [
+    (NegOp, (INT_T,)),
+    (AndOp, (INT_T, INT_T)),
+    (OrOp, (INT_T, INT_T)),
+    (XorOp, (INT_T, INT_T)),
+    (AddOp, (INT_T, INT_T)),
+    (SubOp, (INT_T, INT_T)),
+    (SelectOp, (BOOL_T, INT_T, INT_T)),
+    (LShrOp, (INT_T, BINT_T)),
+    (ShlOp, (INT_T, BINT_T)),
+    (UMinOp, (INT_T, INT_T)),
+    (UMaxOp, (INT_T, INT_T)),
+    (SMinOp, (INT_T, INT_T)),
+    (SMaxOp, (INT_T, INT_T)),
+    (SetHighBitsOp, (INT_T, BINT_T)),
+    (SetLowBitsOp, (INT_T, BINT_T)),
+    (ClearHighBitsOp, (INT_T, BINT_T)),
+    (ClearLowBitsOp, (INT_T, BINT_T)),
+    (SetSignBitOp, (INT_T,)),
+    (ClearSignBitOp, (INT_T,)),
 ]
 
 full_int_ops: list[OpWithSignature] = [
