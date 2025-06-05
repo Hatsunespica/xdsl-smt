@@ -36,8 +36,7 @@ int main() {
   std::getline(std::cin, tmpStr);
   unsigned int lbw = static_cast<unsigned int>(std::stoul(tmpStr));
 
-  std::getline(std::cin, tmpStr);
-  std::vector<std::string> tmpVec = split_whitespace(tmpStr);
+  std::vector<std::string> tmpVec = getSplitLine(std::cin);
   std::optional<std::pair<unsigned int, unsigned int>> samples = std::nullopt;
   if (tmpVec.size() != 0)
     samples = {static_cast<unsigned int>(std::stoul(tmpVec[0])),

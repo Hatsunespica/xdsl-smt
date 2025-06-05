@@ -13,8 +13,8 @@ template <typename D>
 using XferFn = std::function<const D(const D &, const D &)>;
 
 template <typename D>
-using Test = std::tuple<std::string, concFn, std::optional<opConFn>,
-                        std::optional<XferFn<D>>>;
+using Test =
+    std::tuple<concFn, std::optional<opConFn>, std::optional<XferFn<D>>>;
 
 template <AbstractDomain D, typename D2>
 using XferWrap =
@@ -24,6 +24,5 @@ bool nonZeroRhs(const A::APInt &, const A::APInt &);
 opConFn getNW(ovFn);
 opConFn getNW(ovFn, ovFn);
 
-extern const std::vector<
-    std::tuple<std::string, concFn, std::optional<opConFn>>>
-    tests;
+extern const std::vector<std::tuple<std::string, concFn, std::optional<opConFn>>>
+    OP_TESTS;

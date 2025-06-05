@@ -1,14 +1,17 @@
 #ifndef Utils_H
 #define Utils_H
 
-#include "AbstVal.h"
 #include <fcntl.h>
+#include <filesystem>
 #include <iostream>
+#include <istream>
 #include <sstream>
 #include <string>
 #include <sys/mman.h>
 #include <unistd.h>
 #include <vector>
+
+#include "AbstVal.h"
 
 std::vector<std::string> split_whitespace(const std::string &input) {
   std::vector<std::string> result;
@@ -18,6 +21,12 @@ std::vector<std::string> split_whitespace(const std::string &input) {
     result.push_back(word);
   }
   return result;
+}
+
+std::vector<std::string> getSplitLine(std::istream &in) {
+  std::string tmp;
+  std::getline(in, tmp);
+  return split_whitespace(tmp);
 }
 
 const std::string makeVecFname(const std::string &dirPath, unsigned int bw,
@@ -113,6 +122,28 @@ std::vector<std::tuple<D, D, D>> read_vecs(const std::string &fname,
   close(fd);
 
   return vecs;
+}
+
+template <AbstractDomain D>
+const std::pair<std::vector<unsigned int>,
+                std::vector<std::vector<std::tuple<D, D, D>>>>
+getToEval(const std::string dirName) {
+  std::vector<std::vector<std::tuple<D, D, D>>> v;
+  std::vector<unsigned int> bws;
+
+  for (const std::filesystem::directory_entry &entry :
+       std::filesystem::directory_iterator(dirName)) {
+    std::vector<std::string> split_fname = split_whitespace(entry.path());
+    unsigned int elems = static_cast<unsigned int>(
+        std::atol(split_fname[split_fname.size() - 1].data()));
+
+    bws.push_back(static_cast<unsigned int>(
+        std::atol(split_fname[split_fname.size() - 3].data())));
+
+    v.push_back(read_vecs<D>(entry.path(), elems));
+  }
+
+  return {bws, v};
 }
 
 #endif

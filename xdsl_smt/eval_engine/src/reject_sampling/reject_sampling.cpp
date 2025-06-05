@@ -60,8 +60,7 @@ int main() {
   std::getline(std::cin, tmpStr);
   unsigned int seed = static_cast<unsigned int>(std::stoul(tmpStr));
 
-  std::getline(std::cin, tmpStr);
-  std::vector<std::string> bFnNames = split_whitespace(tmpStr);
+  std::vector<std::string> bFnNames = getSplitLine(std::cin);
 
   std::string fnSrcCode(std::istreambuf_iterator<char>(std::cin), {});
   Jit jit(fnSrcCode);
