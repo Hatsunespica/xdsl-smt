@@ -44,8 +44,8 @@ public:
 
   const std::tuple<D, D, D> genRand(unsigned int ebw, std::mt19937 &rng) const {
     while (true) {
-      D lhs = D(rng, ebw);
-      D rhs = D(rng, ebw);
+      D lhs = D::rand(rng, ebw);
+      D rhs = D::rand(rng, ebw);
       D res = toBestAbst(lhs, rhs);
       if (!res.isBottom())
         return {lhs, rhs, res};
