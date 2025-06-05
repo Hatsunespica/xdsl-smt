@@ -137,9 +137,9 @@ def main() -> None:
     print("\nResults:")
     for (_, domain, _, _, op), r in zip(inputs, data):
         print(f"{domain} {op}")
-        print(r)
         percent = r.per_bit[r.max_bit].exacts / r.per_bit[r.max_bit].all_cases * 100
-        print(f"{percent:.4f}%")
+        dist = r.per_bit[r.max_bit].dist
+        print(f"Exact: {percent:.4f}%, Dist: {dist}")
 
 
 if __name__ == "__main__":
