@@ -159,7 +159,8 @@ full_int_ops: list[OpWithSignature] = [
 if not enable_bint:
     full_int_ops = list(set(full_int_ops + full_bint_ops))
     custom_int_ops1 = list(set(custom_int_ops1 + full_bint_ops))
-    custom_int_ops2 = list(set(custom_int_ops2 + full_bint_ops))
+    custom_int_ops_w_bit = list(set(custom_int_ops_w_bit + full_bint_ops))
+    custom_int_ops_w_mul = list(set(custom_int_ops_w_mul + full_bint_ops))
 
 
 full_i1_ops: list[OpWithSignature] = [
