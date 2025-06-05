@@ -94,8 +94,9 @@ kb_not_best_test_names = [
     "Add.mlir",
     "Umax.mlir",
     "And.mlir",
+    "AvgFloorU.mlir",
 ]
-# Some best tests are also included (Add, Umax, And))
+# Some best tests are also included (Add, Umax, And, AvgFloorU)
 
 cr_not_best_test_names = [
     "And.mlir",
