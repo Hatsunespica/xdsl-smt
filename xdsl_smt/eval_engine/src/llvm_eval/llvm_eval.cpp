@@ -1,88 +1,109 @@
-#include <functional>
+#include <algorithm>
 #include <iostream>
 #include <optional>
 #include <string>
 #include <vector>
 
 #include "../Results.h"
+#include "../utils.cpp"
+#include "../warning_suppresor.h"
 #include "cr_tests.h"
 #include "im_tests.h"
 #include "kb_tests.h"
+#include "llvm/IR/ConstantRange.h"
+#include "llvm/Support/KnownBits.h"
 
-template <typename D>
-const D to_best_abst(const D &lhs, const D &rhs, const concFn &fn,
-                     const std::optional<opConFn> &opCon) {
-  std::vector<D> crtVals;
-  const std::vector<A::APInt> rhss = rhs.toConcrete();
+template <AbstractDomain D, typename LLVM_D>
+const Results eval(unsigned int bw, Test<LLVM_D> &tst,
+                   const XferWrap<D, LLVM_D> &xfer_wrapper,
+                   const std::vector<std::tuple<D, D, D>> &toEval) {
+  auto [conc, opCon, xfer] = tst;
+  Results r{2};
 
-  for (A::APInt lhs_v : lhs.toConcrete())
-    for (A::APInt rhs_v : rhss)
-      if (!opCon || opCon.value()(lhs_v, rhs_v))
-        crtVals.push_back(D::fromConcrete(fn(lhs_v, rhs_v)));
-
-  return D::joinAll(crtVals, lhs.bw());
-}
-
-template <typename D, typename D2>
-std::vector<std::pair<std::string, Results>>
-eval(unsigned int bw, const std::vector<Test<D2>> &tsts,
-     XferWrap<D, D2> &xfer_wrapper) {
-
-  std::vector<std::pair<std::string, Results>> r;
-  const std::vector<D> fullLattice = D::enumVals(bw);
   D top = D::top(bw);
+  for (auto [lhs, rhs, best] : toEval) {
+    if (best.isBottom())
+      continue;
 
-  for (auto [name, conc, opCon, xfer] : tsts) {
-    r.push_back({name, Results{2}});
-
-    for (D lhs : fullLattice) {
-      for (D rhs : fullLattice) {
-        D best_abstract_res = to_best_abst(lhs, rhs, conc, opCon);
-
-        if (best_abstract_res.isBottom())
-          continue;
-
-        bool exact = false;
-        unsigned int dis = 0;
-        if (xfer) {
-          D xfer_res = xfer_wrapper(lhs, rhs, xfer.value());
-          exact = xfer_res == best_abstract_res;
-          dis = xfer_res.distance(best_abstract_res);
-        }
-        bool topExact = top == best_abstract_res;
-        unsigned int topDis = top.distance(best_abstract_res);
-
-        r.back().second.incResult(Result(0, dis, exact, 0, 0), 0);
-        r.back().second.incResult(Result(0, topDis, topExact, 0, 0), 1);
-        r.back().second.incCases(0, 0);
-      }
+    bool exact = false;
+    unsigned int dis = 0;
+    if (xfer) {
+      D xfer_res = xfer_wrapper(lhs, rhs, xfer.value());
+      exact = xfer_res == best;
+      dis = xfer_res.distance(best);
     }
+    bool topExact = top == best;
+    unsigned int topDis = top.distance(best);
+
+    r.incResult(Result(0, dis, exact, 0, 0), 0);
+    r.incResult(Result(0, topDis, topExact, 0, 0), 1);
+    r.incCases(0, 0);
   }
 
   return r;
 }
 
+template <typename LLVM_D>
+const Test<LLVM_D> makeTest(
+    const std::vector<std::tuple<std::string, std::optional<XferFn<LLVM_D>>>>
+        &llvmTests,
+    const std::string &opName) {
+
+  const auto &[_, llvmOp] =
+      *std::find_if(llvmTests.begin(), llvmTests.end(),
+                    [&](const auto &x) { return std::get<0>(x) == opName; });
+
+  const auto &[__, concFn, opConFn] =
+      *std::find_if(OP_TESTS.begin(), OP_TESTS.end(),
+                    [&](const auto &x) { return std::get<0>(x) == opName; });
+
+  return {concFn, opConFn, llvmOp};
+}
+
 int main() {
-  std::string tmpStr;
+  std::string fname;
+  std::getline(std::cin, fname);
+
   std::string domain;
   std::getline(std::cin, domain);
-  std::getline(std::cin, tmpStr);
-  unsigned int bw = static_cast<unsigned int>(std::stoul(tmpStr));
-  std::vector<std::pair<std::string, Results>> results;
 
-  if (domain == "ConstantRange")
-    results = eval<ConstantRange, llvm::ConstantRange>(bw, cr_tests(),
-                                                       cr_xfer_wrapper);
-  else if (domain == "KnownBits")
-    results = eval<KnownBits, llvm::KnownBits>(bw, kb_tests(), kb_xfer_wrapper);
-  else if (domain == "IntegerModulo")
-    results =
-        eval<IntegerModulo<6>, std::nullopt_t>(bw, im_tests(), im_xfer_wrapper);
-  else
+  std::string opName;
+  std::getline(std::cin, opName);
+
+  std::vector<std::pair<unsigned int, Results>> results;
+
+  if (domain == "KnownBits") {
+    auto [bws, toEval] = getToEval<KnownBits>(fname);
+    for (unsigned int i = 0; i < bws.size(); ++i) {
+      Test<llvm::KnownBits> test = makeTest<llvm::KnownBits>(KB_TESTS, opName);
+      Results r = eval<KnownBits, llvm::KnownBits>(bws[i], test, kb_xfer_wrapper,
+                                                toEval[i]);
+      results.push_back({bws[i], r});
+    }
+  } else if (domain == "UConstRange") {
+    auto [bws, toEval] = getToEval<UConstRange>(fname);
+    for (unsigned int i = 0; i < bws.size(); ++i) {
+      Test<llvm::ConstantRange> test =
+          makeTest<llvm::ConstantRange>(CR_TESTS, opName);
+      Results r = eval<UConstRange, llvm::ConstantRange>(bws[i], test, cr_xfer_wrapper,
+                                             toEval[i]);
+      results.push_back({bws[i], r});
+    }
+  } else if (domain == "SConstRange")
+    std::cerr << "SConstRange not impl'd yet.\n";
+  else if (domain == "IntegerModulo") {
+    auto [bws, toEval] = getToEval<IntegerModulo<6>>(fname);
+    for (unsigned int i = 0; i < bws.size(); ++i) {
+      Test<std::nullopt_t> test = makeTest<std::nullopt_t>(IM_TESTS, opName);
+      Results r = eval<IntegerModulo<6>, std::nullopt_t>(bws[i], test, im_xfer_wrapper,
+                                             toEval[i]);
+      results.push_back({bws[i], r});
+    }
+  } else
     std::cerr << "Unknown Domain: " << domain << "\n";
 
-  for (auto [name, r] : results) {
-    std::cout << name << "\n";
+  for (auto [bw, r] : results) {
+    std::cout << "bw: " << bw << "\n";
     r.print();
     std::cout << "---\n";
   }

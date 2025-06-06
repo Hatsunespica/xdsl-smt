@@ -475,7 +475,6 @@ def run(
     outputs_folder: Path,
 ) -> EvalResult:
     assert min_bitwidth >= 4 or domain != AbstractDomain.IntegerModulo
-    EvalResult.get_max_dis = domain.max_dist
 
     logger.debug("Round_ID\tSound%\tUExact%\tDisReduce\tCost")
 

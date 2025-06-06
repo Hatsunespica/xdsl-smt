@@ -1,4 +1,3 @@
-#include <iostream>
 #include <optional>
 #include <vector>
 
@@ -8,7 +7,6 @@
 #include "common.h"
 
 SUPPRESS_WARNINGS_BEGIN
-#include "llvm/ADT/STLExtras.h"
 #include <llvm/Support/KnownBits.h>
 SUPPRESS_WARNINGS_END
 
@@ -30,78 +28,56 @@ inline const KnownBits kb_xfer_wrapper(const KnownBits &lhs,
 #define KB_OP(e)                                                               \
   [](const llvm::KnownBits &l, const llvm::KnownBits &r) { return e; }
 
-inline const std::vector<Test<llvm::KnownBits>> kb_tests() {
-  const std::vector<
-      std::tuple<std::string, std::optional<XferFn<llvm::KnownBits>>>>
-      kb_tests{
-          {"and", KB_OP(l & r)},
-          {"or", KB_OP(l | r)},
-          {"xor", KB_OP(l ^ r)},
-          {"add", KB_OP(llvm::KnownBits::add(l, r))},
-          {"add nsw", KB_OP(llvm::KnownBits::add(l, r, true, false))},
-          {"add nuw", KB_OP(llvm::KnownBits::add(l, r, false, true))},
-          {"add nsuw", KB_OP(llvm::KnownBits::add(l, r, true, true))},
-          {"sub", KB_OP(llvm::KnownBits::sub(l, r))},
-          {"sub nsw", KB_OP(llvm::KnownBits::sub(l, r, true, false))},
-          {"sub nuw", KB_OP(llvm::KnownBits::sub(l, r, false, true))},
-          {"sub nsuw", KB_OP(llvm::KnownBits::sub(l, r, true, true))},
-          {"umax", KB_OP(llvm::KnownBits::umax(l, r))},
-          {"umin", KB_OP(llvm::KnownBits::umin(l, r))},
-          {"smax", KB_OP(llvm::KnownBits::smax(l, r))},
-          {"smin", KB_OP(llvm::KnownBits::smin(l, r))},
-          {"abdu", KB_OP(llvm::KnownBits::abdu(l, r))},
-          {"abds", KB_OP(llvm::KnownBits::abds(l, r))},
-          {"udiv", KB_OP(llvm::KnownBits::udiv(l, r))},
-          {"udiv exact", KB_OP(llvm::KnownBits::udiv(l, r, true))},
-          {"sdiv", KB_OP(llvm::KnownBits::sdiv(l, r))},
-          {"sdiv exact", KB_OP(llvm::KnownBits::sdiv(l, r, true))},
-          {"urem", KB_OP(llvm::KnownBits::urem(l, r))},
-          {"srem", KB_OP(llvm::KnownBits::srem(l, r))},
-          {"mul", KB_OP(llvm::KnownBits::mul(l, r))},
-          {"mul nsw", std::nullopt},
-          {"mul nuw", std::nullopt},
-          {"mul nsuw", std::nullopt},
-          {"mulhs", KB_OP(llvm::KnownBits::mulhs(l, r))},
-          {"mulhu", KB_OP(llvm::KnownBits::mulhu(l, r))},
-          {"shl", KB_OP(llvm::KnownBits::shl(l, r))},
-          {"shl nsw", KB_OP(llvm::KnownBits::shl(l, r, false, true))},
-          {"shl nuw", KB_OP(llvm::KnownBits::shl(l, r, true, false))},
-          {"shl nsuw", KB_OP(llvm::KnownBits::shl(l, r, true, true))},
-          {"lshr", KB_OP(llvm::KnownBits::lshr(l, r))},
-          {"lshr exact", KB_OP(llvm::KnownBits::lshr(l, r, false, true))},
-          {"ashr", KB_OP(llvm::KnownBits::ashr(l, r))},
-          {"ashr exact", KB_OP(llvm::KnownBits::ashr(l, r, false, true))},
-          {"avgfloors", KB_OP(llvm::KnownBits::avgFloorS(l, r))},
-          {"avgflooru", KB_OP(llvm::KnownBits::avgFloorU(l, r))},
-          {"avgceils", KB_OP(llvm::KnownBits::avgCeilS(l, r))},
-          {"avgceilu", KB_OP(llvm::KnownBits::avgCeilU(l, r))},
-          {"uadd sat", KB_OP(llvm::KnownBits::uadd_sat(l, r))},
-          {"usub sat", KB_OP(llvm::KnownBits::usub_sat(l, r))},
-          {"sadd sat", KB_OP(llvm::KnownBits::sadd_sat(l, r))},
-          {"ssub sat", KB_OP(llvm::KnownBits::ssub_sat(l, r))},
-          {"umul sat", std::nullopt},
-          {"smul sat", std::nullopt},
-          {"ushl sat", std::nullopt},
-          {"sshl sat", std::nullopt},
-      };
-
-  if (tests.size() != kb_tests.size()) {
-    std::cerr << "Test size mismatch: " << tests.size() << " | "
-              << kb_tests.size() << "\n";
-    exit(1);
-  }
-
-  std::vector<Test<llvm::KnownBits>> v;
-  for (const auto &[test, kbTest] : llvm::zip(tests, kb_tests)) {
-    const auto &[tName, concFn, opConFn] = test;
-    const auto &[kbName, kbOp] = kbTest;
-    if (tName != kbName) {
-      std::cerr << "Function name mismatch: " << tName << " | " << kbName
-                << "\n";
-      exit(1);
-    }
-    v.emplace_back(tName, concFn, opConFn, kbOp);
-  }
-
-  return v;
-}
+const std::vector<
+    std::tuple<std::string, std::optional<XferFn<llvm::KnownBits>>>>
+    KB_TESTS{
+        {"Abds", KB_OP(llvm::KnownBits::abds(l, r))},
+        {"Abdu", KB_OP(llvm::KnownBits::abdu(l, r))},
+        {"Add", KB_OP(llvm::KnownBits::add(l, r))},
+        {"AddNsw", KB_OP(llvm::KnownBits::add(l, r, true, false))},
+        {"AddNswNuw", KB_OP(llvm::KnownBits::add(l, r, true, true))},
+        {"AddNuw", KB_OP(llvm::KnownBits::add(l, r, false, true))},
+        {"And", KB_OP(l &r)},
+        {"Ashr", KB_OP(llvm::KnownBits::ashr(l, r))},
+        {"AshrExact", KB_OP(llvm::KnownBits::ashr(l, r, false, true))},
+        {"AvgCeilS", KB_OP(llvm::KnownBits::avgCeilS(l, r))},
+        {"AvgCeilU", KB_OP(llvm::KnownBits::avgCeilU(l, r))},
+        {"AvgFloorS", KB_OP(llvm::KnownBits::avgFloorS(l, r))},
+        {"AvgFloorU", KB_OP(llvm::KnownBits::avgFloorU(l, r))},
+        {"Lshr", KB_OP(llvm::KnownBits::lshr(l, r))},
+        {"LshrExact", KB_OP(llvm::KnownBits::lshr(l, r, false, true))},
+        {"Mods", KB_OP(llvm::KnownBits::srem(l, r))},
+        {"Modu", KB_OP(llvm::KnownBits::urem(l, r))},
+        {"Mul", KB_OP(llvm::KnownBits::mul(l, r))},
+        {"MulNsw", std::nullopt},
+        {"MulNswNuw", std::nullopt},
+        {"MulNuw", std::nullopt},
+        {"Mulhs", KB_OP(llvm::KnownBits::mulhs(l, r))},
+        {"Mulhu", KB_OP(llvm::KnownBits::mulhu(l, r))},
+        {"Or", KB_OP(l | r)},
+        {"SaddSat", KB_OP(llvm::KnownBits::sadd_sat(l, r))},
+        {"Sdiv", KB_OP(llvm::KnownBits::sdiv(l, r))},
+        {"SdivExact", KB_OP(llvm::KnownBits::sdiv(l, r, true))},
+        {"Shl", KB_OP(llvm::KnownBits::shl(l, r))},
+        {"ShlNsw", KB_OP(llvm::KnownBits::shl(l, r, false, true))},
+        {"ShlNswNuw", KB_OP(llvm::KnownBits::shl(l, r, true, true))},
+        {"ShlNuw", KB_OP(llvm::KnownBits::shl(l, r, true, false))},
+        {"Smax", KB_OP(llvm::KnownBits::smax(l, r))},
+        {"Smin", KB_OP(llvm::KnownBits::smin(l, r))},
+        {"SmulSat", std::nullopt},
+        {"SshlSat", std::nullopt},
+        {"SsubSat", KB_OP(llvm::KnownBits::ssub_sat(l, r))},
+        {"Sub", KB_OP(llvm::KnownBits::sub(l, r))},
+        {"SubNsw", KB_OP(llvm::KnownBits::sub(l, r, true, false))},
+        {"SubNswNuw", KB_OP(llvm::KnownBits::sub(l, r, true, true))},
+        {"SubNuw", KB_OP(llvm::KnownBits::sub(l, r, false, true))},
+        {"UaddSat", KB_OP(llvm::KnownBits::uadd_sat(l, r))},
+        {"Udiv", KB_OP(llvm::KnownBits::udiv(l, r))},
+        {"UdivExact", KB_OP(llvm::KnownBits::udiv(l, r, true))},
+        {"Umax", KB_OP(llvm::KnownBits::umax(l, r))},
+        {"Umin", KB_OP(llvm::KnownBits::umin(l, r))},
+        {"UmulSat", std::nullopt},
+        {"UshlSat", std::nullopt},
+        {"UsubSat", KB_OP(llvm::KnownBits::usub_sat(l, r))},
+        {"Xor", KB_OP(l ^ r)},
+    };

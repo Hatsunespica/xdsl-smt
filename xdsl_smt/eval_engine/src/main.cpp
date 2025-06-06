@@ -1,4 +1,3 @@
-#include <filesystem>
 #include <iostream>
 #include <iterator>
 #include <string>
@@ -9,28 +8,6 @@
 #include "jit.h"
 #include "utils.cpp"
 
-template <typename D>
-const std::pair<std::vector<unsigned int>,
-                std::vector<std::vector<std::tuple<D, D, D>>>>
-getToEval(const std::string dirName) {
-  std::vector<std::vector<std::tuple<D, D, D>>> v;
-  std::vector<unsigned int> bws;
-
-  for (const std::filesystem::directory_entry &entry :
-       std::filesystem::directory_iterator(dirName)) {
-    std::vector<std::string> split_fname = split_whitespace(entry.path());
-    unsigned int elems = static_cast<unsigned int>(
-        std::atol(split_fname[split_fname.size() - 1].data()));
-
-    bws.push_back(static_cast<unsigned int>(
-        std::atol(split_fname[split_fname.size() - 3].data())));
-
-    v.push_back(read_vecs<D>(entry.path(), elems));
-  }
-
-  return {bws, v};
-}
-
 int main() {
   std::string fname;
   std::getline(std::cin, fname);
@@ -38,12 +15,8 @@ int main() {
   std::string domain;
   std::getline(std::cin, domain);
 
-  std::string tmpStr;
-  std::getline(std::cin, tmpStr);
-  std::vector<std::string> synNames = split_whitespace(tmpStr);
-
-  std::getline(std::cin, tmpStr);
-  std::vector<std::string> bFnNames = split_whitespace(tmpStr);
+  std::vector<std::string> synNames = getSplitLine(std::cin);
+  std::vector<std::string> bFnNames = getSplitLine(std::cin);
 
   std::string fnSrcCode(std::istreambuf_iterator<char>(std::cin), {});
   Jit jit(fnSrcCode);
@@ -52,10 +25,14 @@ int main() {
   if (domain == "KnownBits") {
     auto [bws, toEval] = getToEval<KnownBits>(fname);
     r = {bws, Eval<KnownBits>(std::move(jit), synNames, bFnNames).eval(toEval)};
-  } else if (domain == "ConstantRange") {
-    auto [bws, toEval] = getToEval<ConstantRange>(fname);
+  } else if (domain == "UConstRange") {
+    auto [bws, toEval] = getToEval<UConstRange>(fname);
     r = {bws,
-         Eval<ConstantRange>(std::move(jit), synNames, bFnNames).eval(toEval)};
+         Eval<UConstRange>(std::move(jit), synNames, bFnNames).eval(toEval)};
+  } else if (domain == "SConstRange") {
+    auto [bws, toEval] = getToEval<SConstRange>(fname);
+    r = {bws,
+         Eval<SConstRange>(std::move(jit), synNames, bFnNames).eval(toEval)};
   } else if (domain == "IntegerModulo") {
     auto [bws, toEval] = getToEval<IntegerModulo<6>>(fname);
     r = {bws, Eval<IntegerModulo<6>>(std::move(jit), synNames, bFnNames)

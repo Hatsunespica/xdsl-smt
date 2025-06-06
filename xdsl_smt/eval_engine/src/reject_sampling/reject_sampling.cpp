@@ -26,7 +26,7 @@ const std::vector<std::string> getFiles(const std::string dirName) {
   return fnames;
 }
 
-template <typename D>
+template <AbstractDomain D>
 void handleDomain(const Eval<D> &e, const std::string &dirPath,
                   unsigned int samples, unsigned int seed) {
   std::vector<std::string> fnames = getFiles(dirPath);
@@ -60,8 +60,7 @@ int main() {
   std::getline(std::cin, tmpStr);
   unsigned int seed = static_cast<unsigned int>(std::stoul(tmpStr));
 
-  std::getline(std::cin, tmpStr);
-  std::vector<std::string> bFnNames = split_whitespace(tmpStr);
+  std::vector<std::string> bFnNames = getSplitLine(std::cin);
 
   std::string fnSrcCode(std::istreambuf_iterator<char>(std::cin), {});
   Jit jit(fnSrcCode);
@@ -69,8 +68,11 @@ int main() {
   if (domain == "KnownBits") {
     Eval<KnownBits> e(std::move(jit), {}, bFnNames);
     handleDomain(e, dirPath, samples, seed);
-  } else if (domain == "ConstantRange") {
-    Eval<ConstantRange> e(std::move(jit), {}, bFnNames);
+  } else if (domain == "UConstRange") {
+    Eval<UConstRange> e(std::move(jit), {}, bFnNames);
+    handleDomain(e, dirPath, samples, seed);
+  } else if (domain == "SConstRange") {
+    Eval<SConstRange> e(std::move(jit), {}, bFnNames);
     handleDomain(e, dirPath, samples, seed);
   } else if (domain == "IntegerModulo") {
     Eval<IntegerModulo<6>> e(std::move(jit), {}, bFnNames);

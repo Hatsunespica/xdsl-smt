@@ -105,6 +105,14 @@ public:
     return llvm::cantFail(jit->lookup(fnName)).toPtr<T>();
   }
 
+  template <typename T> std::vector<T> getFns(const std::vector<std::string> &v) {
+    std::vector<T> fns;
+    std::transform(v.begin(), v.end(), std::back_inserter(fns),
+                   [this](const std::string &x) { return getFn<T>(x); });
+
+    return fns;
+  }
+
   template <typename T>
   std::optional<T> getOptFn(const std::string_view fnName) {
     llvm::Expected<llvm::orc::ExecutorAddr> addr = jit->lookup(fnName);

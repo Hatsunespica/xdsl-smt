@@ -9,6 +9,38 @@
 
 #include "APInt.h"
 
+template <typename D>
+concept AbstractDomain = requires(const D d, unsigned int bw, const A::APInt &a,
+                                  const std::vector<D> &v, std::mt19937 &rng,
+                                  unsigned char *p, unsigned int o) {
+  std::constructible_from<D, Vec<D::N>>;
+  { D::N } -> std::convertible_to<unsigned int>;
+  { d.v } -> std::same_as<const Vec<D::N> &>;
+
+  // Static methods
+  { D::rand(rng, bw) } -> std::same_as<const D>;
+  { D::bottom(bw) } -> std::same_as<const D>;
+  { D::top(bw) } -> std::same_as<const D>;
+  { D::enumVals(bw) } -> std::same_as<const std::vector<D>>;
+  { D::fromConcrete(a) } -> std::same_as<const D>;
+  { D::deserialize(p, o) } -> std::same_as<const D>;
+  { D::joinAll(v, bw) } -> std::same_as<const D>;
+  { D::meetAll(v, bw) } -> std::same_as<const D>;
+
+  // Instance methods
+  { d == d } -> std::convertible_to<bool>;
+  { d.serialize(p, o) } -> std::same_as<void>;
+  { d.isSuperset(d) } -> std::same_as<bool>;
+  { d.isBottom() } -> std::same_as<bool>;
+  { d.isTop() } -> std::same_as<bool>;
+  { d.meet(d) } -> std::same_as<const D>;
+  { d.join(d) } -> std::same_as<const D>;
+  { d.toConcrete() } -> std::same_as<const std::vector<A::APInt>>;
+  { d.display() } -> std::same_as<const std::string>;
+  { d.distance(d) } -> std::same_as<unsigned int>;
+  { d.bw() } -> std::same_as<unsigned int>;
+};
+
 template <typename Domain, unsigned int N_> class AbstVal {
 public:
   static constexpr unsigned int N = N_;
@@ -50,12 +82,13 @@ public:
   bool operator==(const AbstVal &rhs) const { return v == rhs.v; }
   unsigned int bw() const { return v[0].getBitWidth(); }
   bool isTop() const { return *this == top(bw()); }
-  bool isBottom() const { return *this == bottom(bw()); }
   bool isSuperset(const Domain &rhs) const { return meet(rhs) == rhs; }
   void serialize(unsigned char *p, unsigned int &o) const { v.serialize(p, o); }
 
   // methods delegated to derived class
-  bool isValid() const { return static_cast<const Domain *>(this)->isValid(); }
+  bool isBottom() const {
+    return static_cast<const Domain *>(this)->isBottom();
+  }
   const Domain meet(const Domain &rhs) const {
     return static_cast<const Domain *>(this)->meet(rhs);
   }
@@ -87,15 +120,6 @@ private:
 
 public:
   KnownBits(const Vec<N> &vC) : AbstVal<KnownBits, N>(vC) {}
-  KnownBits(std::mt19937 &rng, unsigned int bw)
-      : AbstVal<KnownBits, N>(
-            {A::APInt::getAllOnes(bw), A::APInt::getAllOnes(bw)}) {
-    std::uniform_int_distribution<unsigned long> dist(0, (1 << bw) - 1);
-    while (!isValid()) {
-      v[0] = A::APInt(bw, dist(rng));
-      v[1] = A::APInt(bw, dist(rng));
-    }
-  }
 
   const std::string display() const {
     if (KnownBits::isBottom()) {
@@ -116,7 +140,7 @@ public:
     return ss.str();
   }
 
-  bool isValid() const { return !zero().intersects(one()); }
+  bool isBottom() const { return zero().intersects(one()); }
 
   const KnownBits meet(const KnownBits &rhs) const {
     return KnownBits({zero() | rhs.zero(), one() | rhs.one()});
@@ -146,16 +170,27 @@ public:
     return (zero() ^ rhs.zero()).popcount() + (one() ^ rhs.one()).popcount();
   }
 
-  static KnownBits fromConcrete(const A::APInt &x) {
+  static const KnownBits rand(std::mt19937 &rng, unsigned int bw) {
+    KnownBits kb({A::APInt::getAllOnes(bw), A::APInt::getAllOnes(bw)});
+    std::uniform_int_distribution<unsigned long> dist(0, (1 << bw) - 1);
+    while (kb.isBottom()) {
+      kb.v[0] = A::APInt(bw, dist(rng));
+      kb.v[1] = A::APInt(bw, dist(rng));
+    }
+
+    return kb;
+  }
+
+  static const KnownBits fromConcrete(const A::APInt &x) {
     return KnownBits({~x, x});
   }
 
-  static KnownBits bottom(unsigned int bw) {
+  static const KnownBits bottom(unsigned int bw) {
     const A::APInt max = A::APInt::getMaxValue(bw);
     return KnownBits({max, max});
   }
 
-  static KnownBits top(unsigned int bw) {
+  static const KnownBits top(unsigned int bw) {
     const A::APInt min = A::APInt::getMinValue(bw);
     return KnownBits({min, min});
   }
@@ -184,7 +219,7 @@ public:
   }
 };
 
-class ConstantRange : public AbstVal<ConstantRange, 2> {
+class UConstRange : public AbstVal<UConstRange, 2> {
 private:
   A::APInt lower() const { return v[0]; }
   A::APInt upper() const { return v[1]; }
@@ -194,22 +229,10 @@ private:
   const A::APInt getConstant() const { return lower(); }
 
 public:
-  ConstantRange(const Vec<N> &vC) : AbstVal<ConstantRange, N>(vC) {}
-  ConstantRange(std::mt19937 &rng, unsigned int bw)
-      : AbstVal<ConstantRange, N>(
-            {A::APInt::getMaxValue(bw), A::APInt::getMinValue(bw)}) {
-    std::uniform_int_distribution<unsigned long> dist(0, (1 << bw) - 1);
-    v[0] = A::APInt(bw, dist(rng));
-    v[1] = A::APInt(bw, dist(rng));
-    if (!isValid()) {
-      A::APInt tmp = v[0];
-      v[0] = v[1];
-      v[1] = tmp;
-    }
-  }
+  UConstRange(const Vec<N> &vC) : AbstVal<UConstRange, N>(vC) {}
 
   const std::string display() const {
-    if (ConstantRange::isBottom()) {
+    if (UConstRange::isBottom()) {
       return "(bottom)";
     }
 
@@ -217,26 +240,26 @@ public:
     ss << '[' << lower().getZExtValue() << ", " << upper().getZExtValue()
        << ']';
 
-    if (ConstantRange::isTop())
+    if (UConstRange::isTop())
       ss << " (top)";
 
     return ss.str();
   }
 
-  bool isValid() const { return lower().ule(upper()); }
+  bool isBottom() const { return lower().ugt(upper()); }
 
-  const ConstantRange meet(const ConstantRange &rhs) const {
+  const UConstRange meet(const UConstRange &rhs) const {
     A::APInt l = rhs.lower().ugt(lower()) ? rhs.lower() : lower();
     A::APInt u = rhs.upper().ult(upper()) ? rhs.upper() : upper();
     if (l.ugt(u))
       return bottom(bw());
-    return ConstantRange({std::move(l), std::move(u)});
+    return UConstRange({std::move(l), std::move(u)});
   }
 
-  const ConstantRange join(const ConstantRange &rhs) const {
+  const UConstRange join(const UConstRange &rhs) const {
     const A::APInt l = rhs.lower().ult(lower()) ? rhs.lower() : lower();
     const A::APInt u = rhs.upper().ugt(upper()) ? rhs.upper() : upper();
-    return ConstantRange({std::move(l), std::move(u)});
+    return UConstRange({std::move(l), std::move(u)});
   }
 
   const std::vector<A::APInt> toConcrete() const {
@@ -254,42 +277,173 @@ public:
     return ret;
   }
 
-  unsigned int distance(const ConstantRange &rhs) const {
+  unsigned int distance(const UConstRange &rhs) const {
     unsigned long ld = A::APIntOps::abdu(lower(), rhs.lower()).getZExtValue();
     unsigned long ud = A::APIntOps::abdu(upper(), rhs.upper()).getZExtValue();
     return static_cast<unsigned int>(ld + ud);
   }
 
-  static ConstantRange fromConcrete(const A::APInt &x) {
-    return ConstantRange({x, x});
+  static const UConstRange rand(std::mt19937 &rng, unsigned int bw) {
+
+    UConstRange ucr({A::APInt::getMaxValue(bw), A::APInt::getMinValue(bw)});
+    std::uniform_int_distribution<unsigned long> dist(0, (1 << bw) - 1);
+    ucr.v[0] = A::APInt(bw, dist(rng));
+    ucr.v[1] = A::APInt(bw, dist(rng));
+    if (ucr.isBottom()) {
+      A::APInt tmp = ucr.v[0];
+      ucr.v[0] = ucr.v[1];
+      ucr.v[1] = tmp;
+    }
+
+    return ucr;
   }
 
-  static ConstantRange bottom(unsigned int bw) {
+  static const UConstRange fromConcrete(const A::APInt &x) {
+    return UConstRange({x, x});
+  }
+
+  static const UConstRange bottom(unsigned int bw) {
     const A::APInt min = A::APInt::getMinValue(bw);
     const A::APInt max = A::APInt::getMaxValue(bw);
-    return ConstantRange({max, min});
+    return UConstRange({max, min});
   }
 
-  static ConstantRange top(unsigned int bw) {
+  static const UConstRange top(unsigned int bw) {
     const A::APInt min = A::APInt::getMinValue(bw);
     const A::APInt max = A::APInt::getMaxValue(bw);
-    return ConstantRange({min, max});
+    return UConstRange({min, max});
   }
 
-  static std::vector<ConstantRange> const enumVals(unsigned int bw) {
+  static std::vector<UConstRange> const enumVals(unsigned int bw) {
     const unsigned int min =
         static_cast<unsigned int>(A::APInt::getMinValue(bw).getZExtValue());
     const unsigned int max =
         static_cast<unsigned int>(A::APInt::getMaxValue(bw).getZExtValue());
     A::APInt l = A::APInt(bw, 0);
     A::APInt u = A::APInt(bw, 0);
-    std::vector<ConstantRange> ret = {top(bw)};
+    std::vector<UConstRange> ret = {};
 
     for (unsigned int i = min; i <= max; ++i) {
       for (unsigned int j = i; j <= max; ++j) {
         l = i;
         u = j;
-        ret.push_back(ConstantRange({l, u}));
+        ret.push_back(UConstRange({l, u}));
+      }
+    }
+
+    return ret;
+  }
+};
+
+class SConstRange : public AbstVal<SConstRange, 2> {
+private:
+  A::APInt lower() const { return v[0]; }
+  A::APInt upper() const { return v[1]; }
+
+  bool isConstant() const { return lower() == upper(); }
+
+  const A::APInt getConstant() const { return lower(); }
+
+public:
+  SConstRange(const Vec<N> &vC) : AbstVal<SConstRange, N>(vC) {}
+
+  const std::string display() const {
+    if (SConstRange::isBottom()) {
+      return "(bottom)";
+    }
+
+    std::stringstream ss;
+    ss << '[' << lower().getSExtValue() << ", " << upper().getSExtValue()
+       << ']';
+
+    if (SConstRange::isTop())
+      ss << " (top)";
+
+    return ss.str();
+  }
+
+  bool isBottom() const { return lower().sgt(upper()); }
+
+  const SConstRange meet(const SConstRange &rhs) const {
+    A::APInt l = rhs.lower().sgt(lower()) ? rhs.lower() : lower();
+    A::APInt u = rhs.upper().slt(upper()) ? rhs.upper() : upper();
+    if (l.sgt(u))
+      return bottom(bw());
+    return SConstRange({std::move(l), std::move(u)});
+  }
+
+  const SConstRange join(const SConstRange &rhs) const {
+    const A::APInt l = rhs.lower().slt(lower()) ? rhs.lower() : lower();
+    const A::APInt u = rhs.upper().sgt(upper()) ? rhs.upper() : upper();
+    return SConstRange({std::move(l), std::move(u)});
+  }
+
+  const std::vector<A::APInt> toConcrete() const {
+    if (lower().sgt(upper()))
+      return {};
+
+    std::vector<A::APInt> ret;
+    for (A::APInt x = lower(); x.sle(upper()); x += 1) {
+      ret.push_back(x);
+
+      if (x == A::APInt::getSignedMaxValue(bw()))
+        break;
+    }
+
+    return ret;
+  }
+
+  unsigned int distance(const SConstRange &rhs) const {
+    unsigned long ld = A::APIntOps::abds(lower(), rhs.lower()).getZExtValue();
+    unsigned long ud = A::APIntOps::abds(upper(), rhs.upper()).getZExtValue();
+    return static_cast<unsigned int>(ld + ud);
+  }
+
+  static const SConstRange rand(std::mt19937 &rng, unsigned int bw) {
+    SConstRange scr(
+        {A::APInt::getSignedMaxValue(bw), A::APInt::getSignedMinValue(bw)});
+    std::uniform_int_distribution<unsigned long> dist(0, (1 << bw) - 1);
+    scr.v[0] = A::APInt(bw, dist(rng));
+    scr.v[1] = A::APInt(bw, dist(rng));
+    if (scr.isBottom()) {
+      A::APInt tmp = scr.v[0];
+      scr.v[0] = scr.v[1];
+      scr.v[1] = tmp;
+    }
+
+    return scr;
+  }
+
+  static const SConstRange fromConcrete(const A::APInt &x) {
+    return SConstRange({x, x});
+  }
+
+  static const SConstRange bottom(unsigned int bw) {
+    const A::APInt min = A::APInt::getSignedMinValue(bw);
+    const A::APInt max = A::APInt::getSignedMaxValue(bw);
+    return SConstRange({max, min});
+  }
+
+  static const SConstRange top(unsigned int bw) {
+    const A::APInt min = A::APInt::getSignedMinValue(bw);
+    const A::APInt max = A::APInt::getSignedMaxValue(bw);
+    return SConstRange({min, max});
+  }
+
+  static std::vector<SConstRange> const enumVals(unsigned int bw) {
+    const int min =
+        static_cast<int>(A::APInt::getSignedMinValue(bw).getSExtValue());
+    const int max =
+        static_cast<int>(A::APInt::getSignedMaxValue(bw).getSExtValue());
+    A::APInt l = A::APInt::getSignedMinValue(bw);
+    A::APInt u = A::APInt::getSignedMinValue(bw);
+    std::vector<SConstRange> ret = {};
+
+    for (int i = min; i <= max; ++i) {
+      for (int j = i; j <= max; ++j) {
+        l = static_cast<unsigned long>(i);
+        u = static_cast<unsigned long>(j);
+        ret.push_back(SConstRange({l, u}));
       }
     }
 
@@ -370,17 +524,6 @@ private:
 
 public:
   IntegerModulo(const Vec<N> &vC) : IntegerModulo(vC, true) {}
-  IntegerModulo(std::mt19937 &rng, unsigned int bw)
-      : IntegerModulo(Vec<N>(bw)) {
-    do {
-      for (unsigned int i = 0; i < N; ++i) {
-        if (IM::primeOv(this->bw(), i))
-          continue;
-        this->v[i] =
-            std::uniform_int_distribution<unsigned long>(0, IM::primes[i])(rng);
-      }
-    } while (!isValid());
-  }
 
   const std::string display() const {
     if (IntegerModulo::isBottom()) {
@@ -402,15 +545,15 @@ public:
     return ss.str();
   }
 
-  bool isValid() const {
+  bool isBottom() const {
     if (isBadBottom() || isBadSingleton())
-      return false;
+      return true;
 
     for (unsigned int i = 0; i < N; ++i)
       if (this->v[i].ugt(A::APInt(this->bw(), IM::primes[i])))
-        return false;
+        return true;
 
-    return true;
+    return false;
   }
 
   const IntegerModulo meet(const IntegerModulo &rhs) const {
@@ -482,7 +625,21 @@ public:
     return d;
   }
 
-  static IntegerModulo fromConcrete(const A::APInt &x) {
+  static const IntegerModulo rand(std::mt19937 &rng, unsigned int bw) {
+    IntegerModulo im{Vec<N>(bw)};
+    do {
+      for (unsigned int i = 0; i < N; ++i) {
+        if (IM::primeOv(bw, i))
+          continue;
+        im.v[i] =
+            std::uniform_int_distribution<unsigned long>(0, IM::primes[i])(rng);
+      }
+    } while (im.isBottom());
+
+    return im;
+  }
+
+  static const IntegerModulo fromConcrete(const A::APInt &x) {
     Vec<N> r(x.getBitWidth());
     unsigned long p = 1;
 
@@ -497,7 +654,7 @@ public:
     return IntegerModulo(r, x.getZExtValue(), p, 0);
   }
 
-  static IntegerModulo top(unsigned int bw) {
+  static const IntegerModulo top(unsigned int bw) {
     Vec<N> x(bw);
     for (unsigned int i = 0; i < N; ++i) {
       if (IM::primeOv(bw, i))
@@ -509,7 +666,7 @@ public:
     return IntegerModulo(x, 0, 1, N);
   }
 
-  static IntegerModulo bottom(unsigned int bw) {
+  static const IntegerModulo bottom(unsigned int bw) {
     Vec<N> x(bw);
     unsigned long p = 1;
     for (unsigned int i = 0; i < N; ++i) {
@@ -549,5 +706,10 @@ public:
     return r;
   }
 };
+
+static_assert(AbstractDomain<KnownBits>);
+static_assert(AbstractDomain<UConstRange>);
+static_assert(AbstractDomain<SConstRange>);
+static_assert(AbstractDomain<IntegerModulo<6>>);
 
 #endif
