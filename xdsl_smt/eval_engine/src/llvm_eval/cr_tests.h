@@ -1,4 +1,3 @@
-#include <iostream>
 #include <optional>
 #include <vector>
 
@@ -8,12 +7,11 @@
 #include "common.h"
 
 SUPPRESS_WARNINGS_BEGIN
-#include "llvm/ADT/STLExtras.h"
 #include <llvm/ADT/APInt.h>
 #include <llvm/IR/ConstantRange.h>
 SUPPRESS_WARNINGS_END
 
-inline llvm::ConstantRange make_llvm_cr(const ConstantRange &x) {
+inline llvm::ConstantRange make_llvm_cr(const UConstRange &x) {
   if (x.isTop())
     return llvm::ConstantRange::getFull(x.bw());
   if (x.isBottom())
@@ -23,97 +21,75 @@ inline llvm::ConstantRange make_llvm_cr(const ConstantRange &x) {
                              llvm::APInt(x.bw(), x.v[1].getZExtValue()) + 1);
 }
 
-inline const ConstantRange
-cr_xfer_wrapper(const ConstantRange &lhs, const ConstantRange &rhs,
+inline const UConstRange
+cr_xfer_wrapper(const UConstRange &lhs, const UConstRange &rhs,
                 const XferFn<llvm::ConstantRange> &fn) {
   llvm::ConstantRange x = fn(make_llvm_cr(lhs), make_llvm_cr(rhs));
 
   if (x.isWrappedSet())
-    return ConstantRange::top(lhs.bw());
+    return UConstRange::top(lhs.bw());
   if (x.isFullSet())
-    return ConstantRange::top(lhs.bw());
+    return UConstRange::top(lhs.bw());
   if (x.isEmptySet())
-    return ConstantRange::bottom(lhs.bw());
+    return UConstRange::bottom(lhs.bw());
 
-  return ConstantRange({A::APInt(lhs.bw(), x.getLower().getZExtValue()),
-                        A::APInt(lhs.bw(), x.getUpper().getZExtValue()) - 1});
+  return UConstRange({A::APInt(lhs.bw(), x.getLower().getZExtValue()),
+                      A::APInt(lhs.bw(), x.getUpper().getZExtValue()) - 1});
 }
 
 #define CR_OP(e)                                                               \
   [](const llvm::ConstantRange &l, const llvm::ConstantRange &r) { return e; }
 
-inline const std::vector<Test<llvm::ConstantRange>> cr_tests() {
-  const std::vector<
-      std::tuple<std::string, std::optional<XferFn<llvm::ConstantRange>>>>
-      cr_tests{
-          {"and", CR_OP(l.binaryAnd(r))},
-          {"or", CR_OP(l.binaryOr(r))},
-          {"xor", CR_OP(l.binaryXor(r))},
-          {"add", CR_OP(l.add(r))},
-          {"add nsw", CR_OP(l.addWithNoWrap(r, 2))},
-          {"add nuw", CR_OP(l.addWithNoWrap(r, 1))},
-          {"add nsuw", CR_OP(l.addWithNoWrap(r, 3))},
-          {"sub", CR_OP(l.sub(r))},
-          {"sub nsw", CR_OP(l.subWithNoWrap(r, 2))},
-          {"sub nuw", CR_OP(l.subWithNoWrap(r, 1))},
-          {"sub nsuw", CR_OP(l.subWithNoWrap(r, 3))},
-          {"umax", CR_OP(l.umax(r))},
-          {"umin", CR_OP(l.umin(r))},
-          {"smax", CR_OP(l.smax(r))},
-          {"smin", CR_OP(l.smin(r))},
-          {"abdu", std::nullopt},
-          {"abds", std::nullopt},
-          {"udiv", CR_OP(l.udiv(r))},
-          {"udiv exact", std::nullopt},
-          {"sdiv", CR_OP(l.sdiv(r))},
-          {"sdiv exact", std::nullopt},
-          {"urem", CR_OP(l.urem(r))},
-          {"srem", CR_OP(l.srem(r))},
-          {"mul", CR_OP(l.multiply(r))},
-          {"mul nsw", CR_OP(l.multiplyWithNoWrap(r, 2))},
-          {"mul nuw", CR_OP(l.multiplyWithNoWrap(r, 1))},
-          {"mul nsuw", CR_OP(l.multiplyWithNoWrap(r, 3))},
-          {"mulhs", std::nullopt},
-          {"mulhu", std::nullopt},
-          {"shl", CR_OP(l.shl(r))},
-          {"shl nsw", CR_OP(l.shlWithNoWrap(r, 2))},
-          {"shl nuw", CR_OP(l.shlWithNoWrap(r, 1))},
-          {"shl nsuw", CR_OP(l.shlWithNoWrap(r, 3))},
-          {"lshr", CR_OP(l.lshr(r))},
-          {"lshr exact", std::nullopt},
-          {"ashr", CR_OP(l.ashr(r))},
-          {"ashr exact", std::nullopt},
-          {"avgfloors", std::nullopt},
-          {"avgflooru", std::nullopt},
-          {"avgceils", std::nullopt},
-          {"avgceilu", std::nullopt},
-          {"uadd sat", CR_OP(l.uadd_sat(r))},
-          {"usub sat", CR_OP(l.usub_sat(r))},
-          {"sadd sat", CR_OP(l.sadd_sat(r))},
-          {"ssub sat", CR_OP(l.ssub_sat(r))},
-          {"umul sat", CR_OP(l.umul_sat(r))},
-          {"smul sat", CR_OP(l.smul_sat(r))},
-          {"ushl sat", CR_OP(l.ushl_sat(r))},
-          {"sshl sat", CR_OP(l.sshl_sat(r))},
-      };
-
-  if (tests.size() != cr_tests.size()) {
-    std::cerr << "Test size mismatch: " << tests.size() << " | "
-              << cr_tests.size() << "\n";
-    exit(1);
-  }
-
-  std::vector<Test<llvm::ConstantRange>> v;
-  for (const auto &[test, crTest] : llvm::zip(tests, cr_tests)) {
-    const auto &[tName, concFn, opConFn] = test;
-    const auto &[kbName, kbOp] = crTest;
-    if (tName != kbName) {
-      std::cerr << "Function name mismatch: " << tName << " | " << kbName
-                << "\n";
-      exit(1);
-    }
-    v.emplace_back(tName, concFn, opConFn, kbOp);
-  }
-
-  return v;
-}
+const std::vector<
+    std::tuple<std::string, std::optional<XferFn<llvm::ConstantRange>>>>
+    CR_TESTS{
+        {"Abds", std::nullopt},
+        {"Abdu", std::nullopt},
+        {"Add", CR_OP(l.add(r))},
+        {"AddNsw", CR_OP(l.addWithNoWrap(r, 2))},
+        {"AddNswNuw", CR_OP(l.addWithNoWrap(r, 3))},
+        {"AddNuw", CR_OP(l.addWithNoWrap(r, 1))},
+        {"And", CR_OP(l.binaryAnd(r))},
+        {"Ashr", CR_OP(l.ashr(r))},
+        {"AshrExact", std::nullopt},
+        {"AvgCeilS", std::nullopt},
+        {"AvgCeilU", std::nullopt},
+        {"AvgFloorS", std::nullopt},
+        {"AvgFloorU", std::nullopt},
+        {"Lshr", CR_OP(l.lshr(r))},
+        {"LshrExact", std::nullopt},
+        {"Mods", CR_OP(l.srem(r))},
+        {"Modu", CR_OP(l.urem(r))},
+        {"Mul", CR_OP(l.multiply(r))},
+        {"MulNsw", CR_OP(l.multiplyWithNoWrap(r, 2))},
+        {"MulNswNuw", CR_OP(l.multiplyWithNoWrap(r, 3))},
+        {"MulNuw", CR_OP(l.multiplyWithNoWrap(r, 1))},
+        {"Mulhs", std::nullopt},
+        {"Mulhu", std::nullopt},
+        {"Or", CR_OP(l.binaryOr(r))},
+        {"SaddSat", CR_OP(l.sadd_sat(r))},
+        {"Sdiv", CR_OP(l.sdiv(r))},
+        {"SdivExact", std::nullopt},
+        {"Shl", CR_OP(l.shl(r))},
+        {"ShlNsw", CR_OP(l.shlWithNoWrap(r, 2))},
+        {"ShlNswNuw", CR_OP(l.shlWithNoWrap(r, 3))},
+        {"ShlNuw", CR_OP(l.shlWithNoWrap(r, 1))},
+        {"Smax", CR_OP(l.smax(r))},
+        {"Smin", CR_OP(l.smin(r))},
+        {"SmulSat", CR_OP(l.smul_sat(r))},
+        {"SshlSat", CR_OP(l.sshl_sat(r))},
+        {"SsubSat", CR_OP(l.ssub_sat(r))},
+        {"Sub", CR_OP(l.sub(r))},
+        {"SubNsw", CR_OP(l.subWithNoWrap(r, 2))},
+        {"SubNswNuw", CR_OP(l.subWithNoWrap(r, 3))},
+        {"SubNuw", CR_OP(l.subWithNoWrap(r, 1))},
+        {"UaddSat", CR_OP(l.uadd_sat(r))},
+        {"Udiv", CR_OP(l.udiv(r))},
+        {"UdivExact", std::nullopt},
+        {"Umax", CR_OP(l.umax(r))},
+        {"Umin", CR_OP(l.umin(r))},
+        {"UmulSat", CR_OP(l.umul_sat(r))},
+        {"UshlSat", CR_OP(l.ushl_sat(r))},
+        {"UsubSat", CR_OP(l.usub_sat(r))},
+        {"Xor", CR_OP(l.binaryXor(r))},
+    };

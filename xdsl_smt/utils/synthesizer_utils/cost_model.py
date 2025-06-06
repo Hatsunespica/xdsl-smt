@@ -1,5 +1,5 @@
 import math
-from collections.abc import Callable
+from typing import Callable
 
 from xdsl_smt.utils.synthesizer_utils.compare_result import EvalResult
 
@@ -64,7 +64,7 @@ def gradual_cost(
 
 
 def non_gradual_cost(
-    cost0: Callable[[EvalResult], float]
+    cost0: Callable[[EvalResult], float],
 ) -> Callable[[EvalResult, float], float]:
     return lambda res, t: cost0(res)
 

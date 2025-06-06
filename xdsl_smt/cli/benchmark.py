@@ -156,12 +156,12 @@ def synth_run(
             "Function": func_name,
             "Per Bit Result": [
                 {
-                    "Bitwidth": bw,
+                    "Bitwidth": per_bit_res.bitwidth,
                     "Sound Proportion": per_bit_res.get_sound_prop() * 100,
                     "Exact Proportion": per_bit_res.get_exact_prop() * 100,
                     "Distance": per_bit_res.dist,
                 }
-                for bw, per_bit_res in res.per_bit.items()
+                for per_bit_res in res.per_bit
             ],
             "Seed": args.random_seed,
         }
@@ -191,7 +191,7 @@ def main() -> None:
     ]
 
     cr_inputs = [
-        (x.split(".")[0], AbstractDomain.ConstantRange, start_dir.joinpath(x), args)
+        (x.split(".")[0], AbstractDomain.UConstRange, start_dir.joinpath(x), args)
         for x in cr_not_best_test_names
     ]
 

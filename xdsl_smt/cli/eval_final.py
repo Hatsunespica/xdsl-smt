@@ -4,7 +4,12 @@ from multiprocessing import Pool
 
 
 from xdsl_smt.utils.synthesizer_utils.compare_result import EvalResult
-from xdsl_smt.eval_engine.eval import AbstractDomain, setup_eval, eval_transfer_func
+from xdsl_smt.eval_engine.eval import (
+    AbstractDomain,
+    setup_eval,
+    eval_transfer_func,
+    eval_llvm,
+)
 from xdsl.dialects.func import FuncOp
 from xdsl_smt.utils.synthesizer_utils.random import Random
 from xdsl_smt.cli.synth_transfer import print_to_cpp, get_helper_funcs, parse_file
@@ -37,6 +42,7 @@ def register_all_arguments() -> Namespace:
         default=None,
         help="Specify the number of random test inputs at higher bitwidth. 0 by default",
     )
+    arg_parser.add_argument("-eval_llvm", help="Compare with llvm", action="store_true")
 
     return arg_parser.parse_args()
 
@@ -47,11 +53,12 @@ def run(
     min_bitwidth: int,
     input_path: Path,
     solution_path: Path,
-    num_random_tests: int | None = None,
-    random_seed: int | None = None,
-) -> EvalResult:
+    num_random_tests: int | None,
+    random_seed: int | None,
+    llvm: bool,
+    op_name: str,
+) -> tuple[EvalResult, EvalResult | None, EvalResult | None]:
     assert min_bitwidth >= 4 or domain != AbstractDomain.IntegerModulo
-    EvalResult.get_max_dis = domain.max_dist
 
     _, helpers = get_helper_funcs(input_path, domain, False)
     sol_module = parse_file(solution_path)
@@ -68,7 +75,8 @@ def run(
                 solution = func
             else:
                 solution_helpers.append(func)
-    assert solution is not None, "No solution function is found in solution file"
+
+    assert solution is not None, "No solution function found in solution file"
 
     helper_funcs_cpp = helpers.to_cpp() + [
         print_to_cpp(func) for func in solution_helpers
@@ -88,7 +96,9 @@ def run(
         domain,
     )
 
-    return res[0]
+    llvm_res, top_res = eval_llvm(domain, data_dir, op_name) if llvm else (None, None)
+
+    return res[0], llvm_res, top_res
 
 
 def run_wrapper(x: tuple[Namespace, AbstractDomain, Path, Path, str]):
@@ -100,7 +110,22 @@ def run_wrapper(x: tuple[Namespace, AbstractDomain, Path, Path, str]):
         solution_path=x[3],
         num_random_tests=x[0].num_random_tests,
         random_seed=x[0].random_seed,
+        llvm=x[0].eval_llvm,
+        op_name=x[4],
     )
+
+
+def print_eval(x: EvalResult) -> None:
+    def format_percent(x: float) -> str:
+        return f"{x*100:05.2f}%" if x < 1 else f"{x*100:05.1f}%"
+
+    if x.get_exact_prop() == 0:
+        print("N/A")
+    else:
+        print("bw | Exact  | Distance")
+        print("---|--------|---------")
+        for pb in x.per_bit:
+            print(f"{pb.bitwidth}  | {format_percent(pb.get_exact_prop())} | {pb.dist}")
 
 
 def main() -> None:
@@ -134,12 +159,16 @@ def main() -> None:
     with Pool() as p:
         data = p.map(run_wrapper, inputs)
 
-    print("\nResults:")
-    for (_, domain, _, _, op), r in zip(inputs, data):
-        print(f"{domain} {op}")
-        percent = r.per_bit[r.max_bit].exacts / r.per_bit[r.max_bit].all_cases * 100
-        dist = r.per_bit[r.max_bit].dist
-        print(f"Exact: {percent:.4f}%, Dist: {dist}")
+    for (_, domain, _, _, op), (r, llvm_res, top_res) in zip(inputs, data):
+        print(f"{domain} {op}:")
+        print("####################")
+        print("Synth:")
+        print_eval(r)
+        if llvm_res and top_res:
+            print("LLVM:")
+            print_eval(llvm_res)
+            print("Top:")
+            print_eval(top_res)
 
 
 if __name__ == "__main__":

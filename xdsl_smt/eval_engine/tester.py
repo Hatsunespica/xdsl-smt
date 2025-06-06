@@ -8,6 +8,8 @@ from xdsl_smt.eval_engine.eval import eval_transfer_func, AbstractDomain, setup_
 
 
 class TestInput(NamedTuple):
+    min_bw: int
+    max_bw: int
     concrete_op: str
     op_constraint: str | None
     domain: AbstractDomain
@@ -66,10 +68,10 @@ extern "C" Vec<2> kb_xor(const Vec<2> arg0, const Vec<2> arg1) {
 """,
 )
 
-cr_add = (
-    "cr_add",
+ucr_add = (
+    "ucr_add",
     """
-extern "C" Vec<2> cr_add(const Vec<2> arg0, const Vec<2> arg1) {
+extern "C" Vec<2> ucr_add(const Vec<2> arg0, const Vec<2> arg1) {
   bool res0_ov;
   bool res1_ov;
   APInt res0 = arg0[0].uadd_ov(arg1[0], res0_ov);
@@ -82,10 +84,10 @@ extern "C" Vec<2> cr_add(const Vec<2> arg0, const Vec<2> arg1) {
 """,
 )
 
-cr_sub = (
-    "cr_sub",
+ucr_sub = (
+    "ucr_sub",
     """
-extern "C" Vec<2> cr_sub(const Vec<2> arg0, const Vec<2> arg1) {
+extern "C" Vec<2> ucr_sub(const Vec<2> arg0, const Vec<2> arg1) {
   bool res0_ov;
   bool res1_ov;
   APInt res0 = arg0[0].usub_ov(arg1[1], res0_ov);
@@ -93,6 +95,22 @@ extern "C" Vec<2> cr_sub(const Vec<2> arg0, const Vec<2> arg1) {
   if (res0.ugt(res1) || (res0_ov ^ res1_ov))
     return {APInt::getMinValue(arg0[0].getBitWidth()),
             APInt::getMaxValue(arg0[0].getBitWidth())};
+  return {res0, res1};
+}
+""",
+)
+
+scr_add = (
+    "scr_add",
+    """
+extern "C" Vec<2> scr_add(const Vec<2> arg0, const Vec<2> arg1) {
+  bool res0_ov;
+  bool res1_ov;
+  APInt res0 = arg0[0].sadd_ov(arg1[0], res0_ov);
+  APInt res1 = arg0[1].sadd_ov(arg1[1], res1_ov);
+  if (res0.sgt(res1) || (res0_ov ^ res1_ov))
+    return {APInt::getSignedMinValue(arg0[0].getBitWidth()),
+            APInt::getSignedMaxValue(arg0[0].getBitWidth())};
   return {res0, res1};
 }
 """,
@@ -141,9 +159,10 @@ def test(input: TestInput) -> None:
         if input.op_constraint is None
         else [input.concrete_op, input.op_constraint]
     )
-    lbw = 1
-    bw = 4
-    data_dir = setup_eval(input.domain, bw, lbw, None, "\n".join(helpers))
+
+    data_dir = setup_eval(
+        input.domain, input.max_bw, input.min_bw, None, "\n".join(helpers)
+    )
 
     results = eval_transfer_func(
         data_dir, list(names), list(srcs), [], [], helpers, input.domain
@@ -164,6 +183,8 @@ def test(input: TestInput) -> None:
 
 
 kb_or_test = TestInput(
+    1,
+    4,
     cnc_or,
     None,
     AbstractDomain.KnownBits,
@@ -191,6 +212,8 @@ bw: 4  all: 6561  s: 6561  e: 6561  uall: 6480  us: 6480  ue: 6480  dis: 0     u
 )
 
 kb_and_test = TestInput(
+    1,
+    4,
     cnc_and,
     None,
     AbstractDomain.KnownBits,
@@ -218,6 +241,8 @@ bw: 4  all: 6561  s: 625   e: 81    uall: 6480  us: 624   ue: 80    dis: 23328 u
 )
 
 kb_xor_test = TestInput(
+    1,
+    4,
     cnc_xor,
     None,
     AbstractDomain.KnownBits,
@@ -245,6 +270,8 @@ bw: 4  all: 6561  s: 1296  e: 1296  uall: 5936  us: 1215  ue: 1215  dis: 11664 u
 )
 
 kb_add_test = TestInput(
+    1,
+    4,
     cnc_add,
     None,
     AbstractDomain.KnownBits,
@@ -271,58 +298,78 @@ bw: 4  all: 6561  s: 897   e: 897   uall: 4220  us: 816   ue: 816   dis: 14974 u
     ],
 )
 
-cr_add_test = TestInput(
+ucr_add_test = TestInput(
+    1,
+    4,
     cnc_add,
     None,
-    AbstractDomain.ConstantRange,
-    [cr_add, cr_sub],
+    AbstractDomain.UConstRange,
+    [ucr_add, ucr_sub],
     [
         """
-bw: 1  all: 16    s: 16    e: 16    uall: 4     us: 4     ue: 4     dis: 0     udis: 0     bdis: 4     sdis: 0
-bw: 2  all: 121   s: 121   e: 121   uall: 46    us: 46    ue: 46    dis: 0     udis: 0     bdis: 96    sdis: 0
-bw: 3  all: 1369  s: 1369  e: 1369  uall: 532   us: 532   ue: 532   dis: 0     udis: 0     bdis: 2352  sdis: 0
-bw: 4  all: 18769 s: 18769 e: 18769 uall: 6920  us: 6920  ue: 6920  dis: 0     udis: 0     bdis: 63648 sdis: 0
+bw: 1  all: 9     s: 9     e: 9     uall: 4     us: 4     ue: 4     dis: 0     udis: 0     bdis: 4     sdis: 0
+bw: 2  all: 100   s: 100   e: 100   uall: 46    us: 46    ue: 46    dis: 0     udis: 0     bdis: 96    sdis: 0
+bw: 3  all: 1296  s: 1296  e: 1296  uall: 532   us: 532   ue: 532   dis: 0     udis: 0     bdis: 2352  sdis: 0
+bw: 4  all: 18496 s: 18496 e: 18496 uall: 6920  us: 6920  ue: 6920  dis: 0     udis: 0     bdis: 63648 sdis: 0
         """,
         """
-bw: 1  all: 16    s: 16    e: 16    uall: 4     us: 4     ue: 4     dis: 0     udis: 0     bdis: 4     sdis: 0
-bw: 2  all: 121   s: 92    e: 80    uall: 46    us: 29    ue: 17    dis: 88    udis: 71    bdis: 96    sdis: 58
-bw: 3  all: 1369  s: 912   e: 709   uall: 532   us: 278   ue: 75    dis: 2620  udis: 1950  bdis: 2352  sdis: 1994
-bw: 4  all: 18769 s: 12224 e: 9179  uall: 6920  us: 3420  ue: 375   dis: 75432 udis: 53340 bdis: 63648 sdis: 59948
+bw: 1  all: 9     s: 9     e: 9     uall: 4     us: 4     ue: 4     dis: 0     udis: 0     bdis: 4     sdis: 0
+bw: 2  all: 100   s: 71    e: 59    uall: 46    us: 29    ue: 17    dis: 88    udis: 71    bdis: 96    sdis: 58
+bw: 3  all: 1296  s: 839   e: 636   uall: 532   us: 278   ue: 75    dis: 2620  udis: 1950  bdis: 2352  sdis: 1994
+bw: 4  all: 18496 s: 11951 e: 8906  uall: 6920  us: 3420  ue: 375   dis: 75432 udis: 53340 bdis: 63648 sdis: 59948
         """,
     ],
 )
 
-cr_sub_test = TestInput(
+ucr_sub_test = TestInput(
+    1,
+    4,
     cnc_sub,
     None,
-    AbstractDomain.ConstantRange,
-    [cr_sub, cr_add],
+    AbstractDomain.UConstRange,
+    [ucr_sub, ucr_add],
     [
         """
-bw: 1  all: 16    s: 16    e: 16    uall: 4     us: 4     ue: 4     dis: 0     udis: 0     bdis: 4     sdis: 0
-bw: 2  all: 121   s: 121   e: 121   uall: 46    us: 46    ue: 46    dis: 0     udis: 0     bdis: 96    sdis: 0
-bw: 3  all: 1369  s: 1369  e: 1369  uall: 532   us: 532   ue: 532   dis: 0     udis: 0     bdis: 2352  sdis: 0
-bw: 4  all: 18769 s: 18769 e: 18769 uall: 6920  us: 6920  ue: 6920  dis: 0     udis: 0     bdis: 63648 sdis: 0
+bw: 1  all: 9     s: 9     e: 9     uall: 4     us: 4     ue: 4     dis: 0     udis: 0     bdis: 4     sdis: 0
+bw: 2  all: 100   s: 100   e: 100   uall: 46    us: 46    ue: 46    dis: 0     udis: 0     bdis: 96    sdis: 0
+bw: 3  all: 1296  s: 1296  e: 1296  uall: 532   us: 532   ue: 532   dis: 0     udis: 0     bdis: 2352  sdis: 0
+bw: 4  all: 18496 s: 18496 e: 18496 uall: 6920  us: 6920  ue: 6920  dis: 0     udis: 0     bdis: 63648 sdis: 0
         """,
         """
-bw: 1  all: 16    s: 16    e: 16    uall: 4     us: 4     ue: 4     dis: 0     udis: 0     bdis: 4     sdis: 0
-bw: 2  all: 121   s: 92    e: 80    uall: 46    us: 29    ue: 17    dis: 88    udis: 71    bdis: 96    sdis: 58
-bw: 3  all: 1369  s: 912   e: 709   uall: 532   us: 278   ue: 75    dis: 2620  udis: 1950  bdis: 2352  sdis: 1994
-bw: 4  all: 18769 s: 12224 e: 9179  uall: 6920  us: 3420  ue: 375   dis: 75432 udis: 53340 bdis: 63648 sdis: 59948
+bw: 1  all: 9     s: 9     e: 9     uall: 4     us: 4     ue: 4     dis: 0     udis: 0     bdis: 4     sdis: 0
+bw: 2  all: 100   s: 71    e: 59    uall: 46    us: 29    ue: 17    dis: 88    udis: 71    bdis: 96    sdis: 58
+bw: 3  all: 1296  s: 839   e: 636   uall: 532   us: 278   ue: 75    dis: 2620  udis: 1950  bdis: 2352  sdis: 1994
+bw: 4  all: 18496 s: 11951 e: 8906  uall: 6920  us: 3420  ue: 375   dis: 75432 udis: 53340 bdis: 63648 sdis: 59948
+        """,
+    ],
+)
+
+scr_add_test = TestInput(
+    1,
+    4,
+    cnc_add,
+    None,
+    AbstractDomain.SConstRange,
+    [scr_add],
+    [
+        """
+bw: 1  all: 9     s: 9     e: 9     uall: 4     us: 4     ue: 4     dis: 0     udis: 0     bdis: 4     sdis: 0
+bw: 2  all: 100   s: 100   e: 100   uall: 47    us: 47    ue: 47    dis: 0     udis: 0     bdis: 97    sdis: 0
+bw: 3  all: 1296  s: 1296  e: 1296  uall: 580   us: 580   ue: 580   dis: 0     udis: 0     bdis: 2452  sdis: 0
+bw: 4  all: 18496 s: 18496 e: 18496 uall: 7872  us: 7872  ue: 7872  dis: 0     udis: 0     bdis: 68016 sdis: 0
         """,
     ],
 )
 
 im_add_nsw_test = TestInput(
+    4,
+    4,
     cnc_add,
     add_nsw_op_constraint,
     AbstractDomain.IntegerModulo,
     [im_add_nsw],
     [
         """
-bw: 1  all: 0     s: 0     e: 0     uall: 0     us: 0     ue: 0     dis: 0     udis: 0     bdis: 0     sdis: 0
-bw: 2  all: 56    s: 56    e: 56    uall: 41    us: 41    ue: 41    dis: 0     udis: 0     bdis: 68    sdis: 0
-bw: 3  all: 356   s: 356   e: 356   uall: 271   us: 271   ue: 271   dis: 0     udis: 0     bdis: 696   sdis: 0
 bw: 4  all: 2971  s: 2971  e: 2971  uall: 2182  us: 2182  ue: 2182  dis: 0     udis: 0     bdis: 6964  sdis: 0
         """,
     ],
@@ -334,6 +381,7 @@ if __name__ == "__main__":
     test(kb_and_test)
     test(kb_xor_test)
     test(kb_add_test)
-    test(cr_add_test)
-    test(cr_sub_test)
+    test(ucr_add_test)
+    test(ucr_sub_test)
+    test(scr_add_test)
     test(im_add_nsw_test)
