@@ -83,6 +83,7 @@ class EvalResult:
         self.exacts = sum(res.exacts for res in per_bit)
         self.dist = sum(res.dist for res in per_bit)
         self.base_dist = sum(res.base_dist for res in per_bit)
+        self.sound_dist = sum(res.sound_dist for res in per_bit)
         self.unsolved_cases = sum(res.unsolved_cases for res in per_bit)
         self.unsolved_sounds = sum(res.unsolved_sounds for res in per_bit)
         self.unsolved_exacts = sum(res.unsolved_exacts for res in per_bit)
@@ -105,6 +106,9 @@ class EvalResult:
 
     def get_base_dist(self) -> int:
         return self.base_dist
+
+    def get_sound_dist(self) -> int:
+        return self.sound_dist
 
     def get_sound_prop(self) -> float:
         return self.sounds / self.all_cases
@@ -136,3 +140,6 @@ class EvalResult:
             return self.get_unsolved_dis_decrease()
         else:
             return self.unsolved_exacts
+
+    def get_potential_improve(self):
+        return self.base_dist - self.sound_dist

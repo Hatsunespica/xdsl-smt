@@ -19,7 +19,6 @@ from xdsl_smt.utils.synthesizer_utils.mcmc_sampler import MCMCSampler
 from xdsl_smt.utils.synthesizer_utils.random import Random
 from xdsl_smt.utils.synthesizer_utils.solution_set import SolutionSet
 from xdsl_smt.utils.synthesizer_utils.synthesizer_context import SynthesizerContext
-from xdsl_smt.eval_engine.eval import AbstractDomain
 
 
 def build_eval_list(
@@ -116,7 +115,6 @@ def synthesize_one_iteration(
     solution_size: int,
     inv_temp: int,
     num_unsound_candidates: int,
-    domain: AbstractDomain,
 ) -> SolutionSet:
     "Given ith_iter, performs total_rounds mcmc sampling"
     mcmc_samplers: list[MCMCSampler] = []
@@ -134,8 +132,9 @@ def synthesize_one_iteration(
                 context_regular
                 if i < (sp_range.start + sp_range.stop) // 2
                 else context_weighted,
-                lambda x: sound_and_precise_cost(x, domain.max_dist),
+                sound_and_precise_cost,
                 program_length,
+                total_rounds,
                 random_init_program=True,
             )
         elif i in p_range:
@@ -144,16 +143,18 @@ def synthesize_one_iteration(
                 context_regular
                 if i < (p_range.start + p_range.stop) // 2
                 else context_weighted,
-                lambda x: precise_cost(x, domain.max_dist),
+                precise_cost,
                 program_length,
+                total_rounds,
                 random_init_program=True,
             )
         else:
             spl = MCMCSampler(
                 func,
                 context_cond,
-                lambda x: abduction_cost(x, domain.max_dist),
+                abduction_cost,
                 cond_length,
+                total_rounds,
                 random_init_program=True,
                 is_cond=True,
             )
@@ -175,13 +176,13 @@ def synthesize_one_iteration(
     # These 3 lists store "good" transformers during the search
     sound_most_improve_tfs: list[tuple[FuncOp, EvalResult, int]] = []
     most_improve_tfs: list[tuple[FuncOp, EvalResult, int]] = []
-    lowest_cost_tfs: list[tuple[FuncOp, EvalResult, int]] = []
+    # lowest_cost_tfs: list[tuple[FuncOp, EvalResult, int]] = []
     for i, spl in enumerate(mcmc_samplers):
         init_tf = spl.current.func.clone()
         init_tf.attributes["number"] = StringAttr(f"{ith_iter}_{0}_{i}")
         sound_most_improve_tfs.append((init_tf, spl.current_cmp, 0))
         most_improve_tfs.append((init_tf, spl.current_cmp, 0))
-        lowest_cost_tfs.append((init_tf, spl.current_cmp, 0))
+        # lowest_cost_tfs.append((init_tf, spl.current_cmp, 0))
 
     # MCMC start
     logger.info(
@@ -221,9 +222,9 @@ def synthesize_one_iteration(
                     > most_improve_tfs[i][1].get_unsolved_exacts()
                 ):
                     most_improve_tfs[i] = tmp_tuple
-                # Update lowest_cost_tfs
-                if proposed_cost < spl.compute_cost(lowest_cost_tfs[i][1]):
-                    lowest_cost_tfs[i] = tmp_tuple
+                # # Update lowest_cost_tfs
+                # if proposed_cost < spl.compute_cost(lowest_cost_tfs[i][1]):
+                #     lowest_cost_tfs[i] = tmp_tuple
 
             else:
                 spl.reject_proposed()
@@ -232,10 +233,12 @@ def synthesize_one_iteration(
             res_cost = spl.compute_current_cost()
             sound_prop = spl.current_cmp.get_sound_prop() * 100
             exact_prop = spl.current_cmp.get_unsolved_exact_prop() * 100
-            avg_dist_norm = spl.current_cmp.get_unsolved_dist_avg_norm(domain.max_dist)
 
+            # avg_dist_norm = spl.current_cmp.get_unsolved_dist_avg_norm(domain.max_dist)
+            base_dis = spl.current_cmp.get_base_dist()
+            new_dis = spl.current_cmp.get_sound_dist()
             logger.debug(
-                f"{ith_iter}_{rnd}_{i}\t{sound_prop:.2f}%\t{exact_prop:.2f}%\t{avg_dist_norm:.3f}\t{res_cost:.3f}"
+                f"{ith_iter}_{rnd}_{i}\t{sound_prop:.2f}%\t{exact_prop:.2f}%\t{base_dis}->{new_dis}\t{res_cost:.3f}"
             )
 
             cost_data[i].append(res_cost)
@@ -251,46 +254,35 @@ def synthesize_one_iteration(
             logger.debug("Transformers with most unsolved exact outputs:")
             for i in range(num_programs):
                 logger.debug(f"{i}_{most_improve_tfs[i][2]}\n{most_improve_tfs[i][1]}")
-            logger.debug("Transformers with lowest cost:")
-            for i in range(num_programs):
-                logger.debug(f"{i}_{lowest_cost_tfs[i][2]}\n{lowest_cost_tfs[i][1]}")
+            # logger.debug("Transformers with lowest cost:")
+            # for i in range(num_programs):
+            #     logger.debug(f"{i}_{lowest_cost_tfs[i][2]}\n{lowest_cost_tfs[i][1]}")
 
     candidates_sp: list[FunctionWithCondition] = []
     candidates_p: list[FuncOp] = []
     candidates_c: list[FunctionWithCondition] = []
-    if solution_size == 0:
-        for i in list(sp_range) + list(p_range):
-            if (
-                sound_most_improve_tfs[i][1].is_sound()
-                and sound_most_improve_tfs[i][1].get_improve() > 0
-            ):
-                candidates_sp.append(
-                    FunctionWithCondition(sound_most_improve_tfs[i][0])
+    for i in list(sp_range) + list(p_range):
+        if (
+            sound_most_improve_tfs[i][1].is_sound()
+            and sound_most_improve_tfs[i][1].get_improve() > 0
+        ):
+            candidates_sp.append(FunctionWithCondition(sound_most_improve_tfs[i][0]))
+        if (
+            not most_improve_tfs[i][1].is_sound()
+            and most_improve_tfs[i][1].get_unsolved_exacts() > 0
+        ):
+            candidates_p.append(most_improve_tfs[i][0])
+    for i in c_range:
+        if (
+            sound_most_improve_tfs[i][1].is_sound()
+            and sound_most_improve_tfs[i][1].get_improve() > 0
+        ):
+            candidates_c.append(
+                FunctionWithCondition(
+                    prec_set_after_distribute[i - sp_size - p_size],
+                    sound_most_improve_tfs[i][0],
                 )
-            if (
-                not most_improve_tfs[i][1].is_sound()
-                and most_improve_tfs[i][1].get_unsolved_exacts() > 0
-            ):
-                candidates_p.append(most_improve_tfs[i][0])
-        for i in c_range:
-            if (
-                sound_most_improve_tfs[i][1].is_sound()
-                and sound_most_improve_tfs[i][1].get_improve() > 0
-            ):
-                candidates_c.append(
-                    FunctionWithCondition(
-                        prec_set_after_distribute[i - sp_size - p_size],
-                        sound_most_improve_tfs[i][0],
-                    )
-                )
-    else:
-        for i in range(num_programs):
-            if sound_most_improve_tfs[i][1].is_sound():
-                candidates_sp.append(
-                    FunctionWithCondition(sound_most_improve_tfs[i][0])
-                )
-            if lowest_cost_tfs[i][1].is_sound():
-                candidates_sp.append(FunctionWithCondition(lowest_cost_tfs[i][0]))
+            )
 
     # loaded_spls = mcmc_samplers
     # neighbor_tfs : list[list[tuple[float, float, float]]] =[[] for _ in loaded_spls]

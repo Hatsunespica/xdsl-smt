@@ -476,7 +476,7 @@ def run(
 ) -> EvalResult:
     assert min_bitwidth >= 4 or domain != AbstractDomain.IntegerModulo
 
-    logger.debug("Round_ID\tSound%\tUExact%\tUDis(Norm)\tCost")
+    logger.debug("Round_ID\tSound%\tUExact%\tDisReduce\tCost")
 
     random = Random(random_seed)
     random_seed = random.randint(0, 1_000_000) if random_seed is None else random_seed
@@ -569,7 +569,6 @@ def run(
             solution_size,
             inv_temp,
             num_unsound_candidates,
-            domain,
         )
 
         print_set_of_funcs_to_file(
