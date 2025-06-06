@@ -19,6 +19,7 @@ from xdsl_smt.utils.synthesizer_utils.mcmc_sampler import MCMCSampler
 from xdsl_smt.utils.synthesizer_utils.random import Random
 from xdsl_smt.utils.synthesizer_utils.solution_set import SolutionSet
 from xdsl_smt.utils.synthesizer_utils.synthesizer_context import SynthesizerContext
+from xdsl_smt.eval_engine.eval import AbstractDomain
 
 
 def build_eval_list(
@@ -115,6 +116,7 @@ def synthesize_one_iteration(
     solution_size: int,
     inv_temp: int,
     num_unsound_candidates: int,
+    domain: AbstractDomain,
 ) -> SolutionSet:
     "Given ith_iter, performs total_rounds mcmc sampling"
     mcmc_samplers: list[MCMCSampler] = []
@@ -132,7 +134,7 @@ def synthesize_one_iteration(
                 context_regular
                 if i < (sp_range.start + sp_range.stop) // 2
                 else context_weighted,
-                sound_and_precise_cost,
+                lambda x: sound_and_precise_cost(x, domain.max_dist),
                 program_length,
                 random_init_program=True,
             )
@@ -142,7 +144,7 @@ def synthesize_one_iteration(
                 context_regular
                 if i < (p_range.start + p_range.stop) // 2
                 else context_weighted,
-                precise_cost,
+                lambda x: precise_cost(x, domain.max_dist),
                 program_length,
                 random_init_program=True,
             )
@@ -150,7 +152,7 @@ def synthesize_one_iteration(
             spl = MCMCSampler(
                 func,
                 context_cond,
-                abduction_cost,
+                lambda x: abduction_cost(x, domain.max_dist),
                 cond_length,
                 random_init_program=True,
                 is_cond=True,
@@ -230,7 +232,7 @@ def synthesize_one_iteration(
             res_cost = spl.compute_current_cost()
             sound_prop = spl.current_cmp.get_sound_prop() * 100
             exact_prop = spl.current_cmp.get_unsolved_exact_prop() * 100
-            avg_dist_norm = spl.current_cmp.get_unsolved_dist_avg_norm()
+            avg_dist_norm = spl.current_cmp.get_unsolved_dist_avg_norm(domain.max_dist)
 
             logger.debug(
                 f"{ith_iter}_{rnd}_{i}\t{sound_prop:.2f}%\t{exact_prop:.2f}%\t{avg_dist_norm:.3f}\t{res_cost:.3f}"

@@ -59,7 +59,6 @@ def run(
     op_name: str,
 ) -> tuple[EvalResult, EvalResult | None, EvalResult | None]:
     assert min_bitwidth >= 4 or domain != AbstractDomain.IntegerModulo
-    EvalResult.get_max_dis = domain.max_dist
 
     _, helpers = get_helper_funcs(input_path, domain, False)
     sol_module = parse_file(solution_path)
@@ -125,8 +124,8 @@ def print_eval(x: EvalResult) -> None:
     else:
         print("bw | Exact  | Distance")
         print("---|--------|---------")
-        for bw, pb in x.per_bit.items():
-            print(f"{bw}  | {format_percent(pb.get_exact_prop())} | {pb.dist}")
+        for pb in x.per_bit:
+            print(f"{pb.bitwidth}  | {format_percent(pb.get_exact_prop())} | {pb.dist}")
 
 
 def main() -> None:

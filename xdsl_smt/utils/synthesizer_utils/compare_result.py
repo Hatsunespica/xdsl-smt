@@ -1,70 +1,43 @@
 from typing import Callable
+from dataclasses import dataclass
 
 
+@dataclass
 class PerBitEvalResult:
-    """The evaluation result of (a candidate transformer f MEET a set of sound transformer F) and the best transformer f_best"""
+    "The evaluation result of (a candidate transformer f MEET a set of sound transformer F) and the best transformer f_best"
 
     all_cases: int
-    """The number of inputs"""
+    "The number of inputs"
 
     bitwidth: int
-    """The bitwidth it evaluates on"""
+    "The bitwidth it evaluates on"
 
     sounds: int
-    """The number of inputs on which (f MEET F) gets sound"""
+    "The number of inputs on which (f MEET F) gets sound"
 
     exacts: int
-    """The number of inputs on which (f MEET F) gets exact"""
+    "The number of inputs on which (f MEET F) gets exact"
 
     dist: int
-    r"""dist(f,g) := \sum{a} d(f(a) /\ g(a), best(a))"""
+    r"dist(f,g) := \sum{a} d(f(a) /\ g(a), best(a))"
 
     base_dist: int
-    r"""base_dis(f,g) := \sum{a} d(g(a), best(a))"""
+    r"base_dis(f,g) := \sum{a} d(g(a), best(a))"
 
     unsolved_cases: int
-    """The number of unsolved inputs (F do not get exact)"""
+    "The number of unsolved inputs (F do not get exact)"
 
     unsolved_sounds: int
-    """The number of unsolved inputs on which (f MEET F) gets sound"""
+    "The number of unsolved inputs on which (f MEET F) gets sound"
 
     unsolved_exacts: int
-    """The number of unsolved inputs on which (f MEET F) gets exact"""
+    "The number of unsolved inputs on which (f MEET F) gets exact"
 
     unsolved_dist: int
-    r"""unsolved_dis(f,g) := \sum{a, g(a) is not exact} d(f(a) /\ g(a), best(a))"""
+    r"unsolved_dis(f,g) := \sum{a, g(a) is not exact} d(f(a) /\ g(a), best(a))"
 
     sound_dist: int
-    r"""sound_dis(f,g) := \sum{a, f(a) is sound} d(f(a) /\ g(a), best(a)) + \sum{a, f(a) is unsound} d(g(a), best(a))"""
-
-    greedy_by_dist = True  # default
-    """If True, the improvement is calculated by the decrease of distance. Otherwise, it is calculated by the number of new exacts"""
-
-    def __init__(
-        self,
-        all_cases: int,
-        sounds: int,
-        exacts: int,
-        edit_dis: int,
-        unsolved_cases: int,
-        unsolved_sounds: int,
-        unsolved_exacts: int,
-        unsolved_edit_dis: int,
-        base_edit_dis: int,
-        sound_dist: int,
-        bitwidth: int,
-    ):
-        self.all_cases = all_cases
-        self.sounds = sounds
-        self.exacts = exacts
-        self.dist = edit_dis
-        self.unsolved_cases = unsolved_cases
-        self.unsolved_sounds = unsolved_sounds
-        self.unsolved_exacts = unsolved_exacts
-        self.unsolved_dist = unsolved_edit_dis
-        self.base_dist = base_edit_dis
-        self.sound_dist = sound_dist
-        self.bitwidth = bitwidth
+    r"sound_dis(f,g) := \sum{a, f(a) is sound} d(f(a) /\ g(a), best(a)) + \sum{a, f(a) is unsound} d(g(a), best(a))"
 
     def __str__(self):
         s = ""
@@ -89,9 +62,8 @@ class PerBitEvalResult:
 
 
 class EvalResult:
-    per_bit: dict[int, PerBitEvalResult]
+    per_bit: list[PerBitEvalResult]
     max_bit: int
-    get_max_dis: Callable[[int], int] = lambda _: int(1 / 0)
     all_cases: int
     sounds: int
     exacts: int
@@ -103,21 +75,21 @@ class EvalResult:
     unsolved_dist: int
     sound_dist: int
 
-    def __init__(self, per_bit: dict[int, PerBitEvalResult]):
+    def __init__(self, per_bit: list[PerBitEvalResult]):
         self.per_bit = per_bit
-        self.max_bit = max(per_bit.keys())
-        self.all_cases = sum(res.all_cases for res in per_bit.values())
-        self.sounds = sum(res.sounds for res in per_bit.values())
-        self.exacts = sum(res.exacts for res in per_bit.values())
-        self.dist = sum(res.dist for res in per_bit.values())
-        self.base_dist = sum(res.base_dist for res in per_bit.values())
-        self.unsolved_cases = sum(res.unsolved_cases for res in per_bit.values())
-        self.unsolved_sounds = sum(res.unsolved_sounds for res in per_bit.values())
-        self.unsolved_exacts = sum(res.unsolved_exacts for res in per_bit.values())
-        self.unsolved_dist = sum(res.unsolved_dist for res in per_bit.values())
+        self.max_bit = max(per_bit, key=lambda x: x.bitwidth).bitwidth
+        self.all_cases = sum(res.all_cases for res in per_bit)
+        self.sounds = sum(res.sounds for res in per_bit)
+        self.exacts = sum(res.exacts for res in per_bit)
+        self.dist = sum(res.dist for res in per_bit)
+        self.base_dist = sum(res.base_dist for res in per_bit)
+        self.unsolved_cases = sum(res.unsolved_cases for res in per_bit)
+        self.unsolved_sounds = sum(res.unsolved_sounds for res in per_bit)
+        self.unsolved_exacts = sum(res.unsolved_exacts for res in per_bit)
+        self.unsolved_dist = sum(res.unsolved_dist for res in per_bit)
 
     def __str__(self):
-        return "\n".join(str(res) for res in self.per_bit.values())
+        return "\n".join(str(res) for res in self.per_bit)
 
     def get_unsolved_cases(self) -> int:
         return self.unsolved_cases
@@ -143,12 +115,9 @@ class EvalResult:
     def get_unsolved_exact_prop(self) -> float:
         return self.unsolved_exacts / self.unsolved_cases
 
-    def get_unsolved_dist_avg_norm(self) -> float:
+    def get_unsolved_dist_avg_norm(self, get_max_dis: Callable[[int], int]) -> float:
         return (
-            sum(
-                res.unsolved_dist / EvalResult.get_max_dis(bw)
-                for bw, res in self.per_bit.items()
-            )
+            sum(res.unsolved_dist / get_max_dis(res.bitwidth) for res in self.per_bit)
             / self.unsolved_cases
         )
 
@@ -162,7 +131,8 @@ class EvalResult:
         return self.base_dist - self.unsolved_dist
 
     def get_improve(self):
-        if PerBitEvalResult.greedy_by_dist:
+        greedy_by_dist = True
+        if greedy_by_dist:
             return self.get_unsolved_dis_decrease()
         else:
             return self.unsolved_exacts

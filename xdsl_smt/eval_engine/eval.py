@@ -27,7 +27,7 @@ class AbstractDomain(Enum):
         return self.name
 
 
-def _get_per_bit(x: list[str]) -> tuple[int, list[PerBitEvalResult]]:
+def _get_per_bit(x: list[str]) -> list[PerBitEvalResult]:
     def get_floats(s: str) -> list[int]:
         return eval(s)
 
@@ -57,19 +57,19 @@ def _get_per_bit(x: list[str]) -> tuple[int, list[PerBitEvalResult]]:
         == len(sound_distance)
     ), "EvalEngine output mismatch"
 
-    return bw, [
+    return [
         PerBitEvalResult(
-            num_cases[i],
-            sounds[i],
-            exact[i],
-            precs[i],
-            unsolved_num_cases[i],
-            unsolved_sounds[i],
-            unsolved_exact[i],
-            unsolved_precs[i],
-            base_precs[i],
-            sound_distance[i],
-            bw,
+            all_cases=num_cases[i],
+            sounds=sounds[i],
+            exacts=exact[i],
+            dist=precs[i],
+            unsolved_cases=unsolved_num_cases[i],
+            unsolved_sounds=unsolved_sounds[i],
+            unsolved_exacts=unsolved_exact[i],
+            unsolved_dist=unsolved_precs[i],
+            base_dist=base_precs[i],
+            sound_dist=sound_distance[i],
+            bitwidth=bw,
         )
         for i in range(len(sounds))
     ]
@@ -80,10 +80,10 @@ def _parse_engine_output(output: str) -> list[EvalResult]:
     bw_evals.reverse()
     per_bits = [_get_per_bit(x.split("\n")) for x in bw_evals if x != ""]
 
-    ds: list[dict[int, PerBitEvalResult]] = [{} for _ in range(len(per_bits[0][1]))]
-    for bw, es in per_bits:
+    ds: list[list[PerBitEvalResult]] = [[] for _ in range(len(per_bits[0]))]
+    for es in per_bits:
         for i, e in enumerate(es):
-            ds[i][bw] = e
+            ds[i].append(e)
 
     return [EvalResult(x) for x in ds]
 

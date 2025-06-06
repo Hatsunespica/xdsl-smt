@@ -475,7 +475,6 @@ def run(
     outputs_folder: Path,
 ) -> EvalResult:
     assert min_bitwidth >= 4 or domain != AbstractDomain.IntegerModulo
-    EvalResult.get_max_dis = domain.max_dist
 
     logger.debug("Round_ID\tSound%\tUExact%\tUDis(Norm)\tCost")
 
@@ -570,6 +569,7 @@ def run(
             solution_size,
             inv_temp,
             num_unsound_candidates,
+            domain,
         )
 
         print_set_of_funcs_to_file(
