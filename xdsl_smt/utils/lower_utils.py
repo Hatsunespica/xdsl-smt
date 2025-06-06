@@ -167,7 +167,12 @@ SHIFTING_ACTION = (
 )
 SET_BITS_ACTION = (
     "{1}.uge(0) && {1}.ule({1}.getBitWidth())",
-    "{0} = APInt::getAllOnes({1}.getBitWidth())",
+    "{0} = APInt({1}.getBitWidth(), 0)",
+    # "{0} = APInt::getAllOnes({1}.getBitWidth())",
+)
+DIV_ACTION = (
+    "{1}!=(0)",
+    "{0} = APInt({1}.getBitWidth(), 0)",
 )
 
 # CHECK_RHS_IS_ZERO = ("{1}!=0", ["{0}", "1"])
@@ -177,6 +182,10 @@ operationToConstraint: dict[type(Operation), tuple[str, str]] = {
     ShlOp: SHIFTING_ACTION,
     AShrOp: SHIFTING_ACTION,
     LShrOp: SHIFTING_ACTION,
+    UDivOp: DIV_ACTION,
+    SDivOp: DIV_ACTION,
+    URemOp: DIV_ACTION,
+    SRemOp: DIV_ACTION,
 }
 
 unsignedReturnedType = {

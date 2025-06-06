@@ -444,10 +444,7 @@ def get_base_xfers(module: ModuleOp) -> list[FunctionWithCondition]:
 def setup_context(r: Random, use_full_i1_ops: bool) -> SynthesizerContext:
     c = SynthesizerContext(r)
     c.set_cmp_flags([0, 6, 7])
-    c.use_full_int_ops()
-    if use_full_i1_ops:
-        c.use_full_i1_ops()
-    else:
+    if not use_full_i1_ops:
         c.use_basic_i1_ops()
     return c
 

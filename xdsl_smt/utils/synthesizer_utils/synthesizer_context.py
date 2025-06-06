@@ -332,17 +332,9 @@ class SynthesizerContext:
         self.dsl_ops[INT_T] = Collection(basic_int_ops, self.random)
         # self.op_weights[INT_T] = {key:int_prior_uniform[key] for key in basic_int_ops}
 
-    def use_full_int_ops(self):
-        self.dsl_ops[INT_T] = Collection(full_int_ops, self.random)
-        # self.op_weights[INT_T] = int_prior_uniform
-
     def use_basic_i1_ops(self):
         self.dsl_ops[BOOL_T] = Collection(basic_i1_ops, self.random)
         # self.op_weights[BOOL_T] = {key:i1_prior_uniform[key] for key in basic_i1_ops}
-
-    def use_full_i1_ops(self):
-        self.dsl_ops[BOOL_T] = Collection(full_i1_ops, self.random)
-        # self.op_weights[BOOL_T] = i1_prior_uniform
 
     def update_weights(self, frequency: dict[str, dict[OpWithSignature, int]]):
         for ty, freq in frequency.items():

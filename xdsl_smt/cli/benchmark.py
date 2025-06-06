@@ -84,6 +84,33 @@ cr_representative_test_names = [
     "Umax.mlir",
 ]
 
+kb_not_best_test_names = [
+    "Mul.mlir",
+    "Udiv.mlir",
+    "Sdiv.mlir",
+    "Modu.mlir",
+    "Mods.mlir",
+    "UdivExact.mlir",
+    "Add.mlir",
+    "Umax.mlir",
+    "And.mlir",
+    "AvgFloorU.mlir",
+]
+# Some best tests are also included (Add, Umax, And, AvgFloorU)
+
+cr_not_best_test_names = [
+    "And.mlir",
+    "Xor.mlir",
+    "Mul.mlir",
+    "Modu.mlir",
+    "Shl.mlir",
+    "Lshr.mlir",
+    "Ashr.mlir",
+    "Umax.mlir",
+    "Add.mlir",
+]
+# Some best tests are also included (Umax, Add)
+
 
 def synth_run(
     x: tuple[str, AbstractDomain, Path, Namespace],
@@ -160,12 +187,12 @@ def main() -> None:
 
     kb_inputs = [
         (x.split(".")[0], AbstractDomain.KnownBits, start_dir.joinpath(x), args)
-        for x in kb_representative_test_names
+        for x in kb_not_best_test_names
     ]
 
     cr_inputs = [
         (x.split(".")[0], AbstractDomain.UConstRange, start_dir.joinpath(x), args)
-        for x in cr_representative_test_names
+        for x in cr_not_best_test_names
     ]
 
     with Pool() as p:
