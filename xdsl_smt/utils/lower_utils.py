@@ -5,11 +5,6 @@ from ..dialects.transfer import (
     NegOp,
     Constant,
     CmpOp,
-    AndOp,
-    OrOp,
-    XorOp,
-    AddOp,
-    SubOp,
     CountLOneOp,
     CountLZeroOp,
     CountROneOp,
@@ -47,7 +42,6 @@ from ..dialects.transfer import (
     ConstRangeForOp,
     RepeatOp,
     IntersectsOp,
-    # FromArithOp,
     TupleType,
     AddPoisonOp,
     RemovePoisonOp,
@@ -57,10 +51,8 @@ from ..dialects.transfer import (
     URemOp,
 )
 from xdsl.dialects.func import FuncOp, ReturnOp, CallOp
-from xdsl.pattern_rewriter import *
 from functools import singledispatch
-from typing import TypeVar, cast
-from xdsl.dialects.builtin import Signedness, IntegerType, IndexType, IntegerAttr
+from xdsl.dialects.builtin import IntegerType, IndexType, IntegerAttr
 from xdsl.ir import Operation
 import xdsl.dialects.arith as arith
 
@@ -165,20 +157,27 @@ SHIFTING_ACTION = (
     "{1}.uge(0) && {1}.ule({1}.getBitWidth())",
     "{0} = APInt({1}.getBitWidth(), 0)",
 )
+
 SET_BITS_ACTION = (
-    "{1}.uge(0) && {1}.ule({1}.getBitWidth())",
+    "{1}.uge(0) && {0}.ule({0}.getBitWidth()) && {1}.ule({1}.getBitWidth())",
     "{0} = APInt({1}.getBitWidth(), 0)",
-    # "{0} = APInt::getAllOnes({1}.getBitWidth())",
 )
+
+CLEAR_BITS_ACTION = (
+    "{0}.ule({0}.getBitWidth())",
+    "{0} = APInt({0}.getBitWidth(), 0)",
+)
+
 DIV_ACTION = (
     "{1}!=(0)",
     "{0} = APInt({1}.getBitWidth(), 0)",
 )
 
-# CHECK_RHS_IS_ZERO = ("{1}!=0", ["{0}", "1"])
 operationToConstraint: dict[type(Operation), tuple[str, str]] = {
     SetLowBitsOp: SET_BITS_ACTION,
     SetHighBitsOp: SET_BITS_ACTION,
+    ClearLowBitsOp: CLEAR_BITS_ACTION,
+    ClearHighBitsOp: CLEAR_BITS_ACTION,
     ShlOp: SHIFTING_ACTION,
     AShrOp: SHIFTING_ACTION,
     LShrOp: SHIFTING_ACTION,
@@ -368,13 +367,13 @@ def lowerToClassMethod(op: Operation, castOperand=None, castResult=None):
         expr += "," + operands[i]
     expr += ")"
     if type(op) in operationToConstraint:
-        constraint = operationToConstraint[type(op)]
+        constraint, replacement = operationToConstraint[type(op)]
         original_operand_names = [operand.name_hint for operand in op.operands]
-        condition = constraint[0].format(*original_operand_names)
+        condition = constraint.format(*original_operand_names)
         result = indent + returnedType + " " + returnedValue + ends
         true_branch = indent + "\t" + returnedValue + equals + expr + ends
 
-        action = constraint[1].format(returnedValue, *original_operand_names)
+        action = replacement.format(returnedValue, *original_operand_names)
 
         false_branch = indent + "\t" + action + ends
 
@@ -578,29 +577,6 @@ def _(op: ReturnOp):
     opName = operNameToCpp[op.name] + " "
     operand = op.arguments[0].name_hint
     return indent + opName + operand + ends
-
-
-"""
-@lowerOperation.register
-def _(op: FromArithOp):
-    opTy = op.op.type
-    assert isinstance(opTy, IntegerType)
-    size = opTy.width.data
-    returnedType = "APInt"
-    returnedValue = op.results[0].name_hint
-    return (
-        indent
-        + returnedType
-        + " "
-        + returnedValue
-        + "("
-        + str(size)
-        + ", "
-        + op.op.name_hint
-        + ")"
-        + ends
-    )
-"""
 
 
 @lowerOperation.register
@@ -1104,7 +1080,7 @@ def _(op: RepeatOp):
 def _(op: AddPoisonOp):
     returnedType = lowerType(op.results[0].type)
     returnedValue = op.results[0].name_hint
-    opName = operNameToCpp[op.name]
+    _opName = operNameToCpp[op.name]
     return (
         indent
         + returnedType
@@ -1120,7 +1096,7 @@ def _(op: AddPoisonOp):
 def _(op: RemovePoisonOp):
     returnedType = lowerType(op.results[0].type)
     returnedValue = op.results[0].name_hint
-    opName = operNameToCpp[op.name]
+    _opName = operNameToCpp[op.name]
     return (
         indent
         + returnedType
