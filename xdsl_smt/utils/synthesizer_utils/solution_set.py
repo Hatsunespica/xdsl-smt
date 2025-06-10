@@ -400,7 +400,7 @@ class UnsizedSolutionSet(SolutionSet):
                         f"Skip a unsound function at bit width {unsound_bit}, body: {body_number}, cond: {cond_number}"
                     )
                     # Todo: Remove hard encoded bitwidth
-                    if unsound_bit == 4:
+                    if unsound_bit <= 4:
                         self.handle_inconsistent_result(cand)
                     candidates.remove(cand)
                     continue
