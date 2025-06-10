@@ -353,9 +353,9 @@ class UnsizedSolutionSet(SolutionSet):
             self.logger.critical(s + "\n")
         self.logger.critical(func_str)
         str_output = io.StringIO()
-        print(f.func, file=str_output)
+        print(self.eliminate_dead_code(f.func), file=str_output)
         if f.cond is not None:
-            print(f.cond, file=str_output)
+            print(self.eliminate_dead_code(f.cond), file=str_output)
         print(func_op, file=str_output)
         func_op_str = str_output.getvalue()
         self.logger.error(func_op_str)
