@@ -1011,4 +1011,5 @@ transfer_semantics: dict[type[Operation], OperationSemantics] = {
     transfer.AddPoisonOp: AddPoisonOpSemantics(),
     transfer.RemovePoisonOp: RemovePoisonOpSemantics(),
     transfer.ReverseBitsOp: ReverseBitsOpSemantics(),
+    transfer.GetLimitedValueOp: UMinOpSemantics(),
 }
