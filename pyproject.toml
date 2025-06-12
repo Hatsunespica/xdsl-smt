@@ -50,7 +50,6 @@ typeCheckingMode = "strict"
 include = ["xdsl_smt"]
 ignore = [
   "xdsl_smt/utils/z3_to_dialect.py",
-  "xdsl_smt/passes/transfer_lower.py",
   "tests",
   "outputs"
 ]

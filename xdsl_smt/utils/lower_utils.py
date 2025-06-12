@@ -285,7 +285,7 @@ INDUCTION_KEY = "induction"
 OPERATION_NO = "operationNo"
 
 
-def lowerInductionOps(inductionOp: list[FuncOp]):
+def lowerInductionOps(inductionOp: list[FuncOp]) -> str:
     if len(inductionOp) > 0:
         functionSignature = """
 {returnedType} {funcName}(ArrayRef<{returnedType}> operands){{
@@ -307,8 +307,10 @@ def lowerInductionOps(inductionOp: list[FuncOp]):
             )
         return result
 
+    return ""
 
-def lowerDispatcher(needDispatch: list[FuncOp], is_forward: bool):
+
+def lowerDispatcher(needDispatch: list[FuncOp], is_forward: bool) -> str:
     if len(needDispatch) > 0:
         returnedType = needDispatch[0].function_type.outputs.data[0]
         for func in needDispatch:
@@ -341,7 +343,7 @@ def lowerDispatcher(needDispatch: list[FuncOp], is_forward: bool):
 
         def handleOneTransferFunction(func: FuncOp, operationNo: int) -> str:
             blockStr = ""
-            for cppClass in func.attributes[CPP_CLASS_KEY]: # type: ignore
+            for cppClass in func.attributes[CPP_CLASS_KEY]:  # type: ignore
                 argStr = ""
                 if INDUCTION_KEY in func.attributes:
                     argStr = "operands"
@@ -355,7 +357,7 @@ def lowerDispatcher(needDispatch: list[FuncOp], is_forward: bool):
                     operationNoStr = "true"
                 else:
                     operationNoStr = "operationNo == " + str(operationNo)
-                blockStr += dyn_cast.format(cppClass.data, operationNoStr, ifBody) # type: ignore
+                blockStr += dyn_cast.format(cppClass.data, operationNoStr, ifBody)  # type: ignore
             return blockStr
 
         funcBody = ""
@@ -367,7 +369,10 @@ def lowerDispatcher(needDispatch: list[FuncOp], is_forward: bool):
                 assert isinstance(operationNo, IntegerAttr)
                 funcBody += handleOneTransferFunction(func, operationNo.value.data)
         funcBody += indent + "return {};\n"
+
         return functionSignature.format(funcBody)
+
+    return ""
 
 
 def isFunctionCall(opName: str) -> bool:
@@ -525,7 +530,7 @@ def _(op: SelectOp):
 def _(op: GetOp) -> str:
     returnedType = lowerType(op.results[0].type)
     returnedValue = get_ret_val(op)
-    index = op.attributes["index"].value.data # type: ignore
+    index = op.attributes["index"].value.data  # type: ignore
 
     return (
         indent
@@ -534,7 +539,7 @@ def _(op: GetOp) -> str:
         + returnedValue
         + equals
         + get_operand(op, 0)
-        + get_op_str(op).format(index) # type: ignore
+        + get_op_str(op).format(index)  # type: ignore
         + ends
     )
 
