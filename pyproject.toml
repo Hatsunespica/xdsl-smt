@@ -48,8 +48,4 @@ reportImportCycles = false
 reportUnnecessaryIsInstance = false
 typeCheckingMode = "strict"
 include = ["xdsl_smt"]
-ignore = [
-  "xdsl_smt/utils/z3_to_dialect.py",
-  "tests",
-  "outputs"
-]
+ignore = ["tests", "outputs"]
