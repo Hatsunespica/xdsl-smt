@@ -29,7 +29,6 @@ from xdsl_smt.utils.transfer_to_smt_util import (
     reverse_bits,
     is_non_negative,
     is_negative,
-    is_zero,
     get_high_bits,
     clear_high_bits,
     clear_low_bits,
@@ -256,32 +255,6 @@ def smt_bool_to_bv1(bool_val: SSAValue) -> tuple[SSAValue, list[Operation]]:
     b0 = smt_bv.ConstantOp.from_int_value(0, 1)
     ite_op = smt.IteOp(bool_val, b1.res, b0.res)
     return ite_op.res, [b1, b0, ite_op]
-
-
-@dataclass
-class UDivSemantics(OperationSemantics):
-    def get_semantics(
-        self,
-        operands: Sequence[SSAValue],
-        results: Sequence[Attribute],
-        attributes: Mapping[str, Attribute | SSAValue],
-        effect_state: SSAValue | None,
-        rewriter: PatternRewriter,
-    ) -> tuple[Sequence[SSAValue], SSAValue | None]:
-        udiv_op = smt_bv.UDivOp(operands[0], operands[1])
-
-        is_zero_ops = is_zero(operands[1])
-        is_zero_operand = is_zero_ops[-1].results[0]
-
-        assert isinstance(val_type := operands[0].type, smt_bv.BitVectorType)
-        const_zero = smt_bv.ConstantOp(0, val_type.width)
-
-        ite_op = smt.IteOp(is_zero_operand, const_zero.res, udiv_op.res)
-
-        rewriter.insert_op_before_matched_op(
-            [udiv_op] + is_zero_ops + [const_zero, ite_op]
-        )
-        return ((ite_op.res,), effect_state)
 
 
 class UMulOverflowOpSemantics(OperationSemantics):
@@ -988,7 +961,7 @@ transfer_semantics: dict[type[Operation], OperationSemantics] = {
     transfer.XorOp: TrivialOpSemantics(transfer.XorOp, smt_bv.XorOp),
     transfer.SubOp: TrivialOpSemantics(transfer.SubOp, smt_bv.SubOp),
     transfer.NegOp: TrivialOpSemantics(transfer.NegOp, smt_bv.NotOp),
-    transfer.UDivOp: UDivSemantics(),
+    transfer.UDivOp: TrivialOpSemantics(transfer.UDivOp, smt_bv.UDivOp),
     transfer.SDivOp: TrivialOpSemantics(transfer.SDivOp, smt_bv.SDivOp),
     transfer.URemOp: TrivialOpSemantics(transfer.URemOp, smt_bv.URemOp),
     transfer.SRemOp: TrivialOpSemantics(transfer.SRemOp, smt_bv.SRemOp),
