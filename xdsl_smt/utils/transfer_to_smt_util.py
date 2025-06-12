@@ -319,11 +319,3 @@ def is_negative(val: SSAValue) -> list[Operation]:
     const_zero = smt_bv.ConstantOp(0, width)
     val_slt_zero = smt_bv.SltOp(val, const_zero.res)
     return [const_zero, val_slt_zero]
-
-
-def is_zero(val: SSAValue) -> list[Operation]:
-    assert isinstance(val_type := val.type, smt_bv.BitVectorType)
-    width = val_type.width
-    const_zero = smt_bv.ConstantOp(0, width)
-    val_ugt_zero = smt_bv.UgtOp(val, const_zero.res)
-    return [const_zero, val_ugt_zero]
