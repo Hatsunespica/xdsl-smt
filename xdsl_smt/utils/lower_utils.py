@@ -164,6 +164,7 @@ operNameToCpp = {
 SHIFTING_ACTION = (
     "{1}.uge(0) && {1}.ule({1}.getBitWidth())",
     "{0} = APInt({1}.getBitWidth(), 0)",
+    # "{0} = APInt::getAllOnes({1}.getBitWidth())",
 )
 SET_BITS_ACTION = (
     "{1}.uge(0) && {1}.ule({1}.getBitWidth())",
@@ -179,6 +180,10 @@ DIV_ACTION = (
 operationToConstraint: dict[type(Operation), tuple[str, str]] = {
     SetLowBitsOp: SET_BITS_ACTION,
     SetHighBitsOp: SET_BITS_ACTION,
+    GetLowBitsOp: SET_BITS_ACTION,
+    GetHighBitsOp: SET_BITS_ACTION,
+    ClearHighBitsOp: SET_BITS_ACTION,
+    ClearLowBitsOp: SET_BITS_ACTION,
     ShlOp: SHIFTING_ACTION,
     AShrOp: SHIFTING_ACTION,
     LShrOp: SHIFTING_ACTION,
@@ -811,52 +816,65 @@ def castToUnisgnedFromAPInt(operand):
     return operand.name_hint
 
 
-@lowerOperation.register
-def _(op: SetHighBitsOp):
+def lowerBitManipulationOp(op: Operation):
     returnedType = lowerType(op.results[0].type, op)
     returnedValue = op.results[0].name_hint
-    equals = "=" + op.operands[0].name_hint + ends + "\t"
+
+    # equals = "=" + op.operands[0].name_hint + ends + "\t"
+    # expr = op.results[0].name_hint + operNameToCpp[op.name] + "("
+    # operands = op.operands[1].name_hint + ".getZExtValue()"
+    # expr = expr + operands + ")"
+    # result = returnedType + " " + returnedValue + equals + expr + ends
+    # return indent + result
+
+    constraint = operationToConstraint[type(op)]
+    original_operand_names = [operand.name_hint for operand in op.operands]
+    condition = constraint[0].format(*original_operand_names)
+
+    decl = returnedType + " " + returnedValue + "=" + op.operands[0].name_hint + ends
+    result = indent + decl
+
     expr = op.results[0].name_hint + operNameToCpp[op.name] + "("
     operands = op.operands[1].name_hint + ".getZExtValue()"
     expr = expr + operands + ")"
-    result = returnedType + " " + returnedValue + equals + expr + ends
-    return indent + result
+    true_branch = indent + "\t" + expr + ends
+
+    action = constraint[1].format(returnedValue, *original_operand_names)
+
+    false_branch = indent + "\t" + action + ends
+
+    if_branch = (
+        indent
+        + "if({condition}){{\n{true_branch}"
+        + indent
+        + "}}else{{\n{false_branch}"
+        + indent
+        + "}}\n"
+    )
+    result += if_branch.format(
+        condition=condition, true_branch=true_branch, false_branch=false_branch
+    )
+    return result
+
+
+@lowerOperation.register
+def _(op: SetHighBitsOp):
+    return lowerBitManipulationOp(op)
 
 
 @lowerOperation.register
 def _(op: SetLowBitsOp):
-    returnedType = lowerType(op.results[0].type, op)
-    returnedValue = op.results[0].name_hint
-    equals = "=" + op.operands[0].name_hint + ends + "\t"
-    expr = op.results[0].name_hint + operNameToCpp[op.name] + "("
-    operands = op.operands[1].name_hint + ".getZExtValue()"
-    expr = expr + operands + ")"
-    result = returnedType + " " + returnedValue + equals + expr + ends
-    return indent + result
+    return lowerBitManipulationOp(op)
 
 
 @lowerOperation.register
 def _(op: ClearHighBitsOp):
-    returnedType = lowerType(op.results[0].type, op)
-    returnedValue = op.results[0].name_hint
-    equals = "=" + op.operands[0].name_hint + ends + "\t"
-    expr = op.results[0].name_hint + operNameToCpp[op.name] + "("
-    operands = op.operands[1].name_hint + ".getZExtValue()"
-    expr = expr + operands + ")"
-    result = returnedType + " " + returnedValue + equals + expr + ends
-    return indent + result
+    return lowerBitManipulationOp(op)
 
 
 @lowerOperation.register
 def _(op: ClearLowBitsOp):
-    returnedType = lowerType(op.results[0].type, op)
-    returnedValue = op.results[0].name_hint
-    equals = "=" + op.operands[0].name_hint + ends + "\t"
-    expr = op.results[0].name_hint + operNameToCpp[op.name] + "("
-    operands = op.operands[1].name_hint + ".getZExtValue()"
-    expr = expr + operands + ")"
-    result = returnedType + " " + returnedValue + equals + expr + ends
-    return indent + result
+    return lowerBitManipulationOp(op)
 
 
 @lowerOperation.register
