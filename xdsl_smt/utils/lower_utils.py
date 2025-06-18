@@ -115,10 +115,10 @@ operNameToCpp = {
     "transfer.lshr": ".lshr",
     "transfer.concat": ".concat",
     "transfer.extract": ".extractBits",
-    "transfer.umin": [".ule", "?", ":"],
-    "transfer.smin": [".sle", "?", ":"],
-    "transfer.umax": [".ugt", "?", ":"],
-    "transfer.smax": [".sgt", "?", ":"],
+    "transfer.umin": "A::APIntOps::umin",
+    "transfer.smin": "A::APIntOps::smin",
+    "transfer.umax": "A::APIntOps::umax",
+    "transfer.smax": "A::APIntOps::smax",
     "func.return": "return",
     "transfer.constant": "APInt",
     "arith.select": ["?", ":"],
@@ -173,7 +173,7 @@ ASHR_ACTION1 = VAL_EXCEEDS_BW + " && {0}.isSignBitClear()", RET_ZERO
 REM_ACTION = "{1}==0", "{0}={1}"
 DIV_ACTION = "{1}==0", RET_ONES
 SDIV_ACTION = (
-    "{1}==-1 && {0}.isMinSignedValue()",
+    "{0}.isMinSignedValue() && {1}==-1",
     "{0}=APInt::getSignedMinValue({1}.getBitWidth())",
 )
 
@@ -937,91 +937,33 @@ def _(op: GetBitWidthOp):
     return lowerToClassMethod(op, None, castToAPIntFromUnsigned)
 
 
-# op1 < op2? op1: op2
 @lowerOperation.register
 def _(op: SMaxOp):
-    returnedType = lowerType(op.operands[0].type, op)
-    returnedValue = get_ret_val(op)
-    operands = get_op_names(op)
-    operator = operNameToCpp[op.name]
-
-    expr = (
-        operands[0]
-        + operator[0]
-        + "("
-        + operands[1]
-        + ")"
-        + operator[1]
-        + operands[0]
-        + operator[2]
-        + operands[1]
-    )
-
-    return IDNT + returnedType + " " + returnedValue + EQ + expr + END
+    return lower_min_max(op)
 
 
 @lowerOperation.register
 def _(op: SMinOp):
-    returnedType = lowerType(op.operands[0].type, op)
-    returnedValue = get_ret_val(op)
-    operands = get_op_names(op)
-    operator = operNameToCpp[op.name]
-
-    expr = (
-        operands[0]
-        + operator[0]
-        + "("
-        + operands[1]
-        + ")"
-        + operator[1]
-        + operands[0]
-        + operator[2]
-        + operands[1]
-    )
-
-    return IDNT + returnedType + " " + returnedValue + EQ + expr + END
+    return lower_min_max(op)
 
 
 @lowerOperation.register
 def _(op: UMaxOp):
-    returnedType = lowerType(op.operands[0].type, op)
-    returnedValue = get_ret_val(op)
-    operands = get_op_names(op)
-    operator = operNameToCpp[op.name]
-
-    expr = (
-        operands[0]
-        + operator[0]
-        + "("
-        + operands[1]
-        + ")"
-        + operator[1]
-        + operands[0]
-        + operator[2]
-        + operands[1]
-    )
-
-    return IDNT + returnedType + " " + returnedValue + EQ + expr + END
+    return lower_min_max(op)
 
 
 @lowerOperation.register
 def _(op: UMinOp):
+    return lower_min_max(op)
+
+
+def lower_min_max(op: UMinOp | UMaxOp | SMinOp | SMaxOp) -> str:
     returnedType = lowerType(op.operands[0].type, op)
     returnedValue = get_ret_val(op)
     operands = get_op_names(op)
-    operator = operNameToCpp[op.name]
+    operator = get_op_str(op)
 
-    expr = (
-        operands[0]
-        + operator[0]
-        + "("
-        + operands[1]
-        + ")"
-        + operator[1]
-        + operands[0]
-        + operator[2]
-        + operands[1]
-    )
+    expr = operator + "(" + operands[0] + "," + operands[1] + ")"
 
     return IDNT + returnedType + " " + returnedValue + EQ + expr + END
 
