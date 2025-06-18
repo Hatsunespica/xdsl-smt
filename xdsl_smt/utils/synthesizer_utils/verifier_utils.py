@@ -49,7 +49,6 @@ from xdsl_smt.utils.transfer_function_check_util import (
     backward_soundness_check,
 )
 from xdsl_smt.passes.transfer_unroll_loop import UnrollTransferLoop
-from xdsl_smt.semantics import transfer_semantics
 from xdsl_smt.traits.smt_printer import print_to_smtlib
 from xdsl_smt.passes.lower_pairs import LowerPairs
 from xdsl.transforms.canonicalize import CanonicalizePass
@@ -75,15 +74,16 @@ def verify_pattern(ctx: Context, op: ModuleOp) -> bool:
     DeadCodeElimination().apply(ctx, cloned_op)
 
     print_to_smtlib(cloned_op, stream)
-    # print(stream.getvalue())
     res = subprocess.run(
         ["z3", "-in"],
         capture_output=True,
         input=stream.getvalue(),
         text=True,
     )
+
     if res.returncode != 0:
         raise Exception(res.stderr)
+
     return "unsat" in res.stdout
 
 
@@ -275,8 +275,7 @@ def soundness_check(
     query_module.body.block.add_ops(added_ops)
     FunctionCallInline(True, {}).apply(ctx, query_module)
 
-    result = verify_pattern(ctx, query_module)
-    return result
+    return verify_pattern(ctx, query_module)
 
 
 def verify_smt_transfer_function(
@@ -487,6 +486,8 @@ def verify_transfer_function(
             instance_constraint,
             ctx,
         )
+
         if not result:
             return width
+
     return 0
