@@ -42,13 +42,9 @@ def verify_function(
     )
 
 
-"""
-This class is an abstract class for maintaining solutions.
-It supports to generate the meet of solutions
-"""
-
-
 class SolutionSet(ABC):
+    "This class is an abstract class for maintaining solutions. It supports to generate the meet of solutions"
+
     solutions_size: int
     solutions: list[FunctionWithCondition]
     precise_set: list[FuncOp]

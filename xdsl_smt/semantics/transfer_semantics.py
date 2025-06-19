@@ -1,15 +1,11 @@
 from dataclasses import dataclass
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-)
-from xdsl.ir import Operation
+from typing import Mapping, Sequence
 
+from xdsl.pattern_rewriter import PatternRewriter
 from xdsl_smt.dialects import smt_bitvector_dialect as smt_bv
 from xdsl_smt.dialects import smt_dialect as smt
 from xdsl_smt.dialects import transfer
-from xdsl_smt.passes.lower_to_smt.smt_lowerer import (
-    SMTLowerer,
-)
+from xdsl_smt.passes.lower_to_smt.smt_lowerer import SMTLowerer
 from xdsl_smt.dialects.smt_utils_dialect import (
     AnyPairType,
     PairType,
@@ -20,13 +16,10 @@ from xdsl_smt.dialects.smt_utils_dialect import (
 from xdsl_smt.dialects.smt_dialect import BoolType
 from xdsl_smt.semantics.semantics import OperationSemantics, TypeSemantics
 from xdsl.ir import Operation, SSAValue, Attribute
-from typing import Mapping, Sequence
 from xdsl.utils.isattr import isattr
 from xdsl.dialects.builtin import IntegerAttr, IntegerType
 from xdsl_smt.utils.transfer_to_smt_util import (
     get_low_bits,
-    set_high_bits,
-    set_low_bits,
     count_lzeros,
     count_rzeros,
     count_lones,
@@ -35,8 +28,6 @@ from xdsl_smt.utils.transfer_to_smt_util import (
     is_non_negative,
     is_negative,
     get_high_bits,
-    clear_high_bits,
-    clear_low_bits,
 )
 
 
@@ -648,9 +639,27 @@ class SetHighBitsOpSemantics(OperationSemantics):
         effect_state: SSAValue | None,
         rewriter: PatternRewriter,
     ) -> tuple[Sequence[SSAValue], SSAValue | None]:
-        result = set_high_bits(operands[0], operands[1])
-        rewriter.insert_op_before_matched_op(result)
-        return ((result[-1].results[0],), effect_state)
+        arg = operands[0]
+        count = operands[1]
+        assert isinstance(bv_type := arg.type, smt_bv.BitVectorType)
+
+        const_bw = smt_bv.ConstantOp(bv_type.width, bv_type.width)
+        const_one = smt_bv.ConstantOp(1, bv_type.width)
+
+        umin = smt_bv.UltOp(count, const_bw.res)
+        clamped_count = smt.IteOp(umin.res, count, const_bw.res)
+
+        sub = smt_bv.SubOp(const_bw.res, clamped_count.res)
+        shl = smt_bv.ShlOp(const_one.res, clamped_count.res)
+        sub2 = smt_bv.SubOp(shl.res, const_one.res)
+        shl2 = smt_bv.ShlOp(sub2.res, sub.res)
+        or_op = smt_bv.OrOp(arg, shl2.res)
+
+        rewriter.insert_op_before_matched_op(
+            [const_bw, const_one, umin, clamped_count, sub, shl, sub2, shl2, or_op]
+        )
+
+        return ((or_op.res,), effect_state)
 
 
 class SetLowBitsOpSemantics(OperationSemantics):
@@ -662,9 +671,19 @@ class SetLowBitsOpSemantics(OperationSemantics):
         effect_state: SSAValue | None,
         rewriter: PatternRewriter,
     ) -> tuple[Sequence[SSAValue], SSAValue | None]:
-        result = set_low_bits(operands[0], operands[1])
-        rewriter.insert_op_before_matched_op(result)
-        return ((result[-1].results[0],), effect_state)
+        arg = operands[0]
+        count = operands[1]
+        assert isinstance(bv_type := arg.type, smt_bv.BitVectorType)
+
+        const_one = smt_bv.ConstantOp(1, bv_type.width)
+
+        shl = smt_bv.ShlOp(const_one.res, count)
+        sub = smt_bv.SubOp(shl.res, const_one.res)
+        or_op = smt_bv.OrOp(arg, sub.res)
+
+        rewriter.insert_op_before_matched_op([const_one, shl, sub, or_op])
+
+        return ((or_op.res,), effect_state)
 
 
 class SetSignBitOpSemantics(OperationSemantics):
@@ -746,9 +765,28 @@ class ClearHighBitsOpSemantics(OperationSemantics):
         effect_state: SSAValue | None,
         rewriter: PatternRewriter,
     ) -> tuple[Sequence[SSAValue], SSAValue | None]:
-        result = clear_high_bits(operands[0], operands[1])
-        rewriter.insert_op_before_matched_op(result)
-        return ((result[-1].results[0],), effect_state)
+        arg = operands[0]
+        count = operands[1]
+        assert isinstance(bv_type := arg.type, smt_bv.BitVectorType)
+
+        const_bw = smt_bv.ConstantOp(bv_type.width, bv_type.width)
+        const_one = smt_bv.ConstantOp(1, bv_type.width)
+
+        umin = smt_bv.UltOp(count, const_bw.res)
+        clamped_count = smt.IteOp(umin.res, count, const_bw.res)
+
+        # mask = ((1 << (width - count)) - 1) << count
+        sub = smt_bv.SubOp(const_bw.res, clamped_count.res)
+        shl = smt_bv.ShlOp(const_one.res, sub.res)
+        sub2 = smt_bv.SubOp(shl.res, const_one.res)
+        shl2 = smt_bv.ShlOp(sub2.res, clamped_count.res)
+        masked = smt_bv.AndOp(arg, shl2.res)
+
+        rewriter.insert_op_before_matched_op(
+            [const_bw, const_one, umin, clamped_count, sub, shl, sub2, shl2, masked]
+        )
+
+        return ((masked.res,), effect_state)
 
 
 class ClearLowBitsOpSemantics(OperationSemantics):
@@ -760,9 +798,21 @@ class ClearLowBitsOpSemantics(OperationSemantics):
         effect_state: SSAValue | None,
         rewriter: PatternRewriter,
     ) -> tuple[Sequence[SSAValue], SSAValue | None]:
-        result = clear_low_bits(operands[0], operands[1])
-        rewriter.insert_op_before_matched_op(result)
-        return ((result[-1].results[0],), effect_state)
+        arg = operands[0]
+        count = operands[1]
+        assert isinstance(bv_type := arg.type, smt_bv.BitVectorType)
+
+        const_one = smt_bv.ConstantOp(1, bv_type.width)
+
+        # mask = ~((1 << count) - 1)
+        shl = smt_bv.ShlOp(const_one.res, count)
+        sub = smt_bv.SubOp(shl.res, const_one.res)
+        not_mask = smt_bv.NotOp(sub.res)
+        masked = smt_bv.AndOp(arg, not_mask.res)
+
+        rewriter.insert_op_before_matched_op([const_one, shl, sub, not_mask, masked])
+
+        return ((masked.res,), effect_state)
 
 
 class SMinOpSemantics(OperationSemantics):
