@@ -150,28 +150,17 @@ operNameToCpp = {
 # transfer.constRangeLoop and NextLoop are controller operations, should be handle specially
 
 
-# operNameToConstraint is used for storing operation constraints used in synthesizing dataflow operations
-# It has shape operNname -> (condition, action). If the condition satisfies, the operation doesn't change
-# while it creates an else branch and performs the action
-# The action should be a string with parameters (result values, *new_args)
-
-# TODO see what `xdsl_smt/semantics/transfer_semantics.py` is doing and match it
-# SET_BITS_ACTION = (
-#     "{1}.uge(0) && {0}.ule({0}.getBitWidth()) && {1}.ule({1}.getBitWidth())",
-#     "{0} = APInt({1}.getBitWidth(), 0)",
-# )
-# CLEAR_BITS_ACTION = ("{0}.ule({0}.getBitWidth())", "{0} = APInt({0}.getBitWidth(), 0)")
-
-
 VAL_EXCEEDS_BW = "{1}.uge({1}.getBitWidth())"
+IS_ZERO = "{1}==0"
 RET_ZERO = "{0} = APInt({1}.getBitWidth(), 0)"
 RET_ONES = "{0}=APInt({1}.getBitWidth(), -1)"
+RET_LHS = "{0}={1}"
 
 SHIFT_ACTION = (VAL_EXCEEDS_BW, RET_ZERO)
 ASHR_ACTION0 = VAL_EXCEEDS_BW + " && {0}.isSignBitSet()", RET_ONES
 ASHR_ACTION1 = VAL_EXCEEDS_BW + " && {0}.isSignBitClear()", RET_ZERO
-REM_ACTION = "{1}==0", "{0}={1}"
-DIV_ACTION = "{1}==0", RET_ONES
+REM_ACTION = IS_ZERO, RET_LHS
+DIV_ACTION = IS_ZERO, RET_ONES
 SDIV_ACTION = (
     "{0}.isMinSignedValue() && {1}==-1",
     "{0}=APInt::getSignedMinValue({1}.getBitWidth())",
@@ -179,10 +168,6 @@ SDIV_ACTION = (
 
 
 op_to_constraint: dict[type[Operation], tuple[str, str]] = {
-    # SetLowBitsOp: SET_BITS_ACTION,
-    # SetHighBitsOp: SET_BITS_ACTION,
-    # ClearLowBitsOp: CLEAR_BITS_ACTION,
-    # ClearHighBitsOp: CLEAR_BITS_ACTION,
     ShlOp: SHIFT_ACTION,
     LShrOp: SHIFT_ACTION,
     UDivOp: DIV_ACTION,
@@ -754,6 +739,23 @@ def _(op: CallOp):
     return IDNT + returnedType + " " + returnedValue + EQ + callee + expr + END
 
 
+def set_clear_bits(
+    op: SetHighBitsOp | SetLowBitsOp | ClearHighBitsOp | ClearLowBitsOp,
+) -> str:
+    ret_ty = lowerType(op.results[0].type, op)
+    ret_val = get_ret_val(op)
+    arg = get_operand(op, 0)
+    count = get_operand(op, 1)
+    op_str = get_op_str(op)
+
+    set_val = f"{IDNT}{ret_ty} {ret_val} = {arg};\n"
+    cond = f"{count}.ule({count}.getBitWidth())"
+    if_br = f"{IDNT}{IDNT}{ret_val}{op_str}({count}.getZExtValue());\n"
+    el_br = f"{IDNT}{IDNT}{ret_val}{op_str}({count}.getBitWidth());\n"
+
+    return f"{set_val}{IDNT}if ({cond})\n{if_br}{IDNT}else\n{el_br}"
+
+
 @lowerOperation.register
 def _(op: FuncOp):
     def lowerArgs(arg: BlockArgument) -> str:
@@ -769,7 +771,7 @@ def _(op: FuncOp):
         expr += "," + lowerArgs(op.args[i])
     expr += ")"
 
-    return returnedType + " " + funcName + expr + "{\n"
+    return returnedType + " " + funcName + expr + "{\n"  # }
 
 
 def castToAPIntFromUnsigned(op: Operation) -> str:
@@ -853,49 +855,22 @@ def castToUnisgnedFromAPInt(operand: SSAValue | str) -> str:
 
 @lowerOperation.register
 def _(op: SetHighBitsOp):
-    returnedType = lowerType(op.results[0].type, op)
-    returnedValue = get_ret_val(op)
-    equals = EQ + get_operand(op, 0) + END + IDNT
-    expr = returnedValue + get_op_str(op) + "("
-    operands = get_operand(op, 1) + ".getZExtValue()"
-    expr = expr + operands + ")"
-
-    return IDNT + returnedType + " " + returnedValue + equals + expr + END
+    return set_clear_bits(op)
 
 
 @lowerOperation.register
 def _(op: SetLowBitsOp):
-    returnedType = lowerType(op.results[0].type, op)
-    returnedValue = get_ret_val(op)
-    equals = EQ + get_operand(op, 0) + END + IDNT
-    expr = returnedValue + get_op_str(op) + "("
-    operands = get_operand(op, 1) + ".getZExtValue()"
-    expr = expr + operands + ")"
-    return IDNT + returnedType + " " + returnedValue + equals + expr + END
+    return set_clear_bits(op)
 
 
 @lowerOperation.register
 def _(op: ClearHighBitsOp):
-    returnedType = lowerType(op.results[0].type, op)
-    returnedValue = get_ret_val(op)
-    equals = EQ + get_operand(op, 0) + END + IDNT
-    expr = returnedValue + get_op_str(op) + "("
-    operands = get_operand(op, 1) + ".getZExtValue()"
-    expr = expr + operands + ")"
-
-    return IDNT + returnedType + " " + returnedValue + equals + expr + END
+    return set_clear_bits(op)
 
 
 @lowerOperation.register
 def _(op: ClearLowBitsOp):
-    returnedType = lowerType(op.results[0].type, op)
-    returnedValue = get_ret_val(op)
-    equals = EQ + get_operand(op, 0) + END + IDNT
-    expr = returnedValue + get_op_str(op) + "("
-    operands = get_operand(op, 1) + ".getZExtValue()"
-    expr = expr + operands + ")"
-
-    return IDNT + returnedType + " " + returnedValue + equals + expr + END
+    return set_clear_bits(op)
 
 
 @lowerOperation.register
