@@ -61,8 +61,8 @@ int main() {
                                                  kb_xfer_wrapper);
   } else if (domain == "UConstRange") {
     r = handleDomain<UConstRange, llvm::ConstantRange>(
-        fname, synNames, bFnNames, fnSrcCode, opName, CR_TESTS,
-        cr_xfer_wrapper);
+        fname, synNames, bFnNames, fnSrcCode, opName, UCR_TESTS,
+        ucr_xfer_wrapper);
   } else if (domain == "SConstRange") {
     r = handleDomain<SConstRange, std::nullopt_t>(
         fname, synNames, bFnNames, fnSrcCode, opName, EMPTY_TESTS,
