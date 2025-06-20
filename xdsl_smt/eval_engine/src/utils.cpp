@@ -3,8 +3,10 @@
 
 #include <fcntl.h>
 #include <filesystem>
+#include <functional>
 #include <iostream>
 #include <istream>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <sys/mman.h>
@@ -12,6 +14,29 @@
 #include <vector>
 
 #include "AbstVal.h"
+
+template <typename D>
+using LLVMXferFn = std::function<const D(const D &, const D &)>;
+
+template <AbstractDomain D, typename LLVM_D>
+using XferWrap = const std::function<const D(const D &, const D &,
+                                             const LLVMXferFn<LLVM_D> &)>;
+
+template <typename D>
+using XferFn = std::function<const D(const D &, const D &)>;
+
+template <typename D>
+const std::optional<XferFn<D>>
+makeTest(const std::vector<std::tuple<std::string, std::optional<XferFn<D>>>>
+             &llvmTests,
+         const std::string &opName) {
+
+  const auto &[_, llvmOp] = *std::ranges::find_if(
+      llvmTests.begin(), llvmTests.end(),
+      [&](const auto &x) { return std::get<0>(x) == opName; });
+
+  return llvmOp;
+}
 
 std::vector<std::string> split_whitespace(const std::string &input) {
   std::vector<std::string> result;
