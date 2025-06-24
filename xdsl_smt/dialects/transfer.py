@@ -223,6 +223,26 @@ class MulOp(BinOp):
 
 
 @irdl_op_definition
+class SDivOp(BinOp):
+    name = "transfer.sdiv"
+
+
+@irdl_op_definition
+class UDivOp(BinOp):
+    name = "transfer.udiv"
+
+
+@irdl_op_definition
+class SRemOp(BinOp):
+    name = "transfer.srem"
+
+
+@irdl_op_definition
+class URemOp(BinOp):
+    name = "transfer.urem"
+
+
+@irdl_op_definition
 class ShlOp(BinOp):
     name = "transfer.shl"
 
@@ -243,8 +263,28 @@ class UMulOverflowOp(PredicateOp):
 
 
 @irdl_op_definition
-class ShlOverflowOp(PredicateOp):
-    name = "transfer.shl_overflow"
+class SMulOverflowOp(PredicateOp):
+    name = "transfer.smul_overflow"
+
+
+@irdl_op_definition
+class UShlOverflowOp(PredicateOp):
+    name = "transfer.ushl_overflow"
+
+
+@irdl_op_definition
+class SShlOverflowOp(PredicateOp):
+    name = "transfer.sshl_overflow"
+
+
+@irdl_op_definition
+class UAddOverflowOp(PredicateOp):
+    name = "transfer.uadd_overflow"
+
+
+@irdl_op_definition
+class SAddOverflowOp(PredicateOp):
+    name = "transfer.sadd_overflow"
 
 
 @irdl_op_definition
@@ -354,96 +394,105 @@ class ExtractOp(IRDLOperation):
 
 @irdl_op_definition
 class GetLowBitsOp(BinOp):
+    """
+    GetLowBitsOp(arg, numBits):
+    Get low numBits
+    """
+
     name = "transfer.get_low_bits"
 
-    T: ClassVar = VarConstraint(
-        "T", irdl_to_attr_constraint(TransIntegerType | IntegerType)
-    )
 
-    val: Operand = operand_def(T)
-    low_bits: Operand = operand_def(T)
-    result: OpResult = result_def(T)
+@irdl_op_definition
+class GetHighBitsOp(BinOp):
+    """
+    GetHighBitsOp(arg, numBits):
+    Get high numBits
+    """
+
+    name = "transfer.get_high_bits"
 
 
 @irdl_op_definition
 class SetHighBitsOp(BinOp):
+    """
+    SetHighBitsOp(arg, numBits):
+    Set high numBits to 1
+    """
+
     name = "transfer.set_high_bits"
-
-    T: ClassVar = VarConstraint(
-        "T", irdl_to_attr_constraint(TransIntegerType | IntegerType)
-    )
-
-    val: Operand = operand_def(T)
-    high_bits: Operand = operand_def(T)
-    result: OpResult = result_def(T)
 
 
 @irdl_op_definition
 class SetLowBitsOp(BinOp):
+    """
+    SetLowBitsOp(arg, numBits):
+    Set low numBits to 1
+    """
+
     name = "transfer.set_low_bits"
 
-    T: ClassVar = VarConstraint(
-        "T", irdl_to_attr_constraint(TransIntegerType | IntegerType)
-    )
 
-    val: Operand = operand_def(T)
-    low_bits: Operand = operand_def(T)
-    result: OpResult = result_def(T)
+@irdl_op_definition
+class ClearHighBitsOp(BinOp):
+    """
+    ClearHighBitsOp(arg, numBits):
+    Set top numBits to 0
+    """
+
+    name = "transfer.clear_high_bits"
 
 
 @irdl_op_definition
-class SetSignBitOp(BinOp):
+class ClearLowBitsOp(BinOp):
+    """
+    ClearLowBitsOp(arg, numBits):
+    Set low numBits to 0
+    """
+
+    name = "transfer.clear_low_bits"
+
+
+@irdl_op_definition
+class SetSignBitOp(UnaryOp):
     name = "transfer.set_sign_bit"
 
+
+@irdl_op_definition
+class ClearSignBitOp(UnaryOp):
+    name = "transfer.clear_sign_bit"
+
+
+class UnaryPredicateOp(IRDLOperation):
     T: ClassVar = VarConstraint(
         "T", irdl_to_attr_constraint(TransIntegerType | IntegerType)
     )
 
     val: Operand = operand_def(T)
-    sign_bit: Operand = operand_def(T)
-    result: OpResult = result_def(T)
+    result: OpResult = result_def(i1)
+
+    def __init__(
+        self,
+        val: SSAValue,
+    ):
+        super().__init__(
+            operands=[val],
+            result_types=[i1],
+        )
 
 
 @irdl_op_definition
-class IsPowerOf2Op(IRDLOperation):
+class IsPowerOf2Op(UnaryPredicateOp):
     name = "transfer.is_power_of_2"
 
-    T: ClassVar = VarConstraint(
-        "T", irdl_to_attr_constraint(TransIntegerType | IntegerType)
-    )
 
-    val: Operand = operand_def(T)
-    result: OpResult = result_def(i1)
-
-    def __init__(
-        self,
-        val: SSAValue,
-    ):
-        super().__init__(
-            operands=[val],
-            result_types=[i1],
-        )
+@irdl_op_definition
+class IsAllOnesOp(UnaryPredicateOp):
+    name = "transfer.is_all_ones"
 
 
 @irdl_op_definition
-class IsAllOnesOp(IRDLOperation):
-    name = "transfer.is_all_ones"
-
-    T: ClassVar = VarConstraint(
-        "T", irdl_to_attr_constraint(TransIntegerType | IntegerType)
-    )
-
-    val: Operand = operand_def(T)
-    result: OpResult = result_def(i1)
-
-    def __init__(
-        self,
-        val: SSAValue,
-    ):
-        super().__init__(
-            operands=[val],
-            result_types=[i1],
-        )
+class IsNegativeOp(UnaryPredicateOp):
+    name = "transfer.is_negative"
 
 
 @irdl_op_definition
@@ -718,6 +767,24 @@ class GetAllOnesOp(UnaryOp):
                 raise VerifyException("Constant operation expects exactly one operand")
 
 
+@irdl_op_definition
+class GetSignedMaxValueOp(UnaryOp):
+    """
+    A special case of constant, return singed max value
+    """
+
+    name = "transfer.get_signed_max_value"
+
+
+@irdl_op_definition
+class GetSignedMinValueOp(UnaryOp):
+    """
+    A special case of constant, return signed min value
+    """
+
+    name = "transfer.get_signed_min_value"
+
+
 Transfer = Dialect(
     "transfer",
     [
@@ -732,6 +799,10 @@ Transfer = Dialect(
         MakeOp,
         NegOp,
         MulOp,
+        SDivOp,
+        UDivOp,
+        SRemOp,
+        URemOp,
         ShlOp,
         AShrOp,
         LShrOp,
@@ -742,23 +813,34 @@ Transfer = Dialect(
         SetHighBitsOp,
         SetLowBitsOp,
         SetSignBitOp,
+        ClearSignBitOp,
         GetLowBitsOp,
+        GetHighBitsOp,
+        ClearLowBitsOp,
+        ClearHighBitsOp,
         GetBitWidthOp,
         SMinOp,
         SMaxOp,
         UMaxOp,
         UMinOp,
         UMulOverflowOp,
-        ShlOverflowOp,
+        SMulOverflowOp,
+        UAddOverflowOp,
+        SAddOverflowOp,
+        UShlOverflowOp,
+        SShlOverflowOp,
         SelectOp,
         IsPowerOf2Op,
         IsAllOnesOp,
+        IsNegativeOp,
         ConcatOp,
         RepeatOp,
         ExtractOp,
         ConstRangeForOp,
         NextLoopOp,
         GetAllOnesOp,
+        GetSignedMaxValueOp,
+        GetSignedMinValueOp,
         IntersectsOp,
         AddPoisonOp,
         RemovePoisonOp,

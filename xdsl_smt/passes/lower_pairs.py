@@ -7,7 +7,7 @@ It also duplicate arguments that are pairs, into two arguments.
 from typing import cast
 from xdsl.dialects.builtin import ArrayAttr, FunctionType, ModuleOp, StringAttr
 from xdsl.ir import Attribute
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
     PatternRewriteWalker,
@@ -63,9 +63,11 @@ class RemovePairArgsFunction(RewritePattern):
         old_typ = op.ret.type
         assert isinstance(old_typ, FunctionType)
         new_inputs = [arg.type for arg in block.args]
-        op.ret.type = FunctionType.from_attrs(
+        new_type = FunctionType.from_attrs(
             ArrayAttr[Attribute](new_inputs), old_typ.outputs
         )
+        if new_type != op.ret.type:
+            rewriter.replace_value_with_new_type(op.ret, new_type)
 
 
 class RemovePairArgsCall(RewritePattern):
@@ -101,10 +103,7 @@ def remove_pairs_from_function_return(module: ModuleOp):
         funcs.pop()
 
         if len(func.func_type.outputs.data) != 1:
-            if any(isinstance(t, PairType) for t in func.func_type.outputs.data):
-                raise ValueError(
-                    "lower-pairs do not handle functions with multiple results with pairs yet"
-                )
+            continue
 
         if isinstance((output := func.func_type.outputs.data[0]), PairType):
             output = cast(AnyPairType, output)
@@ -124,10 +123,11 @@ def remove_pairs_from_function_return(module: ModuleOp):
             firstBlock.insert_op_before(firstOp, firstBlockTerminator)
             firstRet = ReturnOp(firstOp.res)
             Rewriter.replace_op(firstBlockTerminator, firstRet)
-            firstFunc.ret.type = FunctionType.from_attrs(
+            firstFunc_new_type = FunctionType.from_attrs(
                 firstFunc.func_type.inputs,
                 ArrayAttr[Attribute]([output.first]),
             )
+            Rewriter.replace_value_with_new_type(firstFunc.ret, firstFunc_new_type)
             if firstFunc.fun_name:
                 firstFunc.attributes["fun_name"] = StringAttr(
                     firstFunc.fun_name.data + "_first"
@@ -142,10 +142,11 @@ def remove_pairs_from_function_return(module: ModuleOp):
             secondBlock.insert_op_before(secondOp, secondBlockTerminator)
             secondRet = ReturnOp(secondOp.res)
             Rewriter.replace_op(secondBlockTerminator, secondRet)
-            secondFunc.ret.type = FunctionType.from_attrs(
+            secondFunc_new_type = FunctionType.from_attrs(
                 secondFunc.func_type.inputs,
                 ArrayAttr[Attribute]([output.second]),
             )
+            Rewriter.replace_value_with_new_type(secondFunc.ret, secondFunc_new_type)
             if secondFunc.fun_name:
                 secondFunc.attributes["fun_name"] = StringAttr(
                     secondFunc.fun_name.data + "_second"
@@ -159,11 +160,11 @@ def remove_pairs_from_function_return(module: ModuleOp):
                 call = use.operation
                 assert isinstance(call, CallOp)
                 callFirst = CallOp.create(
-                    result_types=[firstFunc.ret.type.outputs.data[0]],
+                    result_types=[firstFunc_new_type.outputs.data[0]],
                     operands=[firstFunc.ret] + list(call.args),
                 )
                 callSecond = CallOp.create(
-                    result_types=[secondFunc.ret.type.outputs.data[0]],
+                    result_types=[secondFunc_new_type.outputs.data[0]],
                     operands=[secondFunc.ret] + list(call.args),
                 )
                 mergeCalls = PairOp(callFirst.res[0], callSecond.res[0])
@@ -272,7 +273,7 @@ class LowerEqPattern(RewritePattern):
 class LowerPairs(ModulePass):
     name = "lower-pairs"
 
-    def apply(self, ctx: MLContext, op: ModuleOp):
+    def apply(self, ctx: Context, op: ModuleOp):
         # Remove pairs from function arguments.
         walker = PatternRewriteWalker(
             GreedyRewritePatternApplier(

@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Callable, ClassVar, Sequence
-from xdsl.dialects.builtin import ModuleOp, IntegerType, UnitAttr
+from xdsl.dialects.builtin import ModuleOp, IntegerType, StringAttr, UnitAttr
 from xdsl.dialects.pdl import (
     ApplyNativeConstraintOp,
     ApplyNativeRewriteOp,
@@ -25,7 +25,7 @@ from ..dialects import smt_bitvector_dialect as smt_bv
 from ..dialects import smt_utils_dialect as smt_utils
 
 from xdsl.ir import Attribute, ErasedSSAValue, Operation, SSAValue
-from xdsl.context import MLContext
+from xdsl.context import Context
 
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -122,8 +122,9 @@ class TypeRewrite(RewritePattern):
         rewriter.erase_matched_op(safe_erase=False)
 
 
+@dataclass
 class AttributeRewrite(RewritePattern):
-    rewrite_context: PDLToSMTRewriteContext
+    ctx: Context
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: AttributeOp, rewriter: PatternRewriter):
@@ -144,6 +145,21 @@ class AttributeRewrite(RewritePattern):
             rewriter.replace_matched_op(declare_op)
             return
 
+        if (base_type_name := op.attributes.get("base_type")) is not None:
+            if not isinstance(base_type_name, StringAttr):
+                raise Exception("pdl base types should be string attributes")
+            attr_def = self.ctx.get_optional_attr(base_type_name.data)
+            if attr_def is None:
+                raise Exception(
+                    f"Cannot handle attributes of base type {base_type_name.data}, "
+                    "it is not defined in the context"
+                )
+            value = SMTLowerer.attribute_semantics[attr_def].get_unbounded_semantics(
+                rewriter
+            )
+            rewriter.replace_matched_op([], [value])
+            return
+
         raise Exception("Cannot handle unbounded and untyped attributes")
 
 
@@ -159,7 +175,7 @@ class OperandRewrite(RewritePattern):
 
 @dataclass
 class OperationRewrite(RewritePattern):
-    ctx: MLContext
+    ctx: Context
     rewrite_context: PDLToSMTRewriteContext
 
     @op_type_rewrite_pattern
@@ -287,10 +303,10 @@ class ReplaceRewrite(RewritePattern):
         for precondition in self.rewrite_context.preconditions[1:]:
             and_preconditions_op = AndOp(and_preconditions, precondition)
             rewriter.insert_op_before_matched_op(and_preconditions_op)
-            and_preconditions = and_preconditions_op.res
+            and_preconditions = and_preconditions_op.result
 
         replace_correct = AndOp(not_refinement_value, and_preconditions)
-        assert_op = AssertOp(replace_correct.res)
+        assert_op = AssertOp(replace_correct.result)
         rewriter.replace_matched_op([replace_correct, assert_op])
 
 
@@ -327,9 +343,9 @@ def kb_analysis_correct(
     and_op_ones = smt_bv.AndOp(value, ones)
     ones_correct = EqOp(and_op_ones.res, ones)
     value_correct = AndOp(zeros_correct.res, ones_correct.res)
-    correct = OrOp(poison_correct.res, value_correct.res)
+    correct = OrOp(poison_correct.res, value_correct.result)
 
-    return value_correct.res, [
+    return value_correct.result, [
         value_op,
         poison_op,
         true_op,
@@ -400,11 +416,11 @@ class AttachOpRewrite(RewritePattern):
         for precondition in self.rewrite_context.preconditions[1:]:
             and_preconditions_op = AndOp(and_preconditions, precondition)
             rewriter.insert_op_before_matched_op(and_preconditions_op)
-            and_preconditions = and_preconditions_op.res
+            and_preconditions = and_preconditions_op.result
 
         implies = AndOp(and_preconditions, analysis_incorrect)
         rewriter.insert_op_before_matched_op(implies)
-        rewriter.replace_matched_op(AssertOp(implies.res))
+        rewriter.replace_matched_op(AssertOp(implies.result))
 
 
 @dataclass
@@ -521,7 +537,7 @@ class PDLToSMTLowerer:
                     "composed of non-deleted operations, then deleted operations"
                 )
 
-    def lower_to_smt(self, module: ModuleOp, ctx: MLContext) -> None:
+    def lower_to_smt(self, module: ModuleOp, ctx: Context) -> None:
         patterns = [sub_op for sub_op in module.walk() if isinstance(sub_op, PatternOp)]
         n_patterns = len(patterns)
         if n_patterns > 1:
@@ -547,7 +563,7 @@ class PDLToSMTLowerer:
                 [
                     RewriteRewrite(),
                     TypeRewrite(rewrite_context),
-                    AttributeRewrite(),
+                    AttributeRewrite(ctx),
                     OperandRewrite(),
                     GetOpRewrite(rewrite_context),
                     OperationRewrite(ctx, rewrite_context),
@@ -578,5 +594,5 @@ class PDLToSMT(ModulePass):
 
     pdl_lowerer: ClassVar[PDLToSMTLowerer] = PDLToSMTLowerer({}, {}, {})
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         self.pdl_lowerer.lower_to_smt(op, ctx)

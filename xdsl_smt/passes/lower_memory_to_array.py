@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from xdsl.passes import ModulePass
-from xdsl.context import MLContext
+from xdsl.context import Context
 
 from xdsl.ir import Attribute, Operation, SSAValue, ParametrizedAttribute
 from xdsl.dialects.builtin import ModuleOp
@@ -11,7 +11,7 @@ from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
     op_type_rewrite_pattern,
 )
-from xdsl.utils.isattr import isattr
+from xdsl.utils.hints import isa
 
 from xdsl_smt.dialects import (
     smt_dialect as smt,
@@ -92,15 +92,15 @@ class LowerGenericOp(RewritePattern):
     """
 
     def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
-        for result in op.results:
+        for result in tuple(op.results):
             if (new_type := recursively_convert_attr(result.type)) != result.type:
-                rewriter.modify_value_type(result, new_type)
+                rewriter.replace_value_with_new_type(result, new_type)
 
         for region in op.regions:
             for block in region.blocks:
-                for arg in block.args:
+                for arg in tuple(block.args):
                     if (new_type := recursively_convert_attr(arg.type)) != arg.type:
-                        rewriter.modify_value_type(arg, new_type)
+                        rewriter.replace_value_with_new_type(arg, new_type)
 
         has_done_action = False
         for name, attr in op.attributes.items():
@@ -184,7 +184,7 @@ class SetBlockIsLivePattern(RewritePattern):
 class ReadBytesPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: mem.ReadBytesOp, rewriter: PatternRewriter):
-        assert isattr(
+        assert isa(
             res_type := op.res.type, smt_utils.PairType[BitVectorType, smt.BoolType]
         )
         if res_type.first.width.data != 8:
@@ -199,7 +199,7 @@ class ReadBytesPattern(RewritePattern):
 class WriteBytesPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: mem.WriteBytesOp, rewriter: PatternRewriter):
-        assert isattr(
+        assert isa(
             val_type := op.value.type, smt_utils.PairType[BitVectorType, smt.BoolType]
         )
         if val_type.first.width.data != 8:
@@ -229,7 +229,7 @@ class GetFreshBlockIDPattern(RewritePattern):
 class LowerMemoryToArrayPass(ModulePass):
     name = "lower-memory-to-array"
 
-    def apply(self, ctx: MLContext, op: ModuleOp):
+    def apply(self, ctx: Context, op: ModuleOp):
         for sub_op in op.body.ops:
             if isinstance(sub_op, smt.DefineFunOp):
                 raise Exception(

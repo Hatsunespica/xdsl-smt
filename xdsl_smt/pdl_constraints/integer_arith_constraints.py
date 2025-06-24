@@ -41,9 +41,7 @@ def single_op_rewrite(
     op: ApplyNativeRewriteOp,
     rewriter: PatternRewriter,
     op_type: type[Operation],
-    fold: Callable[
-        [smt_bv.BitVectorValue, smt_bv.BitVectorValue], smt_bv.BitVectorValue
-    ],
+    fold: Callable[[smt_bv.BitVectorAttr, smt_bv.BitVectorAttr], smt_bv.BitVectorAttr],
 ) -> None:
     lhs, rhs = op.args
     if isinstance(lhs.owner, smt_bv.ConstantOp) and isinstance(
@@ -61,9 +59,9 @@ def addi_rewrite(
     op: ApplyNativeRewriteOp, rewriter: PatternRewriter, context: PDLToSMTRewriteContext
 ) -> None:
     def fold_addi(
-        lhs: smt_bv.BitVectorValue, rhs: smt_bv.BitVectorValue
-    ) -> smt_bv.BitVectorValue:
-        return smt_bv.BitVectorValue(lhs.value.data + rhs.value.data, lhs.width)
+        lhs: smt_bv.BitVectorAttr, rhs: smt_bv.BitVectorAttr
+    ) -> smt_bv.BitVectorAttr:
+        return smt_bv.BitVectorAttr(lhs.value.data + rhs.value.data, lhs.type)
 
     return single_op_rewrite(op, rewriter, smt_bv.AddOp, fold_addi)
 
@@ -72,9 +70,9 @@ def subi_rewrite(
     op: ApplyNativeRewriteOp, rewriter: PatternRewriter, context: PDLToSMTRewriteContext
 ) -> None:
     def fold_subi(
-        lhs: smt_bv.BitVectorValue, rhs: smt_bv.BitVectorValue
-    ) -> smt_bv.BitVectorValue:
-        return smt_bv.BitVectorValue(lhs.value.data - rhs.value.data, lhs.width)
+        lhs: smt_bv.BitVectorAttr, rhs: smt_bv.BitVectorAttr
+    ) -> smt_bv.BitVectorAttr:
+        return smt_bv.BitVectorAttr(lhs.value.data - rhs.value.data, lhs.type)
 
     return single_op_rewrite(op, rewriter, smt_bv.SubOp, fold_subi)
 
@@ -83,9 +81,9 @@ def muli_rewrite(
     op: ApplyNativeRewriteOp, rewriter: PatternRewriter, context: PDLToSMTRewriteContext
 ) -> None:
     def fold_muli(
-        lhs: smt_bv.BitVectorValue, rhs: smt_bv.BitVectorValue
-    ) -> smt_bv.BitVectorValue:
-        return smt_bv.BitVectorValue(lhs.value.data * rhs.value.data, lhs.width)
+        lhs: smt_bv.BitVectorAttr, rhs: smt_bv.BitVectorAttr
+    ) -> smt_bv.BitVectorAttr:
+        return smt_bv.BitVectorAttr(lhs.value.data * rhs.value.data, lhs.type)
 
     return single_op_rewrite(op, rewriter, smt_bv.MulOp, fold_muli)
 
@@ -94,19 +92,19 @@ def andi_rewrite(
     op: ApplyNativeRewriteOp, rewriter: PatternRewriter, context: PDLToSMTRewriteContext
 ) -> None:
     def fold_andi(
-        lhs: smt_bv.BitVectorValue, rhs: smt_bv.BitVectorValue
-    ) -> smt_bv.BitVectorValue:
+        lhs: smt_bv.BitVectorAttr, rhs: smt_bv.BitVectorAttr
+    ) -> smt_bv.BitVectorAttr:
         lhs_value = (
-            lhs.value.data + 2**lhs.width.data
+            lhs.value.data + 2**lhs.type.width.data
             if lhs.value.data < 0
             else lhs.value.data
         )
         rhs_value = (
-            rhs.value.data + 2**rhs.width.data
+            rhs.value.data + 2**rhs.type.width.data
             if rhs.value.data < 0
             else rhs.value.data
         )
-        return smt_bv.BitVectorValue(lhs_value & rhs_value, lhs.width)
+        return smt_bv.BitVectorAttr(lhs_value & rhs_value, lhs.type)
 
     return single_op_rewrite(op, rewriter, smt_bv.AndOp, fold_andi)
 
@@ -115,20 +113,20 @@ def ori_rewrite(
     op: ApplyNativeRewriteOp, rewriter: PatternRewriter, context: PDLToSMTRewriteContext
 ) -> None:
     def fold_ori(
-        lhs: smt_bv.BitVectorValue, rhs: smt_bv.BitVectorValue
-    ) -> smt_bv.BitVectorValue:
+        lhs: smt_bv.BitVectorAttr, rhs: smt_bv.BitVectorAttr
+    ) -> smt_bv.BitVectorAttr:
         lhs_value = (
-            lhs.value.data + 2**lhs.width.data
+            lhs.value.data + 2**lhs.type.width.data
             if lhs.value.data < 0
             else lhs.value.data
         )
         rhs_value = (
-            rhs.value.data + 2**rhs.width.data
+            rhs.value.data + 2**rhs.type.width.data
             if rhs.value.data < 0
             else rhs.value.data
         )
 
-        return smt_bv.BitVectorValue(lhs_value | rhs_value, lhs.width)
+        return smt_bv.BitVectorAttr(lhs_value | rhs_value, lhs.type)
 
     return single_op_rewrite(op, rewriter, smt_bv.OrOp, fold_ori)
 
@@ -137,19 +135,19 @@ def xori_rewrite(
     op: ApplyNativeRewriteOp, rewriter: PatternRewriter, context: PDLToSMTRewriteContext
 ) -> None:
     def fold_xori(
-        lhs: smt_bv.BitVectorValue, rhs: smt_bv.BitVectorValue
-    ) -> smt_bv.BitVectorValue:
+        lhs: smt_bv.BitVectorAttr, rhs: smt_bv.BitVectorAttr
+    ) -> smt_bv.BitVectorAttr:
         lhs_value = (
-            lhs.value.data + 2**lhs.width.data
+            lhs.value.data + 2**lhs.type.width.data
             if lhs.value.data < 0
             else lhs.value.data
         )
         rhs_value = (
-            rhs.value.data + 2**rhs.width.data
+            rhs.value.data + 2**rhs.type.width.data
             if rhs.value.data < 0
             else rhs.value.data
         )
-        return smt_bv.BitVectorValue(lhs_value ^ rhs_value, lhs.width)
+        return smt_bv.BitVectorAttr(lhs_value ^ rhs_value, lhs.type)
 
     return single_op_rewrite(op, rewriter, smt_bv.XorOp, fold_xori)
 
@@ -158,11 +156,49 @@ def shl_rewrite(
     op: ApplyNativeRewriteOp, rewriter: PatternRewriter, context: PDLToSMTRewriteContext
 ) -> None:
     def fold_shl(
-        lhs: smt_bv.BitVectorValue, rhs: smt_bv.BitVectorValue
-    ) -> smt_bv.BitVectorValue:
-        return smt_bv.BitVectorValue(lhs.value.data << rhs.value.data, lhs.width)
+        lhs: smt_bv.BitVectorAttr, rhs: smt_bv.BitVectorAttr
+    ) -> smt_bv.BitVectorAttr:
+        return smt_bv.BitVectorAttr(lhs.value.data << rhs.value.data, lhs.type)
 
     return single_op_rewrite(op, rewriter, smt_bv.ShlOp, fold_shl)
+
+
+def le_rewrite(
+    op: ApplyNativeRewriteOp, rewriter: PatternRewriter, context: PDLToSMTRewriteContext
+) -> None:
+    lhs, rhs = op.args
+    if isinstance(lhs.owner, smt_bv.ConstantOp) and isinstance(
+        rhs.owner, smt_bv.ConstantOp
+    ):
+        lhs = lhs.owner.value
+        rhs = rhs.owner.value
+        rewriter.replace_matched_op(
+            [
+                smt_bv.ConstantOp(
+                    smt_bv.BitVectorAttr(
+                        lhs.value.data <= rhs.value.data, smt_bv.BitVectorType(1)
+                    )
+                )
+            ]
+        )
+        return
+    cmp_res = rewriter.insert(smt_bv.SleOp(lhs, rhs)).res
+    zero = rewriter.insert(smt_bv.ConstantOp(0, 1)).res
+    one = rewriter.insert(smt_bv.ConstantOp(1, 1)).res
+    ite = rewriter.insert(smt.IteOp(cmp_res, one, zero)).res
+    rewriter.replace_matched_op([], [ite])
+
+
+def no_signed_overflow(
+    op: ApplyNativeConstraintOp,
+    rewriter: PatternRewriter,
+    context: PDLToSMTRewriteContext,
+) -> SSAValue:
+    lhs, rhs = op.args
+    overflow = rewriter.insert(smt_bv.SaddOverflowOp(lhs, rhs)).res
+    no_overflow = rewriter.insert(smt.NotOp(overflow)).res
+    rewriter.erase_matched_op()
+    return no_overflow
 
 
 def get_cst_rewrite_factory(constant: int):
@@ -278,6 +314,22 @@ def integer_type_from_width(
     lhs = width.owner.value
 
     rewriter.replace_matched_op([TypeOp(IntegerType(lhs.value.data))])
+
+
+def merge_overflow_flags(
+    op: ApplyNativeRewriteOp, rewriter: PatternRewriter, context: PDLToSMTRewriteContext
+) -> None:
+    (lhs, rhs) = op.args
+    nuw_lhs = rewriter.insert(smt_utils.FirstOp(lhs)).res
+    nuw_rhs = rewriter.insert(smt_utils.FirstOp(rhs)).res
+    nsw_lhs = rewriter.insert(smt_utils.SecondOp(lhs)).res
+    nsw_rhs = rewriter.insert(smt_utils.SecondOp(rhs)).res
+
+    nuw_res = rewriter.insert(smt.AndOp(nuw_lhs, nuw_rhs)).result
+    nsw_res = rewriter.insert(smt.AndOp(nsw_lhs, nsw_rhs)).result
+
+    res = rewriter.insert(smt_utils.PairOp(nuw_res, nsw_res)).res
+    rewriter.replace_matched_op([], [res])
 
 
 def is_constant_factory(constant: int):
@@ -511,6 +563,7 @@ integer_arith_native_rewrites: dict[
     "ori": ori_rewrite,
     "xori": xori_rewrite,
     "shl": shl_rewrite,
+    "le": le_rewrite,
     "get_minimum_signed_value": get_minimum_signed_value,
     # Get constant attributes
     "get_zero_attr": get_cst_rewrite_factory(0),
@@ -522,6 +575,8 @@ integer_arith_native_rewrites: dict[
     # Integer to type conversion
     "get_width": get_width,
     "integer_type_from_width": integer_type_from_width,
+    # Overflow flags
+    "merge_overflow": merge_overflow_flags,
 }
 
 integer_arith_native_constraints = {
@@ -536,6 +591,7 @@ integer_arith_native_constraints = {
     # Predicates
     "is_arith_cmpi_predicate": is_arith_cmpi_predicate,
     "is_comb_icmp_predicate": is_comb_icmp_predicate,
+    "no_signed_overflow": no_signed_overflow,
     # Integer type equality
     "is_equal_to_width_of_type": is_equal_to_width_of_type,
 }

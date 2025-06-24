@@ -1,8 +1,8 @@
 from xdsl.ir import Operation, SSAValue
 from xdsl.pattern_rewriter import PatternRewriter
 
-from ..dialects import smt_bitvector_dialect as smt_bv
-from ..dialects import smt_dialect as smt
+from xdsl_smt.dialects import smt_bitvector_dialect as smt_bv
+from xdsl_smt.dialects import smt_dialect as smt
 
 
 def get_constant_with_bit_vector(val: int, bv: smt_bv.BitVectorType) -> list[Operation]:
@@ -17,36 +17,54 @@ def get_zero(bv: smt_bv.BitVectorType) -> list[Operation]:
     return [smt_bv.ConstantOp(0, bv.width)]
 
 
-"""
-return a bit vector with bits set in a range[low_bits, high_bits)
-LShR(((get_all_ones(width) >> low_bits) << low_bits) << high_bits, high_bits)
-"""
-
-
 def get_bits_constant(low_bits: SSAValue, high_bits: SSAValue) -> list[Operation]:
+    """
+    This is the core operation for Get/Set/Clear Low/HighBits operations.
+    Given a range [low_bits, high_bits), this function returns a constant where
+    0....01.............10....0
+         |              |
+       high_bits    low_bits
+       (exclusive)  (inclusive)
+
+    Examples: [0, 8) -> 0xff, [0, 5)] -> 0x0f
+    This function implement by first getting a 0xf....f (all ones) bit vector and shifting the all_one bit vector
+    """
     assert isinstance(low_bits.type, smt_bv.BitVectorType)
     width = low_bits.type.width.data
     result: list[Operation] = []
     result += get_constant_with_bit_vector(width, low_bits.type)
     width_bv = result[-1].results[0]
     result.append(smt_bv.SubOp(width_bv, high_bits))
+    # Get the number of zeros expected counting from high_bits
     new_high_bits = result[-1].results[0]
     result += get_all_ones(low_bits.type)
     all_ones_bv = result[-1].results[0]
+    # 1....1 -> 0...0(low_bits)1...1
     result.append(smt_bv.AShrOp(all_ones_bv, low_bits))
+    # 0...0(low_bits)1...1 -> 1...10...0(low_bits)
     result.append(smt_bv.ShlOp(result[-1].results[0], low_bits))
+    # 1...10...0(low_bits) -> 1...10...0(low_bits + new_high_bits)
     result.append(smt_bv.ShlOp(result[-1].results[0], new_high_bits))
+    # 1...10...0(low_bits + new_high_bits) -> 0...0(new_high_bits)1...10...0(low_bits)
     result.append(smt_bv.LShrOp(result[-1].results[0], new_high_bits))
     return result
 
 
 def get_low_bits_constant(low_bits: SSAValue) -> list[Operation]:
+    """
+    get_low_bits_constant(3) ->0b 0000 0111 -> get_bits_constants(0, 3)
+    get_low_bits_constant(8) ->0b 1111 1111 -> get_bits_constants(0, 8)
+    """
     assert isinstance(low_bits.type, smt_bv.BitVectorType)
     zero_op = get_zero(low_bits.type)
     return zero_op + get_bits_constant(zero_op[0].results[0], low_bits)
 
 
 def get_high_bits_constant(high_bits: SSAValue) -> list[Operation]:
+    """
+    get_high_bits_constant(3) ->0b 1110 0000 -> get_bits_constants(8 - 3, 8)
+    get_high_bits_constant(8) ->0b 1111 1111 -> get_bits_constants(8 - 8, 8)
+    """
     assert isinstance(high_bits.type, smt_bv.BitVectorType)
     width = high_bits.type.width.data
     result = get_constant_with_bit_vector(width, high_bits.type)
@@ -55,21 +73,57 @@ def get_high_bits_constant(high_bits: SSAValue) -> list[Operation]:
     return result + get_bits_constant(result[-1].results[0], width_constant)
 
 
+def clear_low_bits(b: SSAValue, low_bits: SSAValue) -> list[Operation]:
+    """
+    clear_low_bits(x, low_bits) -> x & ~(get_low_bits_constant(low_bits))
+    """
+    result = get_low_bits_constant(low_bits)
+    result.append(smt_bv.NotOp(result[-1].results[0]))
+    result.append(smt_bv.AndOp(result[-1].results[0], b))
+    return result
+
+
+def clear_high_bits(b: SSAValue, low_bits: SSAValue) -> list[Operation]:
+    """
+    clear_high_bits(x, high_bits) -> x & ~(get_high_bits_constant(high_bits))
+    """
+    result = get_high_bits_constant(low_bits)
+    result.append(smt_bv.NotOp(result[-1].results[0]))
+    result.append(smt_bv.AndOp(result[-1].results[0], b))
+    return result
+
+
 def get_low_bits(b: SSAValue, low_bits: SSAValue) -> list[Operation]:
+    """
+    get_low_bits(x, low_bits) -> x & (get_low_bits_constant(low_bits))
+    """
     result = get_low_bits_constant(low_bits)
     result.append(smt_bv.AndOp(result[-1].results[0], b))
     return result
-    # get_low_bits_constant(low_bits, b.size()) & b
+
+
+def get_high_bits(b: SSAValue, low_bits: SSAValue) -> list[Operation]:
+    """
+    get_high_bits(x, high_bits) -> x & (get_high_bits_constant(high_bits))
+    """
+    result = get_high_bits_constant(low_bits)
+    result.append(smt_bv.AndOp(result[-1].results[0], b))
+    return result
 
 
 def set_high_bits(b: SSAValue, high_bits: SSAValue) -> list[Operation]:
+    """
+    set_high_bits(x, high_bits) -> x | (get_high_bits_constant(high_bits))
+    """
     result = get_high_bits_constant(high_bits)
     result.append(smt_bv.OrOp(result[-1].results[0], b))
     return result
-    # return get_high_bits_constant(high_bits, b.size()) | b
 
 
 def set_low_bits(b: SSAValue, low_bits: SSAValue) -> list[Operation]:
+    """
+    set_low_bits(x, low_bits) -> x | (get_low_bits_constant(low_bits))
+    """
     result = get_low_bits_constant(low_bits)
     result.append(smt_bv.OrOp(result[-1].results[0], b))
     return result
@@ -147,27 +201,44 @@ def count_lzeros(b: SSAValue) -> list[Operation]:
     name = str(b)
     tmp_count_lzeros = BitVec("tmp_" + name + "_count_lzeros", width)
     leftmostBit = get_leftmost_bit(b, solver)
-    solver.add(leftmostBit == 1 << tmp_count_lzeros)
+    constraint:
+        if b == 0 then tmp_count_lzeros == -1 (get_all_ones)
+        else leftmostBit == 1 << tmp_count_lzeros
+    solver.add(constraint)
     return b.size() - 1 - tmp_count_lzeros
     """
     assert isinstance(b.type, smt_bv.BitVectorType)
     tmp_count_lzeros = smt.DeclareConstOp(b.type)
+    constant_one = get_constant_with_bit_vector(1, b.type)[0]
+    const_zero = get_constant_with_bit_vector(0, b.type)[0]
+    b_eq_0 = smt.EqOp(const_zero.results[0], b)
+    neg_one_op = get_all_ones(b.type)[0]
+    neg_one_eq_lzeros = smt.EqOp(neg_one_op.results[0], tmp_count_lzeros.results[0])
+    true_branch_constraint = [neg_one_op, neg_one_eq_lzeros]
     leftMostBit_op = get_leftmost_bit(b)
     leftMostBit = leftMostBit_op[-1].results[0]
-    constant_one = get_constant_with_bit_vector(1, b.type)[0]
-    constraint: list[Operation] = [
+    false_branch_constraint: list[Operation] = [
         smt_bv.ShlOp(constant_one.results[0], tmp_count_lzeros.results[0])
     ]
-    constraint.append(smt.EqOp.get(leftMostBit, constraint[-1].results[0]))
-    constraint.append(smt.AssertOp.get(constraint[-1].results[0]))
+    false_branch_constraint.append(
+        smt.EqOp.get(leftMostBit, false_branch_constraint[-1].results[0])
+    )
+    ite_op = smt.IteOp(
+        b_eq_0.results[0],
+        true_branch_constraint[-1].results[0],
+        false_branch_constraint[-1].results[0],
+    )
+    assert_op = smt.AssertOp(ite_op.res)
     constant_width = get_constant_with_bit_vector(b.type.width.data, b.type)[0]
     width_minus_one = smt_bv.SubOp(constant_width.results[0], constant_one.results[0])
     res = smt_bv.SubOp(width_minus_one.results[0], tmp_count_lzeros.results[0])
     return (
         [tmp_count_lzeros]
+        + [const_zero, constant_one, b_eq_0]
+        + true_branch_constraint
         + leftMostBit_op
-        + [constant_one]
-        + constraint
+        + false_branch_constraint
+        + [ite_op, assert_op]
         + [constant_width, width_minus_one, res]
     )
 
@@ -232,3 +303,19 @@ def count_rones(b: SSAValue) -> tuple[list[Operation], list[Operation]]:
     neg_b = smt_bv.NotOp.get(b)
     tmpRes = count_rzeros(neg_b.results[0])
     return [neg_b] + tmpRes[0], tmpRes[1]
+
+
+def is_non_negative(val: SSAValue) -> list[Operation]:
+    assert isinstance(val_type := val.type, smt_bv.BitVectorType)
+    width = val_type.width
+    const_zero = smt_bv.ConstantOp(0, width)
+    val_sge_zero = smt_bv.SgeOp(val, const_zero.res)
+    return [const_zero, val_sge_zero]
+
+
+def is_negative(val: SSAValue) -> list[Operation]:
+    assert isinstance(val_type := val.type, smt_bv.BitVectorType)
+    width = val_type.width
+    const_zero = smt_bv.ConstantOp(0, width)
+    val_slt_zero = smt_bv.SltOp(val, const_zero.res)
+    return [const_zero, val_slt_zero]

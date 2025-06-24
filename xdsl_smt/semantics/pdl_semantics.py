@@ -2,13 +2,12 @@ from typing import cast
 from xdsl_smt.semantics.semantics import OperationSemantics
 from typing import Mapping, Sequence, Any
 from xdsl.ir import SSAValue, Attribute, Region, Operation
-from xdsl.rewriter import InsertPoint
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.interpreters.pdl import (
     PDLMatcher,
     PDLRewriteFunctions,
 )
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, pdl
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.interpreter import Interpreter, impl, register_impls
@@ -55,11 +54,11 @@ class ExtPDLRewriteFunctions(PDLRewriteFunctions):
             if pdl_op.op == op.repl_operation:
                 continue
             (new_op,) = interpreter.get_values((pdl_op.op,))
-            rewriter.insert_op(new_op, InsertPoint.before(old))
 
         # Do the replacement itself (and store the new values)
         if op.repl_operation is not None:
             (new_op,) = interpreter.get_values((op.repl_operation,))
+            new_op.detach()
             rewriter.replace_op(old, new_op)
             self.new_vals = new_op.results
         elif len(op.repl_values):
@@ -99,7 +98,7 @@ class PDLSemantics(OperationSemantics):
             if isinstance(constraint_op, pdl.ApplyNativeConstraintOp):
                 assert matcher.check_native_constraints(constraint_op)
         # Create the context of the rewriting
-        ctx = MLContext()
+        ctx = Context()
         ctx.load_dialect(arith.Arith)
         ctx.load_dialect(pdl.PDL)
         ctx.load_dialect(SMTDialect)

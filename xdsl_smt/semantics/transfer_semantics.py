@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
 )
-from xdsl.ir import Operation
 
 from xdsl_smt.dialects import smt_bitvector_dialect as smt_bv
 from xdsl_smt.dialects import smt_dialect as smt
@@ -21,8 +20,7 @@ from xdsl_smt.dialects.smt_dialect import BoolType
 from xdsl_smt.semantics.semantics import OperationSemantics, TypeSemantics
 from xdsl.ir import Operation, SSAValue, Attribute
 from typing import Mapping, Sequence
-from xdsl.utils.isattr import isattr
-from xdsl.parser import AnyIntegerAttr
+from xdsl.utils.hints import isa
 from xdsl.dialects.builtin import IntegerAttr, IntegerType
 from xdsl_smt.utils.transfer_to_smt_util import (
     get_low_bits,
@@ -33,6 +31,11 @@ from xdsl_smt.utils.transfer_to_smt_util import (
     count_lones,
     count_rones,
     reverse_bits,
+    is_non_negative,
+    is_negative,
+    get_high_bits,
+    clear_high_bits,
+    clear_low_bits,
 )
 
 
@@ -48,14 +51,14 @@ class AbstractValueTypeSemantics(TypeSemantics):
         isIntegerTy = isinstance(curTy, IntegerType)
         curLoweredTy = SMTLowerer.lower_type(curTy)
         if isIntegerTy:
-            assert isattr(curLoweredTy, PairType[smt_bv.BitVectorType, BoolType])
+            assert isa(curLoweredTy, PairType[smt_bv.BitVectorType, BoolType])
             curLoweredTy = curLoweredTy.first
         result: AnyPairType = PairType(curLoweredTy, BoolType())
         for ty in reversed(type.get_fields()[:-1]):
             isIntegerTy = isinstance(ty, IntegerType)
             curLoweredTy = SMTLowerer.lower_type(ty)
             if isIntegerTy:
-                assert isattr(curLoweredTy, PairType[smt_bv.BitVectorType, BoolType])
+                assert isa(curLoweredTy, PairType[smt_bv.BitVectorType, BoolType])
                 curLoweredTy = curLoweredTy.first
             result: AnyPairType = PairType(curLoweredTy, result)
         return result
@@ -87,7 +90,7 @@ class ConstantOpSemantics(OperationSemantics):
         if isinstance(const_value, SSAValue):
             return ((const_value,), effect_state)
 
-        assert isattr(const_value, AnyIntegerAttr)
+        assert isa(const_value, IntegerAttr)
         const_value = const_value.value.data
         bv_const = smt_bv.ConstantOp(const_value, width)
         rewriter.insert_op_before_matched_op(bv_const)
@@ -106,6 +109,42 @@ class GetAllOnesOpSemantics(OperationSemantics):
         assert isinstance(operands[0].type, smt_bv.BitVectorType)
         width = operands[0].type.width
         const_value = (1 << width.data) - 1
+
+        bv_const = smt_bv.ConstantOp(const_value, width)
+        rewriter.insert_op_before_matched_op(bv_const)
+        return ((bv_const.res,), effect_state)
+
+
+class GetSignedMaxValueOpSemantics(OperationSemantics):
+    def get_semantics(
+        self,
+        operands: Sequence[SSAValue],
+        results: Sequence[Attribute],
+        attributes: Mapping[str, Attribute | SSAValue],
+        effect_state: SSAValue | None,
+        rewriter: PatternRewriter,
+    ) -> tuple[Sequence[SSAValue], SSAValue | None]:
+        assert isinstance(operands[0].type, smt_bv.BitVectorType)
+        width = operands[0].type.width
+        const_value = (1 << (width.data - 1)) - 1
+
+        bv_const = smt_bv.ConstantOp(const_value, width)
+        rewriter.insert_op_before_matched_op(bv_const)
+        return ((bv_const.res,), effect_state)
+
+
+class GetSignedMinValueOpSemantics(OperationSemantics):
+    def get_semantics(
+        self,
+        operands: Sequence[SSAValue],
+        results: Sequence[Attribute],
+        attributes: Mapping[str, Attribute | SSAValue],
+        effect_state: SSAValue | None,
+        rewriter: PatternRewriter,
+    ) -> tuple[Sequence[SSAValue], SSAValue | None]:
+        assert isinstance(operands[0].type, smt_bv.BitVectorType)
+        width = operands[0].type.width
+        const_value = 1 << (width.data - 1)
 
         bv_const = smt_bv.ConstantOp(const_value, width)
         rewriter.insert_op_before_matched_op(bv_const)
@@ -204,6 +243,16 @@ class TrivialOpSemantics(OperationSemantics):
         return ((new_op.results[0],), effect_state)
 
 
+def smt_bool_to_bv1(bool_val: SSAValue) -> tuple[SSAValue, list[Operation]]:
+    """
+    Given a SMT bool variable, this functions return 1 or 0 on bv1
+    """
+    b1 = smt_bv.ConstantOp.from_int_value(1, 1)
+    b0 = smt_bv.ConstantOp.from_int_value(0, 1)
+    ite_op = smt.IteOp(bool_val, b1.res, b0.res)
+    return ite_op.res, [b1, b0, ite_op]
+
+
 class UMulOverflowOpSemantics(OperationSemantics):
     def get_semantics(
         self,
@@ -213,20 +262,16 @@ class UMulOverflowOpSemantics(OperationSemantics):
         effect_state: SSAValue | None,
         rewriter: PatternRewriter,
     ) -> tuple[Sequence[SSAValue], SSAValue | None]:
-        suml_nooverflow = smt_bv.UmulNoOverflowOp.get(operands[0], operands[1])
+        umul_overflow = smt_bv.UmulOverflowOp(operands[0], operands[1])
+        bv_res, ops = smt_bool_to_bv1(umul_overflow.res)
 
-        b1 = smt_bv.ConstantOp.from_int_value(1, 1)
-        b0 = smt_bv.ConstantOp.from_int_value(0, 1)
-        bool_to_bv = smt.IteOp(suml_nooverflow.res, b0.res, b1.res)
         poison_op = smt.ConstantBoolOp.from_bool(False)
-        res = PairOp(bool_to_bv.res, poison_op.res)
-        rewriter.insert_op_before_matched_op(
-            [suml_nooverflow, b0, b1, bool_to_bv, poison_op, res]
-        )
+        res = PairOp(bv_res, poison_op.res)
+        rewriter.insert_op_before_matched_op([umul_overflow] + ops + [poison_op, res])
         return ((res.res,), effect_state)
 
 
-class ShlOverflowOpSemantics(OperationSemantics):
+class SMulOverflowOpSemantics(OperationSemantics):
     def get_semantics(
         self,
         operands: Sequence[SSAValue],
@@ -235,19 +280,179 @@ class ShlOverflowOpSemantics(OperationSemantics):
         effect_state: SSAValue | None,
         rewriter: PatternRewriter,
     ) -> tuple[Sequence[SSAValue], SSAValue | None]:
+        smul_overflow = smt_bv.SmulOverflowOp(operands[0], operands[1])
+        bv_res, ops = smt_bool_to_bv1(smul_overflow.res)
+
+        poison_op = smt.ConstantBoolOp.from_bool(False)
+        res = PairOp(bv_res, poison_op.res)
+        rewriter.insert_op_before_matched_op([smul_overflow] + ops + [poison_op, res])
+        return ((res.res,), effect_state)
+
+
+class UAddOverflowOpSemantics(OperationSemantics):
+    def get_semantics(
+        self,
+        operands: Sequence[SSAValue],
+        results: Sequence[Attribute],
+        attributes: Mapping[str, Attribute | SSAValue],
+        effect_state: SSAValue | None,
+        rewriter: PatternRewriter,
+    ) -> tuple[Sequence[SSAValue], SSAValue | None]:
+        uadd_overflow = smt_bv.UaddOverflowOp(operands[0], operands[1])
+        bv_res, ops = smt_bool_to_bv1(uadd_overflow.res)
+
+        poison_op = smt.ConstantBoolOp.from_bool(False)
+        res = PairOp(bv_res, poison_op.res)
+        rewriter.insert_op_before_matched_op([uadd_overflow] + ops + [poison_op, res])
+        return ((res.res,), effect_state)
+
+
+class SAddOverflowOpSemantics(OperationSemantics):
+    def get_semantics(
+        self,
+        operands: Sequence[SSAValue],
+        results: Sequence[Attribute],
+        attributes: Mapping[str, Attribute | SSAValue],
+        effect_state: SSAValue | None,
+        rewriter: PatternRewriter,
+    ) -> tuple[Sequence[SSAValue], SSAValue | None]:
+        sadd_overflow = smt_bv.SaddOverflowOp(operands[0], operands[1])
+        bv_res, ops = smt_bool_to_bv1(sadd_overflow.res)
+
+        poison_op = smt.ConstantBoolOp.from_bool(False)
+        res = PairOp(bv_res, poison_op.res)
+        rewriter.insert_op_before_matched_op([sadd_overflow] + ops + [poison_op, res])
+        return ((res.res,), effect_state)
+
+
+class UShlOverflowOpSemantics(OperationSemantics):
+    def get_semantics(
+        self,
+        operands: Sequence[SSAValue],
+        results: Sequence[Attribute],
+        attributes: Mapping[str, Attribute | SSAValue],
+        effect_state: SSAValue | None,
+        rewriter: PatternRewriter,
+    ) -> tuple[Sequence[SSAValue], SSAValue | None]:
+        """
+        Overflow = ShAmt >= getBitWidth();
+        if (Overflow)
+          return APInt(BitWidth, 0);
+        Overflow = ShAmt > countl_zero();
+
+        overflow should be ShAmt >= getBitWidth() ||  ShAmt > countl_zero()
+        Can't be replaced by ShAmt > countl_zero() because countl_zero() <=getBitWidth()
+        """
         assert isinstance(lhs_type := operands[0].type, smt_bv.BitVectorType)
         width = lhs_type.width
         const_value = width
         bv_width = smt_bv.ConstantOp(const_value, width)
 
-        b1 = smt_bv.ConstantOp.from_int_value(1, 1)
-        b0 = smt_bv.ConstantOp.from_int_value(0, 1)
-        cmp_op = smt_bv.UgeOp(operands[1], bv_width.res)
-        bool_to_bv = smt.IteOp(cmp_op.res, b1.res, b0.res)
+        operand = operands[0]
+        shift_amount = operands[1]
+
+        shift_amount_ge_bitwidth = smt_bv.UgeOp(shift_amount, bv_width.res)
+        countl_zero_ops = count_lzeros(operand)
+        lzero_operand = countl_zero_ops[-1].results[0]
+        shift_amount_gt_lzero = smt_bv.UgtOp(shift_amount, lzero_operand)
+        or_op = smt.OrOp(shift_amount_ge_bitwidth.res, shift_amount_gt_lzero.res)
+
+        overflow_ops = (
+            [bv_width, shift_amount_ge_bitwidth]
+            + countl_zero_ops
+            + [shift_amount_gt_lzero, or_op]
+        )
+
+        bv_res, bool_to_bv1_ops = smt_bool_to_bv1(or_op.result)
+
         poison_op = smt.ConstantBoolOp.from_bool(False)
-        res = PairOp(bool_to_bv.res, poison_op.res)
+        res = PairOp(bv_res, poison_op.res)
+
         rewriter.insert_op_before_matched_op(
-            [bv_width, b0, b1, cmp_op, bool_to_bv, poison_op, res]
+            overflow_ops + bool_to_bv1_ops + [poison_op, res]
+        )
+        return ((res.res,), effect_state)
+
+
+class SShlOverflowOpSemantics(OperationSemantics):
+    def get_semantics(
+        self,
+        operands: Sequence[SSAValue],
+        results: Sequence[Attribute],
+        attributes: Mapping[str, Attribute | SSAValue],
+        effect_state: SSAValue | None,
+        rewriter: PatternRewriter,
+    ) -> tuple[Sequence[SSAValue], SSAValue | None]:
+        """
+        Overflow = ShAmt >= getBitWidth();
+        if (Overflow)
+            return APInt(BitWidth, 0);
+        if (isNonNegative()) // Don't allow sign change.
+            Overflow = ShAmt >= countl_zero();
+        else
+            Overflow = ShAmt >= countl_one();
+
+        overflow should be ShAmt >= getBitWidth() ||
+            (isNonNegative()&&ShAmt >= countl_zero() || isNegative()&&ShAmt >= countl_one())
+        """
+        assert isinstance(lhs_type := operands[0].type, smt_bv.BitVectorType)
+        width = lhs_type.width
+        const_value = width
+        bv_width = smt_bv.ConstantOp(const_value, width)
+
+        operand = operands[0]
+        shift_amount = operands[1]
+
+        # ShAmt >= getBitWidth()
+        shift_amount_ge_bitwidth = smt_bv.UgeOp(shift_amount, bv_width.res)
+
+        # isNonNegative()
+        is_non_negative_ops = is_non_negative(operand)
+        is_non_negative_operand = is_non_negative_ops[-1].results[0]
+
+        # ShAmt >= countl_zero()
+        countl_zero_ops = count_lzeros(operand)
+        lzero_operand = countl_zero_ops[-1].results[0]
+        shift_amount_ge_lzero = smt_bv.UgeOp(shift_amount, lzero_operand)
+
+        # isNegative()
+        is_negative_ops = is_negative(operand)
+        is_negative_operand = is_negative_ops[-1].results[0]
+
+        # ShAmt >= countl_one()
+        countl_one_ops = count_lones(operand)
+        lone_operand = countl_one_ops[-1].results[0]
+        shift_amount_ge_lone = smt_bv.UgeOp(shift_amount, lone_operand)
+
+        # isNonNegative()&&ShAmt >= countl_zero()
+        and_op = smt.AndOp(is_non_negative_operand, shift_amount_ge_lzero.res)
+
+        # isNegative()&&ShAmt >= countl_one()
+        and1_op = smt.AndOp(is_negative_operand, shift_amount_ge_lone.res)
+
+        # isNonNegative()&&ShAmt >= countl_zero() || isNegative()&&ShAmt >= countl_one()
+        or_op = smt.OrOp(and_op.result, and1_op.result)
+
+        final_or_op = smt.OrOp(shift_amount_ge_bitwidth.res, or_op.result)
+
+        overflow_ops = (
+            [bv_width, shift_amount_ge_bitwidth]
+            + is_non_negative_ops
+            + countl_zero_ops
+            + [shift_amount_ge_lzero]
+            + is_negative_ops
+            + countl_one_ops
+            + [shift_amount_ge_lone]
+            + [and_op, and1_op, or_op, final_or_op]
+        )
+
+        bv_res, bool_to_bv1_ops = smt_bool_to_bv1(final_or_op.result)
+
+        poison_op = smt.ConstantBoolOp.from_bool(False)
+        res = PairOp(bv_res, poison_op.res)
+
+        rewriter.insert_op_before_matched_op(
+            overflow_ops + bool_to_bv1_ops + [poison_op, res]
         )
         return ((res.res,), effect_state)
 
@@ -453,6 +658,62 @@ class SetLowBitsOpSemantics(OperationSemantics):
         return ((result[-1].results[0],), effect_state)
 
 
+class SetSignBitOpSemantics(OperationSemantics):
+    def get_semantics(
+        self,
+        operands: Sequence[SSAValue],
+        results: Sequence[Attribute],
+        attributes: Mapping[str, Attribute | SSAValue],
+        effect_state: SSAValue | None,
+        rewriter: PatternRewriter,
+    ) -> tuple[Sequence[SSAValue], SSAValue | None]:
+        operand = operands[0]
+        operand_type = operand.type
+        assert isinstance(operand_type, smt_bv.BitVectorType)
+        width = operand_type.width.data
+        sign_bit = smt_bv.ConstantOp(1 << (width - 1), width)
+        or_op = smt_bv.OrOp(sign_bit.res, operand)
+        result = [sign_bit, or_op]
+
+        rewriter.insert_op_before_matched_op(result)
+        return ((result[-1].results[0],), effect_state)
+
+
+class ClearSignBitOpSemantics(OperationSemantics):
+    def get_semantics(
+        self,
+        operands: Sequence[SSAValue],
+        results: Sequence[Attribute],
+        attributes: Mapping[str, Attribute | SSAValue],
+        effect_state: SSAValue | None,
+        rewriter: PatternRewriter,
+    ) -> tuple[Sequence[SSAValue], SSAValue | None]:
+        operand = operands[0]
+        operand_type = operand.type
+        assert isinstance(operand_type, smt_bv.BitVectorType)
+        width = operand_type.width.data
+        signed_max_value = smt_bv.ConstantOp(1 << (width - 1) - 1, width)
+        and_op = smt_bv.AndOp(signed_max_value.res, operand)
+        result = [signed_max_value, and_op]
+
+        rewriter.insert_op_before_matched_op(result)
+        return ((result[-1].results[0],), effect_state)
+
+
+class GetHighBitsOpSemantics(OperationSemantics):
+    def get_semantics(
+        self,
+        operands: Sequence[SSAValue],
+        results: Sequence[Attribute],
+        attributes: Mapping[str, Attribute | SSAValue],
+        effect_state: SSAValue | None,
+        rewriter: PatternRewriter,
+    ) -> tuple[Sequence[SSAValue], SSAValue | None]:
+        result = get_high_bits(operands[0], operands[1])
+        rewriter.insert_op_before_matched_op(result)
+        return ((result[-1].results[0],), effect_state)
+
+
 class GetLowBitsOpSemantics(OperationSemantics):
     def get_semantics(
         self,
@@ -463,6 +724,34 @@ class GetLowBitsOpSemantics(OperationSemantics):
         rewriter: PatternRewriter,
     ) -> tuple[Sequence[SSAValue], SSAValue | None]:
         result = get_low_bits(operands[0], operands[1])
+        rewriter.insert_op_before_matched_op(result)
+        return ((result[-1].results[0],), effect_state)
+
+
+class ClearHighBitsOpSemantics(OperationSemantics):
+    def get_semantics(
+        self,
+        operands: Sequence[SSAValue],
+        results: Sequence[Attribute],
+        attributes: Mapping[str, Attribute | SSAValue],
+        effect_state: SSAValue | None,
+        rewriter: PatternRewriter,
+    ) -> tuple[Sequence[SSAValue], SSAValue | None]:
+        result = clear_high_bits(operands[0], operands[1])
+        rewriter.insert_op_before_matched_op(result)
+        return ((result[-1].results[0],), effect_state)
+
+
+class ClearLowBitsOpSemantics(OperationSemantics):
+    def get_semantics(
+        self,
+        operands: Sequence[SSAValue],
+        results: Sequence[Attribute],
+        attributes: Mapping[str, Attribute | SSAValue],
+        effect_state: SSAValue | None,
+        rewriter: PatternRewriter,
+    ) -> tuple[Sequence[SSAValue], SSAValue | None]:
+        result = clear_low_bits(operands[0], operands[1])
         rewriter.insert_op_before_matched_op(result)
         return ((result[-1].results[0],), effect_state)
 
@@ -668,12 +957,22 @@ transfer_semantics: dict[type[Operation], OperationSemantics] = {
     transfer.XorOp: TrivialOpSemantics(transfer.XorOp, smt_bv.XorOp),
     transfer.SubOp: TrivialOpSemantics(transfer.SubOp, smt_bv.SubOp),
     transfer.NegOp: TrivialOpSemantics(transfer.NegOp, smt_bv.NotOp),
+    transfer.UDivOp: TrivialOpSemantics(transfer.UDivOp, smt_bv.UDivOp),
+    transfer.SDivOp: TrivialOpSemantics(transfer.SDivOp, smt_bv.SDivOp),
+    transfer.URemOp: TrivialOpSemantics(transfer.URemOp, smt_bv.URemOp),
+    transfer.SRemOp: TrivialOpSemantics(transfer.SRemOp, smt_bv.SRemOp),
+    transfer.LShrOp: TrivialOpSemantics(transfer.LShrOp, smt_bv.LShrOp),
+    transfer.AShrOp: TrivialOpSemantics(transfer.AShrOp, smt_bv.AShrOp),
     transfer.ShlOp: TrivialOpSemantics(transfer.ShlOp, smt_bv.ShlOp),
     transfer.ConcatOp: ConcatOpSemantics(),
     transfer.RepeatOp: RepeatOpSemantics(),
     transfer.ExtractOp: ExtractOpSemantics(),
     transfer.UMulOverflowOp: UMulOverflowOpSemantics(),
-    transfer.ShlOverflowOp: ShlOverflowOpSemantics(),
+    transfer.SMulOverflowOp: SMulOverflowOpSemantics(),
+    transfer.UAddOverflowOp: UAddOverflowOpSemantics(),
+    transfer.SAddOverflowOp: SAddOverflowOpSemantics(),
+    transfer.UShlOverflowOp: UShlOverflowOpSemantics(),
+    transfer.SShlOverflowOp: SShlOverflowOpSemantics(),
     transfer.CmpOp: CmpOpSemantics(),
     transfer.GetOp: GetOpSemantics(),
     transfer.MakeOp: MakeOpSemantics(),
@@ -688,10 +987,17 @@ transfer_semantics: dict[type[Operation], OperationSemantics] = {
     transfer.UMinOp: UMinOpSemantics(),
     transfer.SetHighBitsOp: SetHighBitsOpSemantics(),
     transfer.SetLowBitsOp: SetLowBitsOpSemantics(),
+    transfer.SetSignBitOp: SetSignBitOpSemantics(),
+    transfer.ClearSignBitOp: ClearSignBitOpSemantics(),
+    transfer.GetHighBitsOp: GetHighBitsOpSemantics(),
     transfer.GetLowBitsOp: GetLowBitsOpSemantics(),
+    transfer.ClearHighBitsOp: ClearHighBitsOpSemantics(),
+    transfer.ClearLowBitsOp: ClearLowBitsOpSemantics(),
     transfer.SelectOp: SelectOpSemantics(),
     transfer.IsPowerOf2Op: IsPowerOf2OpSemantics(),
     transfer.GetAllOnesOp: GetAllOnesOpSemantics(),
+    transfer.GetSignedMaxValueOp: GetSignedMaxValueOpSemantics(),
+    transfer.GetSignedMinValueOp: GetSignedMinValueOpSemantics(),
     transfer.IntersectsOp: IntersectsOpSemantics(),
     transfer.AddPoisonOp: AddPoisonOpSemantics(),
     transfer.RemovePoisonOp: RemovePoisonOpSemantics(),

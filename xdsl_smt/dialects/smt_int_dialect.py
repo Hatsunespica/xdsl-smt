@@ -27,7 +27,11 @@ from ..traits.smt_printer import (
     SMTLibSort,
     SMTConversionCtx,
 )
-from .smt_dialect import BoolType
+from xdsl.ir import SSAValue, Operation
+from xdsl_smt.dialects import smt_dialect as smt
+from xdsl.dialects.builtin import Signedness
+
+LARGE_ENOUGH_INT_TYPE = IntegerType(128, Signedness.UNSIGNED)
 
 _OpT = TypeVar("_OpT", bound=Operation)
 
@@ -58,16 +62,16 @@ _BPOpT = TypeVar("_BPOpT", bound="BinaryPredIntOp")
 
 
 class BinaryPredIntOp(IRDLOperation, Pure):
-    res: OpResult = result_def(BoolType)
+    res: OpResult = result_def(smt.BoolType)
     lhs: Operand = operand_def(SMTIntType)
     rhs: Operand = operand_def(SMTIntType)
 
     def __init__(self, lhs: SSAValue, rhs: SSAValue):
-        super().__init__(result_types=[BoolType()], operands=[lhs, rhs])
+        super().__init__(result_types=[smt.BoolType()], operands=[lhs, rhs])
 
     @classmethod
     def get(cls: type[_BPOpT], lhs: SSAValue, rhs: SSAValue) -> _BPOpT:
-        return cls.create(result_types=[BoolType()], operands=[lhs, rhs])
+        return cls.create(result_types=[smt.BoolType()], operands=[lhs, rhs])
 
 
 _UOpT = TypeVar("_UOpT", bound="UnaryIntOp")
@@ -89,13 +93,13 @@ class UnaryIntOp(IRDLOperation, Pure):
 class ConstantOp(IRDLOperation, Pure, SMTLibOp):
     name = "smt.int.constant"
     res: OpResult = result_def(SMTIntType)
-    value: IntegerAttr[IntegerType] = attr_def(IntegerAttr)
+    value: IntegerAttr[IntegerType] = attr_def(IntegerAttr[IntegerType])
 
-    def __init__(self, value: int):
-        value_type = IntegerType(64)
+    def __init__(self, value: int | IntegerAttr[IntegerType]):
+        assert isinstance(value, int)
         super().__init__(
             result_types=[SMTIntType()],
-            attributes={"value": IntegerAttr(value, value_type)},
+            attributes={"value": IntegerAttr(value, LARGE_ENOUGH_INT_TYPE)},
         )
 
     def print_expr_to_smtlib(self, stream: IO[str], ctx: SMTConversionCtx):

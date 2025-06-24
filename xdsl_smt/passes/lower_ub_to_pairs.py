@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 
 from xdsl.ir import Attribute, ParametrizedAttribute, Operation, SSAValue
-from xdsl.utils.isattr import isattr
+from xdsl.utils.hints import isa
 from xdsl.passes import ModulePass
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.pattern_rewriter import (
     PatternRewriteWalker,
     GreedyRewritePatternApplier,
@@ -13,7 +13,7 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.rewriter import InsertPoint
 
-from xdsl.dialects.builtin import ModuleOp, AnyArrayAttr
+from xdsl.dialects.builtin import ModuleOp, ArrayAttr
 from xdsl_smt.dialects import (
     smt_utils_dialect as smt_utils,
     smt_dialect as smt,
@@ -27,14 +27,14 @@ def recursively_convert_attr(attr: Attribute) -> Attribute:
     Recursively convert an attribute to replace all references to the effect state
     into a pair between the ub flag and the memory.
     """
-    if isattr(attr, ub.UBOrType[Attribute]):
+    if isa(attr, ub.UBOrType[Attribute]):
         return smt_utils.PairType(attr.type, smt.BoolType())
     if isinstance(attr, ParametrizedAttribute):
         return type(attr).new(
             [recursively_convert_attr(param) for param in attr.parameters]
         )
-    if isattr(attr, AnyArrayAttr):
-        return AnyArrayAttr((recursively_convert_attr(value) for value in attr.data))
+    if isa(attr, ArrayAttr):
+        return ArrayAttr((recursively_convert_attr(value) for value in attr.data))
     return attr
 
 
@@ -46,13 +46,13 @@ class LowerGenericOp(RewritePattern):
     def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
         for result in op.results:
             if (new_type := recursively_convert_attr(result.type)) != result.type:
-                rewriter.modify_value_type(result, new_type)
+                rewriter.replace_value_with_new_type(result, new_type)
 
         for region in op.regions:
             for block in region.blocks:
                 for arg in block.args:
                     if (new_type := recursively_convert_attr(arg.type)) != arg.type:
-                        rewriter.modify_value_type(arg, new_type)
+                        rewriter.replace_value_with_new_type(arg, new_type)
 
         has_done_action = False
         for name, attr in op.attributes.items():
@@ -70,7 +70,7 @@ class LowerGenericOp(RewritePattern):
 class LowerUBOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ub.UBOp, rewriter: PatternRewriter):
-        assert isattr(op.res.type, ub.UBOrType[Attribute])
+        assert isa(op.res.type, ub.UBOrType[Attribute])
         inhabitant = create_inhabitant(op.res.type.type, rewriter)
         if inhabitant is None:
             raise ValueError(f"Type {op.res.type.type} does not have an inhabitant.")
@@ -82,7 +82,7 @@ class LowerUBOp(RewritePattern):
 class LowerFromOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ub.FromOp, rewriter: PatternRewriter):
-        assert isattr(op.res.type, ub.UBOrType[Attribute])
+        assert isa(op.res.type, ub.UBOrType[Attribute])
         ub_flag = smt.ConstantBoolOp(False)
         pair = smt_utils.PairOp(op.value, ub_flag.res)
         rewriter.replace_matched_op([ub_flag, pair])
@@ -105,7 +105,7 @@ class LowerMatchOp(RewritePattern):
         one_is_poison = poison_flags[0]
         for poison_flag in poison_flags[1:]:
             or_poison = smt.OrOp(poison_flag, one_is_poison)
-            one_is_poison = or_poison.res
+            one_is_poison = or_poison.result
             rewriter.insert_op_before_matched_op(or_poison)
 
         # Inline both case regions
@@ -129,7 +129,7 @@ class LowerMatchOp(RewritePattern):
 class LowerUBToPairs(ModulePass):
     name = "lower-ub-to-pairs"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         walker = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
