@@ -267,9 +267,19 @@ class MulOp(BinaryBVOp, SimpleSMTLibOp):
         return "bvmul"
 
 
+class URemCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl_smt.passes.canonicalization_patterns.smt_bv import URemFold
+
+        return (URemFold(),)
+
+
 @irdl_op_definition
 class URemOp(BinaryBVOp, SimpleSMTLibOp):
     name = "smt.bv.urem"
+
+    traits = traits_def(traits.Pure(), URemCanonicalizationPatterns())
 
     def op_name(self) -> str:
         return "bvurem"
@@ -278,9 +288,7 @@ class URemOp(BinaryBVOp, SimpleSMTLibOp):
 class SRemCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl_smt.passes.canonicalization_patterns.smt_bv import (
-            SRemFold,
-        )
+        from xdsl_smt.passes.canonicalization_patterns.smt_bv import SRemFold
 
         return (SRemFold(),)
 
@@ -330,9 +338,7 @@ class AShrOp(BinaryBVOp, SimpleSMTLibOp):
 class SDivCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl_smt.passes.canonicalization_patterns.smt_bv import (
-            SDivFold,
-        )
+        from xdsl_smt.passes.canonicalization_patterns.smt_bv import SDivFold
 
         return (SDivFold(),)
 
@@ -347,9 +353,19 @@ class SDivOp(BinaryBVOp, SimpleSMTLibOp):
         return "bvsdiv"
 
 
+class UDivCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl_smt.passes.canonicalization_patterns.smt_bv import UDivFold
+
+        return (UDivFold(),)
+
+
 @irdl_op_definition
 class UDivOp(BinaryBVOp, SimpleSMTLibOp):
     name = "smt.bv.udiv"
+
+    traits = traits_def(traits.Pure(), UDivCanonicalizationPatterns())
 
     def op_name(self) -> str:
         return "bvudiv"

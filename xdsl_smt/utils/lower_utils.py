@@ -151,33 +151,30 @@ operNameToCpp = {
 
 
 VAL_EXCEEDS_BW = "{1}.uge({1}.getBitWidth())"
-IS_ZERO = "{1}==0"
+RHS_IS_ZERO = "{1} == 0"
 RET_ZERO = "{0} = APInt({1}.getBitWidth(), 0)"
-RET_ONES = "{0}=APInt({1}.getBitWidth(), -1)"
-RET_LHS = "{0}={1}"
+RET_ONE = "{0} = APInt({1}.getBitWidth(), 1)"
+RET_ONES = "{0} = APInt({1}.getBitWidth(), -1)"
+RET_SIGN_MIN_VAL = "{0} = APInt::getSignedMinValue({1}.getBitWidth())"
+RET_LHS = "{0} = {1}"
 
 SHIFT_ACTION = (VAL_EXCEEDS_BW, RET_ZERO)
 ASHR_ACTION0 = VAL_EXCEEDS_BW + " && {0}.isSignBitSet()", RET_ONES
 ASHR_ACTION1 = VAL_EXCEEDS_BW + " && {0}.isSignBitClear()", RET_ZERO
-REM_ACTION = IS_ZERO, RET_LHS
-DIV_ACTION = IS_ZERO, RET_ONES
-SDIV_ACTION = (
-    "{0}.isMinSignedValue() && {1}==-1",
-    "{0}=APInt::getSignedMinValue({1}.getBitWidth())",
-)
+REM_ACTION = RHS_IS_ZERO, RET_LHS
+DIV_ACTION = RHS_IS_ZERO, RET_ONES
+SDIV_ACTION0 = ("{0}.isMinSignedValue() && {1} == -1", RET_SIGN_MIN_VAL)
+SDIV_ACTION1 = (RHS_IS_ZERO + " && {0}.isNonNegative()", RET_ONES)
+SDIV_ACTION2 = (RHS_IS_ZERO + " && {0}.isNegative()", RET_ONE)
 
-
-op_to_constraint: dict[type[Operation], tuple[str, str]] = {
-    ShlOp: SHIFT_ACTION,
-    LShrOp: SHIFT_ACTION,
-    UDivOp: DIV_ACTION,
-    URemOp: REM_ACTION,
-    SRemOp: REM_ACTION,
-}
-
-op_to_constraints: dict[type[Operation], tuple[tuple[str, str], tuple[str, str]]] = {
-    AShrOp: (ASHR_ACTION0, ASHR_ACTION1),
-    SDivOp: (DIV_ACTION, SDIV_ACTION),
+op_to_cons: dict[type[Operation], list[tuple[str, str]]] = {
+    ShlOp: [SHIFT_ACTION],
+    LShrOp: [SHIFT_ACTION],
+    UDivOp: [DIV_ACTION],
+    URemOp: [REM_ACTION],
+    SRemOp: [REM_ACTION],
+    AShrOp: [ASHR_ACTION0, ASHR_ACTION1],
+    SDivOp: [SDIV_ACTION0, SDIV_ACTION1, SDIV_ACTION2],
 }
 
 unsignedReturnedType = {
@@ -381,57 +378,24 @@ def lowerToClassMethod(
 
     expr += ")"
 
-    if type(op) in op_to_constraint:
-        constraint, replacement = op_to_constraint[type(op)]
-
+    if type(op) in op_to_cons:
         og_op_names = get_op_names(op)
-        cond = constraint.format(*og_op_names)
 
-        action = replacement.format(ret_val, *og_op_names)
-        true_br = IDNT + IDNT + action + END
-        false_br = IDNT + IDNT + ret_val + EQ + expr + END
+        conds, actions = zip(*op_to_cons[type(op)])
 
-        if_br = (
-            IDNT
-            + "if({cond}){{\n{true_br}"
-            + IDNT
-            + "}}else{{\n{false_br}"
-            + IDNT
-            + "}}\n"
+        conds: list[str] = [cond.format(*og_op_names) for cond in conds]
+        actions: list[str] = [act.format(ret_val, *og_op_names) for act in actions]
+
+        if_fmt = "if ({cond}) {{\n" + IDNT + IDNT + "{act}" + END + IDNT + "}}"
+
+        ifs = " else ".join(
+            [if_fmt.format(cond=c, act=a) for c, a in zip(conds, actions)]
         )
+
+        final_else_br = IDNT + IDNT + ret_val + EQ + expr + END
 
         result = IDNT + ret_ty + " " + ret_val + END
-        result += if_br.format(cond=cond, true_br=true_br, false_br=false_br)
-
-    elif type(op) in op_to_constraints:
-        (con0, repl0), (con1, repl1) = op_to_constraints[type(op)]
-
-        og_op_names = get_op_names(op)
-        cond0 = con0.format(*og_op_names)
-        cond1 = con1.format(*og_op_names)
-
-        action0 = repl0.format(ret_val, *og_op_names)
-        action1 = repl1.format(ret_val, *og_op_names)
-
-        if_br = IDNT + IDNT + action0 + END
-        elif_br = IDNT + IDNT + action1 + END
-        else_br = IDNT + IDNT + ret_val + EQ + expr + END
-
-        if_stmt = (
-            IDNT
-            + "if({cond0}){{\n{if_br}"
-            + IDNT
-            + "}}else if({cond1}){{\n{elif_br}"
-            + IDNT
-            + "}}else{{\n{else_br}"
-            + IDNT
-            + "}}\n"
-        )
-
-        result = IDNT + ret_ty + " " + ret_val + END
-        result += if_stmt.format(
-            cond0=cond0, cond1=cond1, if_br=if_br, elif_br=elif_br, else_br=else_br
-        )
+        result += IDNT + ifs + " else {\n" + final_else_br + IDNT + "}\n"
 
     else:
         result = IDNT + ret_ty + " " + ret_val + EQ + expr + END

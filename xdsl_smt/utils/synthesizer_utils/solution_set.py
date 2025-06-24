@@ -38,7 +38,7 @@ def verify_function(
     if func.cond is not None:
         cur_helper.append(func.cond)
     return verify_transfer_function(
-        func.get_function(), concrete_op, cur_helper + helper_funcs, ctx, 32
+        func.get_function(), concrete_op, cur_helper + helper_funcs, ctx, 1, 32
     )
 
 
@@ -198,7 +198,7 @@ class SolutionSet(ABC):
             if sol.cond is not None:
                 cur_helper.append(sol.cond)
             if not verify_transfer_function(
-                sol.get_function(), concrete_op, cur_helper + helper_funcs, ctx, 16
+                sol.get_function(), concrete_op, cur_helper + helper_funcs, ctx, 1, 16
             ):
                 unsound_lst.append(i)
         for unsound_idx in unsound_lst[::-1]:
