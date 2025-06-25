@@ -5,14 +5,13 @@ from typing import Sequence, TypeVar, IO
 from xdsl import traits
 from xdsl.traits import IsTerminator, HasCanonicalizationPatternsTrait
 from xdsl.irdl import (
-    attr_def,
+    prop_def,
     opt_attr_def,
     operand_def,
     result_def,
     var_result_def,
     region_def,
     var_operand_def,
-    irdl_attr_definition,
     irdl_op_definition,
     Operand,
     IRDLOperation,
@@ -22,37 +21,26 @@ from xdsl.ir import (
     Block,
     Dialect,
     OpResult,
-    Data,
     Operation,
-    ParametrizedAttribute,
     Attribute,
     SSAValue,
     Region,
-    TypeAttribute,
+    OpTraits,
 )
-from xdsl.parser import AttrParser
-from xdsl.printer import Printer
-from xdsl.dialects.builtin import FunctionType, StringAttr
+from xdsl.dialects.builtin import FunctionType, StringAttr, BoolAttr, IntegerAttr
+from xdsl.dialects.smt import AndOp, BoolType, ImpliesOp, OrOp, XOrOp
 from xdsl.utils.exceptions import VerifyException
 from xdsl.pattern_rewriter import RewritePattern
 
-from ..traits.effects import Pure
+from xdsl_smt.traits.effects import Pure
 
-from ..traits.smt_printer import (
+from xdsl_smt.traits.smt_printer import (
     SMTLibOp,
     SMTLibScriptOp,
     SimpleSMTLibOp,
-    SMTLibSort,
     SMTConversionCtx,
+    SimpleSMTLibOpTrait,
 )
-
-
-@irdl_attr_definition
-class BoolType(ParametrizedAttribute, SMTLibSort, TypeAttribute):
-    name = "smt.bool"
-
-    def print_sort_to_smtlib(self, stream: IO[str]) -> None:
-        print("Bool", file=stream, end="")
 
 
 @irdl_op_definition
@@ -112,12 +100,11 @@ class ForallOp(IRDLOperation, Pure, SMTLibOp):
     def print_expr_to_smtlib(self, stream: IO[str], ctx: SMTConversionCtx):
         print("(forall (", file=stream, end="")
         for idx, param in enumerate(self.body.block.args):
-            assert isinstance(param.type, SMTLibSort)
             param_name = ctx.get_fresh_name(param)
             if idx != 0:
                 print(" ", file=stream, end="")
             print(f"({param_name} ", file=stream, end="")
-            param.type.print_sort_to_smtlib(stream)
+            ctx.print_sort_to_smtlib(param.type, stream)
             print(")", file=stream, end="")
         print(") ", file=stream, end="")
         ctx.print_expr_to_smtlib(self.return_val, stream)
@@ -157,12 +144,11 @@ class ExistsOp(IRDLOperation, Pure, SMTLibOp):
     def print_expr_to_smtlib(self, stream: IO[str], ctx: SMTConversionCtx):
         print("(exists (", file=stream, end="")
         for idx, param in enumerate(self.body.blocks[0].args):
-            assert isinstance(param.type, SMTLibSort)
             param_name = ctx.get_fresh_name(param)
             if idx != 0:
                 print(" ", file=stream, end="")
             print(f"({param_name} ", file=stream, end="")
-            param.type.print_sort_to_smtlib(stream)
+            ctx.print_sort_to_smtlib(param.type, stream)
             print(")", file=stream, end="")
         print(") ", file=stream, end="")
         ctx.print_expr_to_smtlib(self.return_val, stream)
@@ -278,17 +264,14 @@ class DeclareFunOp(IRDLOperation, SMTLibScriptOp):
         for idx, typ in enumerate(self.func_type.inputs):
             if idx != 0:
                 print(" ", file=stream, end="")
-            if not isinstance(typ, SMTLibSort):
-                raise Exception(f"Type {typ} is not an SMTLib type")
             print(f"(", file=stream, end="")
-            typ.print_sort_to_smtlib(stream)
+            ctx.print_sort_to_smtlib(typ, stream)
             print(")", file=stream, end="")
 
         # Print the function return type
         assert len(self.func_type.outputs.data) == 1
         ret_type = self.func_type.outputs.data[0]
-        assert isinstance(ret_type, SMTLibSort)
-        ret_type.print_sort_to_smtlib(stream)
+        ctx.print_sort_to_smtlib(ret_type, stream)
         print(")", file=stream)
 
 
@@ -392,18 +375,15 @@ class DefineFunOp(IRDLOperation, SMTLibScriptOp):
                 print(" ", file=stream, end="")
             arg_name = ctx.get_fresh_name(arg)
             typ = arg.type
-            if not isinstance(typ, SMTLibSort):
-                raise Exception(f"Type {typ} is not an SMTLib type")
             print(f"({arg_name} ", file=stream, end="")
-            typ.print_sort_to_smtlib(stream)
+            ctx.print_sort_to_smtlib(typ, stream)
             print(")", file=stream, end="")
         print(") ", file=stream, end="")
 
         # Print the function return type
         assert len(self.func_type.outputs.data) == 1
         ret_type = self.func_type.outputs.data[0]
-        assert isinstance(ret_type, SMTLibSort)
-        ret_type.print_sort_to_smtlib(stream)
+        ctx.print_sort_to_smtlib(ret_type, stream)
         print("", file=stream)
 
         # Print the function body
@@ -450,9 +430,8 @@ class DeclareConstOp(IRDLOperation, SMTLibScriptOp):
     def print_expr_to_smtlib(self, stream: IO[str], ctx: SMTConversionCtx):
         name = ctx.get_fresh_name(self.res)
         typ = self.res.type
-        assert isinstance(typ, SMTLibSort)
         print(f"(declare-const {name} ", file=stream, end="")
-        typ.print_sort_to_smtlib(stream)
+        ctx.print_sort_to_smtlib(typ, stream)
         print(")", file=stream)
 
 
@@ -525,43 +504,25 @@ class BinaryTOp(IRDLOperation, Pure):
             raise VerifyException("Operands must have the same type")
 
 
-@irdl_attr_definition
-class BoolAttr(Data[bool]):
-    """Boolean value."""
-
-    name = "smt.bool_attr"
-
-    @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> bool:
-        with parser.in_angle_brackets():
-            if parser.parse_optional_keyword("true"):
-                return True
-            if parser.parse_optional_keyword("false"):
-                return False
-            parser.raise_error("'true' or 'false' expected")
-
-    def print_parameter(self, printer: Printer) -> None:
-        printer.print("<true>" if self.data else "<false>")
-
-
 @irdl_op_definition
 class ConstantBoolOp(IRDLOperation, Pure, SMTLibOp):
     """Boolean constant."""
 
-    name = "smt.constant_bool"
+    name = "smt.constant"
 
     res: OpResult = result_def(BoolType)
-    value: BoolAttr = attr_def(BoolAttr)
+    value: BoolAttr = prop_def(BoolAttr)
 
     traits = traits_def(traits.Pure())
 
     def __init__(self, value: bool):
         super().__init__(
-            result_types=[BoolType()], attributes={"value": BoolAttr(value)}
+            result_types=[BoolType()],
+            properties={"value": IntegerAttr(-1 if value else 0, 1)},
         )
 
     def print_expr_to_smtlib(self, stream: IO[str], ctx: SMTConversionCtx):
-        if self.value.data:
+        if self.value.value.data:
             print("true", file=stream, end="")
         else:
             print("false", file=stream, end="")
@@ -569,7 +530,8 @@ class ConstantBoolOp(IRDLOperation, Pure, SMTLibOp):
     @staticmethod
     def from_bool(value: bool) -> ConstantBoolOp:
         return ConstantBoolOp.create(
-            result_types=[BoolType([])], attributes={"value": BoolAttr(value)}
+            result_types=[BoolType([])],
+            properties={"value": IntegerAttr(-1 if value else 0, 1)},
         )
 
 
@@ -615,16 +577,8 @@ class ImpliesCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
         return (ImpliesCanonicalizationPattern(),)
 
 
-@irdl_op_definition
-class ImpliesOp(BinaryBoolOp, SimpleSMTLibOp):
-    """Boolean implication."""
-
-    name = "smt.implies"
-
-    traits = traits_def(traits.Pure(), ImpliesCanonicalizationPatterns())
-
-    def op_name(self) -> str:
-        return "=>"
+ImpliesOp.traits.add_trait(SimpleSMTLibOpTrait("=>"))
+ImpliesOp.traits.add_trait(ImpliesCanonicalizationPatterns())
 
 
 class AndCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
@@ -637,16 +591,11 @@ class AndCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
         return (AndCanonicalizationPattern(),)
 
 
-@irdl_op_definition
-class AndOp(BinaryBoolOp, SimpleSMTLibOp):
-    """Boolean conjunction."""
-
-    name = "smt.and"
-
-    traits = traits_def(traits.Pure(), AndCanonicalizationPatterns())
-
-    def op_name(self) -> str:
-        return "and"
+AndOp.traits = OpTraits(
+    frozenset(
+        (*AndOp.traits, SimpleSMTLibOpTrait("and"), AndCanonicalizationPatterns())
+    )
+)
 
 
 class OrCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
@@ -659,38 +608,26 @@ class OrCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
         return (OrCanonicalizationPattern(),)
 
 
-@irdl_op_definition
-class OrOp(BinaryBoolOp, SimpleSMTLibOp):
-    """Boolean disjunction."""
-
-    name = "smt.or"
-
-    traits = traits_def(traits.Pure(), OrCanonicalizationPatterns())
-
-    def op_name(self) -> str:
-        return "or"
+OrOp.traits = OpTraits(
+    frozenset((*OrOp.traits, SimpleSMTLibOpTrait("or"), OrCanonicalizationPatterns()))
+)
 
 
-class XorCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
+class XOrCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl_smt.passes.canonicalization_patterns.smt import (
-            XorCanonicalizationPattern,
+            XOrCanonicalizationPattern,
         )
 
-        return (XorCanonicalizationPattern(),)
+        return (XOrCanonicalizationPattern(),)
 
 
-@irdl_op_definition
-class XorOp(BinaryBoolOp, SimpleSMTLibOp):
-    """Boolean exclusive disjunction."""
-
-    name = "smt.xor"
-
-    traits = traits_def(traits.Pure(), XorCanonicalizationPatterns())
-
-    def op_name(self) -> str:
-        return "xor"
+XOrOp.traits = OpTraits(
+    frozenset(
+        (*XOrOp.traits, SimpleSMTLibOpTrait("xor"), XOrCanonicalizationPatterns())
+    )
+)
 
 
 class EqCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
@@ -817,11 +754,11 @@ SMTDialect = Dialect(
         ImpliesOp,
         AndOp,
         OrOp,
-        XorOp,
+        XOrOp,
         EqOp,
         DistinctOp,
         IteOp,
         EvalOp,
     ],
-    [BoolType, BoolAttr],
+    [BoolType],
 )

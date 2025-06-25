@@ -2,7 +2,7 @@
 // RUN: xdsl-smt "%s" -t=smt | z3 -in
 
 "builtin.module"() ({
-  %true = "smt.constant_bool"() {value = #smt.bool_attr<true>} : () -> !smt.bool
+  %true = "smt.constant"() <{value = true}> : () -> !smt.bool
   "smt.assert"(%true) : (!smt.bool) -> ()
   // CHECK:      (assert true)
 
@@ -13,7 +13,7 @@
   // CHECK-NEXT: (declare-const $y Bool)
   // CHECK-NEXT: (declare-const $z Bool)
 
-  %or = "smt.or"(%x, %y) : (!smt.bool, !smt.bool) -> !smt.bool
+  %or = smt.or %x, %y
   "smt.assert"(%or) : (!smt.bool) -> ()
   // CHECK-NEXT: (assert (or $x $y))
 
@@ -30,7 +30,7 @@
   "smt.eval"(%xor) : (!smt.bool) -> ()
   // CHECK-NEXT: (eval (xor $x $y))
 
-  %and = "smt.and"(%x, %y) : (!smt.bool, !smt.bool) -> !smt.bool
+  %and = smt.and %x, %y
   "smt.assert"(%and) : (!smt.bool) -> ()
   // CHECK-NEXT: (assert (and $x $y))
 
@@ -42,7 +42,7 @@
   "smt.assert"(%eq) : (!smt.bool) -> ()
   // CHECK-NEXT: (assert (= $x $y))
 
-  %implies = "smt.implies"(%x, %y) : (!smt.bool, !smt.bool) -> !smt.bool
+  %implies = smt.implies %x, %y
   "smt.assert"(%implies) : (!smt.bool) -> ()
   // CHECK-NEXT: (assert (=> $x $y))
 
@@ -79,7 +79,7 @@
   // CHECK-NEXT: (assert ({{.*}} true))
   // CHECK-NEXT: {{.*}})
 
-  %false = "smt.constant_bool"() {value = #smt.bool_attr<false>} : () -> !smt.bool
+  %false = "smt.constant"() <{value = false}> : () -> !smt.bool
   "smt.assert"(%false) : (!smt.bool) -> ()
   // CHECK-NEXT: (assert false)
 
