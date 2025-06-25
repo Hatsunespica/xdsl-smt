@@ -379,10 +379,9 @@ def lowerToClassMethod(
     expr += ")"
 
     if type(op) in op_to_cons:
+        conds, actions = zip(*op_to_cons[type(op)]) # type: ignore
+
         og_op_names = get_op_names(op)
-
-        conds, actions = zip(*op_to_cons[type(op)])
-
         conds: list[str] = [cond.format(*og_op_names) for cond in conds]
         actions: list[str] = [act.format(ret_val, *og_op_names) for act in actions]
 
