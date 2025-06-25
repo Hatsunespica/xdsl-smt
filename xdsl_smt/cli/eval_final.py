@@ -4,12 +4,7 @@ from multiprocessing import Pool
 
 
 from xdsl_smt.utils.synthesizer_utils.compare_result import EvalResult
-from xdsl_smt.eval_engine.eval import (
-    AbstractDomain,
-    setup_eval,
-    eval_transfer_func,
-    eval_llvm,
-)
+from xdsl_smt.eval_engine.eval import AbstractDomain, setup_eval, eval_final
 from xdsl.dialects.func import FuncOp
 from xdsl_smt.utils.synthesizer_utils.random import Random
 from xdsl_smt.cli.synth_transfer import print_to_cpp, get_helper_funcs, parse_file
@@ -42,7 +37,6 @@ def register_all_arguments() -> Namespace:
         default=None,
         help="Specify the number of random test inputs at higher bitwidth. 0 by default",
     )
-    arg_parser.add_argument("-eval_llvm", help="Compare with llvm", action="store_true")
 
     return arg_parser.parse_args()
 
@@ -55,9 +49,8 @@ def run(
     solution_path: Path,
     num_random_tests: int | None,
     random_seed: int | None,
-    llvm: bool,
     op_name: str,
-) -> tuple[EvalResult, EvalResult | None, EvalResult | None]:
+) -> tuple[EvalResult, EvalResult, EvalResult, EvalResult]:
     assert min_bitwidth >= 4 or domain != AbstractDomain.IntegerModulo
 
     _, helpers = get_helper_funcs(input_path, domain, False)
@@ -86,19 +79,18 @@ def run(
         domain, bitwidth, min_bitwidth, samples, "\n".join(helper_funcs_cpp)
     )
 
-    res = eval_transfer_func(
+    res = eval_final(
         data_dir,
-        [solution.sym_name.data],
-        [print_to_cpp(solution)],
-        [],
-        [],
+        solution.sym_name.data,
+        print_to_cpp(solution),
+        op_name,
         helper_funcs_cpp,
         domain,
     )
 
-    llvm_res, top_res = eval_llvm(domain, data_dir, op_name) if llvm else (None, None)
+    assert len(res) == 4
 
-    return res[0], llvm_res, top_res
+    return res[0], res[1], res[2], res[3]
 
 
 def run_wrapper(x: tuple[Namespace, AbstractDomain, Path, Path, str]):
@@ -110,7 +102,6 @@ def run_wrapper(x: tuple[Namespace, AbstractDomain, Path, Path, str]):
         solution_path=x[3],
         num_random_tests=x[0].num_random_tests,
         random_seed=x[0].random_seed,
-        llvm=x[0].eval_llvm,
         op_name=x[4],
     )
 
@@ -159,16 +150,17 @@ def main() -> None:
     with Pool() as p:
         data = p.map(run_wrapper, inputs)
 
-    for (_, domain, _, _, op), (r, llvm_res, top_res) in zip(inputs, data):
+    for (_, domain, _, _, op), (top_r, synth_r, llvm_r, meet_r) in zip(inputs, data):
         print(f"{domain} {op}:")
         print("####################")
+        print("Top:")
+        print_eval(top_r)
         print("Synth:")
-        print_eval(r)
-        if llvm_res and top_res:
-            print("LLVM:")
-            print_eval(llvm_res)
-            print("Top:")
-            print_eval(top_res)
+        print_eval(synth_r)
+        print("LLVM:")
+        print_eval(llvm_r)
+        print("Meet of Synth and LLVM:")
+        print_eval(meet_r)
 
 
 if __name__ == "__main__":

@@ -12,6 +12,7 @@
 #include "AbstVal.h"
 #include "Results.h"
 #include "jit.h"
+#include "utils.cpp"
 #include "warning_suppresor.h"
 
 SUPPRESS_WARNINGS_BEGIN
@@ -214,6 +215,53 @@ public:
       for (unsigned int j = 0; j < toEval[i].size(); ++j) {
         auto [lhs, rhs, best] = toEval[i][j];
         evalSingle(lhs, rhs, best, r[i]);
+      }
+    }
+
+    return r;
+  }
+
+  template <typename LLVM_D>
+  const std::vector<Results>
+  evalFinal(const std::vector<std::vector<std::tuple<D, D, D>>> toEval,
+            const std::optional<LLVMXferFn<LLVM_D>> &llvmXfer,
+            const XferWrap<D, LLVM_D> &llvmXferWrapper) {
+    std::vector<Results> r(toEval.size(), 4);
+
+    for (unsigned int i = 0; i < toEval.size(); ++i) {
+      D top = D::top(std::get<0>(toEval[i][0]).bw());
+      for (unsigned int j = 0; j < toEval[i].size(); ++j) {
+        auto [lhs, rhs, best] = toEval[i][j];
+
+        if (best.isBottom())
+          continue;
+
+        bool topExact = top == best;
+        unsigned int topDis = top.distance(best);
+
+        D synth = base_function_wrapper(lhs, rhs)[0];
+        bool synthExact = synth == best;
+        unsigned int synthDis = synth.distance(best);
+
+        bool llvmExact = false;
+        unsigned int llvmDis = 0;
+        bool meetExact = false;
+        unsigned int meetDis = 0;
+        if (llvmXfer) {
+          D xferRes = llvmXferWrapper(lhs, rhs, llvmXfer.value());
+          llvmExact = xferRes == best;
+          llvmDis = xferRes.distance(best);
+
+          D meet = xferRes.meet(synth);
+          meetExact = meet == best;
+          meetDis = meet.distance(best);
+        }
+
+        r[i].incResult(Result(0, topDis, topExact, 0, 0), 0);
+        r[i].incResult(Result(0, synthDis, synthExact, 0, 0), 1);
+        r[i].incResult(Result(0, llvmDis, llvmExact, 0, 0), 2);
+        r[i].incResult(Result(0, meetDis, meetExact, 0, 0), 3);
+        r[i].incCases(0, 0);
       }
     }
 

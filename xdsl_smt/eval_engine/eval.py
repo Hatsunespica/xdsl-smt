@@ -126,37 +126,6 @@ def setup_eval(
     return dirpath
 
 
-def eval_llvm(
-    domain: AbstractDomain, data_dir: str, op_name: str
-) -> tuple[EvalResult, EvalResult]:
-    engine_path = Path("xdsl_smt").joinpath("eval_engine", "build", "llvm_eval")
-    if not engine_path.exists():
-        raise FileNotFoundError(f"LLVM Eval not found at: {engine_path}")
-
-    engine_params = ""
-    engine_params += f"{data_dir}\n"
-    engine_params += f"{domain}\n"
-    engine_params += f"{op_name}\n"
-
-    eval_output = run(
-        [engine_path],
-        input=engine_params,
-        text=True,
-        stdout=PIPE,
-        stderr=PIPE,
-    )
-
-    if eval_output.returncode != 0:
-        print("LLVM Eval Engine failed with this error:")
-        print(eval_output.stderr, end="")
-        exit(eval_output.returncode)
-
-    results = _parse_engine_output(eval_output.stdout)
-    assert len(results) == 2
-
-    return results[0], results[1]
-
-
 def reject_sampler(
     domain: AbstractDomain,
     data_dir: str,
@@ -189,7 +158,7 @@ def reject_sampler(
     )
 
     if eval_output.returncode != 0:
-        print("EvalEngine failed with this error:")
+        print("Reject Sampler failed with this error:")
         print(eval_output.stderr, end="")
         exit(eval_output.returncode)
 
@@ -210,11 +179,51 @@ def eval_transfer_func(
     engine_params = ""
     engine_params += f"{data_dir}\n"
     engine_params += f"{domain}\n"
+    engine_params += "\n"
     engine_params += f"{' '.join(xfer_names)}\n"
     engine_params += f"{' '.join(base_names)}\n"
     engine_params += "using A::APInt;\n"
 
     all_src = "\n".join(helper_srcs + xfer_srcs + base_srcs)
+    engine_params += all_src
+
+    eval_output = run(
+        [engine_path],
+        input=engine_params,
+        text=True,
+        stdout=PIPE,
+        stderr=PIPE,
+    )
+
+    if eval_output.returncode != 0:
+        print("EvalEngine failed with this error:")
+        print(eval_output.stderr, end="")
+        exit(eval_output.returncode)
+
+    return _parse_engine_output(eval_output.stdout)
+
+
+def eval_final(
+    data_dir: str,
+    xfer_name: str,
+    xfer_src: str,
+    op_name: str,
+    helper_srcs: list[str],
+    domain: AbstractDomain,
+) -> list[EvalResult]:
+    engine_path = Path("xdsl_smt").joinpath("eval_engine", "build", "eval_engine")
+    if not engine_path.exists():
+        raise FileNotFoundError(f"Eval Engine not found at: {engine_path}")
+
+    engine_params = ""
+    engine_params += f"{data_dir}\n"
+    engine_params += f"{domain}\n"
+    engine_params += f"{op_name}\n"
+    engine_params += "\n"
+    engine_params += f"{xfer_name}\n"
+    engine_params += "using A::APInt;\n"
+
+    all_src = "\n".join(helper_srcs + [xfer_src])
     engine_params += all_src
 
     eval_output = run(
