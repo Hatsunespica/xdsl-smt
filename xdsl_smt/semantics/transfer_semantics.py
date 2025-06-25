@@ -770,20 +770,19 @@ class ClearHighBitsOpSemantics(OperationSemantics):
         assert isinstance(bv_type := arg.type, smt_bv.BitVectorType)
 
         const_bw = smt_bv.ConstantOp(bv_type.width, bv_type.width)
-        const_one = smt_bv.ConstantOp(1, bv_type.width)
+        one = smt_bv.ConstantOp(1, bv_type.width)
 
         umin = smt_bv.UltOp(count, const_bw.res)
-        clamped_count = smt.IteOp(umin.res, count, const_bw.res)
+        new_count = smt.IteOp(umin.res, count, const_bw.res)
 
-        # mask = ((1 << (width - count)) - 1) << count
-        sub = smt_bv.SubOp(const_bw.res, clamped_count.res)
-        shl = smt_bv.ShlOp(const_one.res, sub.res)
-        sub2 = smt_bv.SubOp(shl.res, const_one.res)
-        shl2 = smt_bv.ShlOp(sub2.res, clamped_count.res)
-        masked = smt_bv.AndOp(arg, shl2.res)
+        # mask = (1 << (width - count)) - 1
+        sub = smt_bv.SubOp(const_bw.res, new_count.res)
+        shl = smt_bv.ShlOp(one.res, sub.res)
+        mask = smt_bv.SubOp(shl.res, one.res)
+        masked = smt_bv.AndOp(arg, mask.res)
 
         rewriter.insert_op_before_matched_op(
-            [const_bw, const_one, umin, clamped_count, sub, shl, sub2, shl2, masked]
+            [const_bw, one, umin, new_count, sub, shl, mask, masked]
         )
 
         return ((masked.res,), effect_state)
