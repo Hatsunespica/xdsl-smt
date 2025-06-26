@@ -156,7 +156,6 @@ class SDivFold(RewritePattern):
 class URemFold(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: smt_bv.URemOp, rewriter: PatternRewriter):
-        # return
         # Check if rhs is constant
         rhs = get_bv_constant(op.rhs)
         if rhs is None:
@@ -164,7 +163,7 @@ class URemFold(RewritePattern):
 
         # A remainder by zero should return the lhs value
         if rhs == 0 and isinstance(op.lhs, OpResult):
-            rewriter.replace_matched_op(op.lhs.op.clone())
+            rewriter.replace_all_uses_with(op.res, op.lhs)
             return
 
         # Check if lhs is constant
@@ -193,7 +192,7 @@ class SRemFold(RewritePattern):
 
         # A remainder by zero should return the lhs value
         if rhs == 0 and isinstance(op.lhs, OpResult):
-            rewriter.replace_matched_op(op.lhs.op.clone())
+            rewriter.replace_all_uses_with(op.res, op.lhs)
             return
 
         # Check if lhs is constant
