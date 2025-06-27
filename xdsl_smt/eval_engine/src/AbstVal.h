@@ -1,7 +1,9 @@
 #ifndef AbstVal_H
 #define AbstVal_H
 
+#include <iostream>
 #include <numeric>
+#include <optional>
 #include <random>
 #include <sstream>
 #include <string>
@@ -37,7 +39,8 @@ concept AbstractDomain = requires(const D d, unsigned int bw, const A::APInt &a,
   { d.join(d) } -> std::same_as<const D>;
   { d.toConcrete() } -> std::same_as<const std::vector<A::APInt>>;
   { d.display() } -> std::same_as<const std::string>;
-  { d.distance(d) } -> std::same_as<unsigned int>;
+  { d.distance(d) } -> std::same_as<unsigned long>;
+  { d.size() } -> std::same_as<std::optional<unsigned long>>;
   { d.bw() } -> std::same_as<unsigned int>;
 };
 
@@ -98,9 +101,10 @@ public:
   const std::vector<A::APInt> toConcrete() const {
     return static_cast<const Domain *>(this)->toConcrete();
   }
-  unsigned int distance(const Domain &rhs) const {
+  unsigned long distance(const Domain &rhs) const {
     return Domain::distance(rhs);
   }
+  std::optional<unsigned long> size() const { return Domain::size(); }
   const std::string display() const {
     return static_cast<Domain>(this)->display();
   }
@@ -166,13 +170,22 @@ public:
     return ret;
   }
 
-  unsigned int distance(const KnownBits &rhs) const {
+  unsigned long distance(const KnownBits &rhs) const {
     return (zero() ^ rhs.zero()).popcount() + (one() ^ rhs.one()).popcount();
+  }
+
+  std::optional<unsigned long> size() const {
+    if (isBottom())
+      return std::nullopt;
+    else
+      return bw() - (zero().popcount() + one().popcount());
   }
 
   static const KnownBits rand(std::mt19937 &rng, unsigned int bw) {
     KnownBits kb({A::APInt::getAllOnes(bw), A::APInt::getAllOnes(bw)});
-    std::uniform_int_distribution<unsigned long> dist(0, (1 << bw) - 1);
+    std::uniform_int_distribution<unsigned long> dist(
+        0, A::APInt::getAllOnes(bw).getZExtValue());
+
     while (kb.isBottom()) {
       kb.v[0] = A::APInt(bw, dist(rng));
       kb.v[1] = A::APInt(bw, dist(rng));
@@ -277,16 +290,25 @@ public:
     return ret;
   }
 
-  unsigned int distance(const UConstRange &rhs) const {
+  unsigned long distance(const UConstRange &rhs) const {
     unsigned long ld = A::APIntOps::abdu(lower(), rhs.lower()).getZExtValue();
     unsigned long ud = A::APIntOps::abdu(upper(), rhs.upper()).getZExtValue();
     return static_cast<unsigned int>(ld + ud);
   }
 
+  std::optional<unsigned long> size() const {
+    if (isBottom())
+      return std::nullopt;
+    else
+      return A::APIntOps::abdu(lower(), upper()).getZExtValue();
+  }
+
   static const UConstRange rand(std::mt19937 &rng, unsigned int bw) {
 
     UConstRange ucr({A::APInt::getMaxValue(bw), A::APInt::getMinValue(bw)});
-    std::uniform_int_distribution<unsigned long> dist(0, (1 << bw) - 1);
+    std::uniform_int_distribution<unsigned long> dist(
+        0, A::APInt::getAllOnes(bw).getZExtValue());
+
     ucr.v[0] = A::APInt(bw, dist(rng));
     ucr.v[1] = A::APInt(bw, dist(rng));
     if (ucr.isBottom()) {
@@ -393,16 +415,24 @@ public:
     return ret;
   }
 
-  unsigned int distance(const SConstRange &rhs) const {
+  unsigned long distance(const SConstRange &rhs) const {
     unsigned long ld = A::APIntOps::abds(lower(), rhs.lower()).getZExtValue();
     unsigned long ud = A::APIntOps::abds(upper(), rhs.upper()).getZExtValue();
     return static_cast<unsigned int>(ld + ud);
   }
 
+  std::optional<unsigned long> size() const {
+    if (isBottom())
+      return std::nullopt;
+    else
+      return A::APIntOps::abds(lower(), upper()).getZExtValue();
+  }
+
   static const SConstRange rand(std::mt19937 &rng, unsigned int bw) {
     SConstRange scr(
         {A::APInt::getSignedMaxValue(bw), A::APInt::getSignedMinValue(bw)});
-    std::uniform_int_distribution<unsigned long> dist(0, (1 << bw) - 1);
+    std::uniform_int_distribution<unsigned long> dist(
+        0, A::APInt::getAllOnes(bw).getZExtValue());
     scr.v[0] = A::APInt(bw, dist(rng));
     scr.v[1] = A::APInt(bw, dist(rng));
     if (scr.isBottom()) {
@@ -611,7 +641,7 @@ public:
     return r;
   }
 
-  unsigned int distance(const IntegerModulo &rhs) const {
+  unsigned long distance(const IntegerModulo &rhs) const {
     unsigned int d = 0;
     for (unsigned int i = 0; i < N; ++i)
       if (residues()[i] != rhs.residues()[i]) {
@@ -623,6 +653,13 @@ public:
       }
 
     return d;
+  }
+
+  std::optional<unsigned long> size() const {
+    if (isBottom())
+      return std::nullopt;
+    else
+      return numTs;
   }
 
   static const IntegerModulo rand(std::mt19937 &rng, unsigned int bw) {

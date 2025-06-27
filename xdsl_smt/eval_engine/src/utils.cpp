@@ -1,13 +1,15 @@
 #ifndef Utils_H
 #define Utils_H
 
+#include <algorithm>
 #include <fcntl.h>
 #include <filesystem>
 #include <functional>
 #include <iostream>
 #include <istream>
 #include <optional>
-#include <sstream>
+#include <regex>
+#include <stdexcept>
 #include <string>
 #include <sys/mman.h>
 #include <unistd.h>
@@ -38,26 +40,66 @@ makeTest(const std::vector<std::tuple<std::string, std::optional<XferFn<D>>>>
   return llvmOp;
 }
 
-std::vector<std::string> split_whitespace(const std::string &input) {
+const std::vector<std::string> parseStrList(std::istream &in) {
   std::vector<std::string> result;
-  std::istringstream iss(input);
-  std::string word;
-  while (iss >> word) {
-    result.push_back(word);
+  std::string line;
+  std::getline(in, line);
+
+  std::regex string_regex(R"('([^']*)')");
+  std::smatch match;
+
+  std::string::const_iterator searchStart(line.cbegin());
+  while (std::regex_search(searchStart, line.cend(), match, string_regex)) {
+    result.push_back(match[1].str());
+    searchStart = match.suffix().first;
   }
+
   return result;
 }
 
-std::vector<std::string> getSplitLine(std::istream &in) {
-  std::string tmp;
-  std::getline(in, tmp);
-  return split_whitespace(tmp);
+const std::vector<unsigned int> parseIntList(std::istream &in) {
+  std::vector<unsigned int> result;
+  std::string line;
+  std::getline(in, line);
+
+  std::regex number_regex(R"(\d+)");
+  std::smatch match;
+
+  std::string::const_iterator searchStart(line.cbegin());
+  while (std::regex_search(searchStart, line.cend(), match, number_regex)) {
+    unsigned int number = static_cast<unsigned int>(std::stoul(match[0].str()));
+    result.push_back(number);
+    searchStart = match.suffix().first;
+  }
+
+  return result;
 }
 
-const std::string makeVecFname(const std::string &dirPath, unsigned int bw,
+const std::vector<std::pair<unsigned int, unsigned int>>
+parsePairs(std::istream &in) {
+  std::vector<std::pair<unsigned int, unsigned int>> result;
+  std::string line;
+  std::getline(in, line);
+
+  std::regex pair_regex(R"(\(\s*(\d+)\s*,\s*(\d+)\s*\))");
+  std::smatch match;
+
+  std::string::const_iterator searchStart(line.cbegin());
+  while (std::regex_search(searchStart, line.cend(), match, pair_regex)) {
+    unsigned int first = static_cast<unsigned int>(std::stoul(match[1].str()));
+    unsigned int second = static_cast<unsigned int>(std::stoul(match[2].str()));
+    result.emplace_back(first, second);
+    searchStart = match.suffix().first;
+  }
+
+  return result;
+}
+
+const std::string makeVecFname(const std::string &dirPath,
+                               const std::string &type, unsigned int bw,
                                unsigned long samples) {
-  return dirPath + "bw " + std::to_string(bw) + " samples " +
-         std::to_string(samples);
+  return dirPath + type + "_bw_" + std::to_string(bw) + "_samples_" +
+         std::to_string(samples) + ".bin";
 }
 
 template <AbstractDomain D>
@@ -149,26 +191,72 @@ std::vector<std::tuple<D, D, D>> read_vecs(const std::string &fname,
   return vecs;
 }
 
+enum class EnumType { Low, Med, High };
+
+struct SampleTypes {
+  EnumType enumType;
+  unsigned int bw;
+  unsigned int numSamples;
+};
+
+SampleTypes parseSamples(const std::filesystem::directory_entry &entry) {
+  std::string filename = entry.path().filename().string();
+
+  std::regex pattern(R"((low|med|high)_bw_(\d+)_samples_(\d+)\.bin)");
+  std::smatch match;
+
+  if (!std::regex_match(filename, match, pattern)) {
+    throw std::invalid_argument("Filename format is invalid: " + filename);
+  }
+
+  EnumType enumType;
+  std::string enumTypeStr = match[1].str();
+  if (enumTypeStr == "low") {
+    enumType = EnumType::Low;
+  } else if (enumTypeStr == "med") {
+    enumType = EnumType::Med;
+  } else if (enumTypeStr == "high") {
+    enumType = EnumType::High;
+  } else {
+    throw std::invalid_argument("Unknown enumeration type: " + enumTypeStr);
+  }
+
+  unsigned int bw = static_cast<unsigned int>(std::stoul(match[2].str()));
+  unsigned int numSamples =
+      static_cast<unsigned int>(std::stoul(match[3].str()));
+
+  return SampleTypes{enumType, bw, numSamples};
+}
+
 template <AbstractDomain D>
-const std::pair<std::vector<unsigned int>,
-                std::vector<std::vector<std::tuple<D, D, D>>>>
-getToEval(const std::string dirName) {
-  std::vector<std::vector<std::tuple<D, D, D>>> v;
+using ToEval = std::pair<std::vector<unsigned int>,
+                         std::vector<std::vector<std::tuple<D, D, D>>>>;
+
+typedef std::pair<
+    unsigned long,
+    std::vector<std::tuple<unsigned long, unsigned long, unsigned long>>>
+    highBwRes;
+
+template <AbstractDomain D>
+const std::pair<ToEval<D>, ToEval<D>> getToEval(const std::string dirName) {
+  std::vector<std::vector<std::tuple<D, D, D>>> vecs;
   std::vector<unsigned int> bws;
+  std::vector<std::vector<std::tuple<D, D, D>>> highVecs;
+  std::vector<unsigned int> highBws;
 
   for (const std::filesystem::directory_entry &entry :
        std::filesystem::directory_iterator(dirName)) {
-    std::vector<std::string> split_fname = split_whitespace(entry.path());
-    unsigned int elems = static_cast<unsigned int>(
-        std::atol(split_fname[split_fname.size() - 1].data()));
-
-    bws.push_back(static_cast<unsigned int>(
-        std::atol(split_fname[split_fname.size() - 3].data())));
-
-    v.push_back(read_vecs<D>(entry.path(), elems));
+    SampleTypes sample = parseSamples(entry);
+    if (sample.enumType == EnumType::High) {
+      highBws.push_back(sample.bw);
+      highVecs.push_back(read_vecs<D>(entry.path(), sample.numSamples));
+    } else {
+      bws.push_back(sample.bw);
+      vecs.push_back(read_vecs<D>(entry.path(), sample.numSamples));
+    }
   }
 
-  return {bws, v};
+  return {{bws, vecs}, {highBws, highVecs}};
 }
 
 #endif

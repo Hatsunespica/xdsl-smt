@@ -10,8 +10,7 @@ class Result {
 public:
   Result() = default;
 
-  Result(unsigned int s, unsigned int p, unsigned int e, bool solved,
-         unsigned int sd)
+  Result(bool s, unsigned long p, bool e, bool solved, unsigned long sd)
       : sound(s), precise(p), exact(e), soundDistance(sd) {
     unsolvedSound = !solved ? s : 0;
     unsolvedPrecise = !solved ? p : 0;
@@ -33,13 +32,13 @@ public:
   friend class Results;
 
 private:
-  unsigned int sound;
-  unsigned int precise;
-  unsigned int exact;
-  unsigned int unsolvedSound;
-  unsigned int unsolvedPrecise;
-  unsigned int unsolvedExact;
-  unsigned int soundDistance;
+  unsigned long sound;
+  unsigned long precise;
+  unsigned long exact;
+  unsigned long unsolvedSound;
+  unsigned long unsolvedPrecise;
+  unsigned long unsolvedExact;
+  unsigned long soundDistance;
 };
 
 class Results {
@@ -89,7 +88,7 @@ public:
 
   void incResult(const Result &newR, unsigned int i) { r[i] += newR; }
 
-  void incCases(bool solved, unsigned int dis) {
+  void incCases(bool solved, unsigned long dis) {
     cases += 1;
     unsolvedCases += !solved ? 1 : 0;
     basePrecise += dis;
