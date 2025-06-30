@@ -182,16 +182,22 @@ public:
   }
 
   static const KnownBits rand(std::mt19937 &rng, unsigned int bw) {
-    KnownBits kb({A::APInt::getAllOnes(bw), A::APInt::getAllOnes(bw)});
     std::uniform_int_distribution<unsigned long> dist(
         0, A::APInt::getAllOnes(bw).getZExtValue());
 
-    while (kb.isBottom()) {
-      kb.v[0] = A::APInt(bw, dist(rng));
-      kb.v[1] = A::APInt(bw, dist(rng));
-    }
+    A::APInt zeros = A::APInt(bw, dist(rng));
+    A::APInt ones = A::APInt(bw, dist(rng));
+    const A::APInt makeUnknown = A::APInt(bw, dist(rng));
+    const A::APInt resolveTo = A::APInt(bw, dist(rng));
 
-    return kb;
+    A::APInt conflicts = zeros & ones;
+    zeros &= ~(conflicts & makeUnknown);
+    ones &= ~(conflicts & makeUnknown);
+
+    zeros &= ~(resolveTo & (conflicts & ~makeUnknown));
+    ones &= ~(~resolveTo & (conflicts & ~makeUnknown));
+
+    return KnownBits({zeros, ones});
   }
 
   static const KnownBits fromConcrete(const A::APInt &x) {
