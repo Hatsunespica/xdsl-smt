@@ -143,3 +143,18 @@ class EvalResult:
 
     def get_potential_improve(self):
         return self.base_dist - self.sound_dist
+
+
+@dataclass
+class HighPerBitRes:
+    bitwidth: int
+    num_samples: int
+    ref_score: int
+    synth_score_sum: int
+    meet_score_sum: int
+    num_bottoms: int
+
+
+@dataclass
+class HighBitRes:
+    per_bit: list[HighPerBitRes]
