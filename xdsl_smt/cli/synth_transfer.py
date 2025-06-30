@@ -10,7 +10,7 @@ from xdsl.utils.hints import isa
 
 from xdsl_smt.cli.synth_one_iteration import synthesize_one_iteration
 from xdsl_smt.passes.transfer_inline import FunctionCallInline
-from xdsl_smt.utils.synthesizer_utils.compare_result import EvalResult
+from xdsl_smt.utils.synthesizer_utils.compare_result import EvalResult, HighBitRes
 from ..dialects.smt_dialect import SMTDialect
 from ..dialects.smt_bitvector_dialect import SMTBitVectorDialect
 from xdsl_smt.dialects.transfer import TransIntegerType, AbstractValueType
@@ -198,7 +198,7 @@ def eval_transfer_func_helper(
     ret_top_func: FunctionWithCondition,
     domain: AbstractDomain,
     helper_funcs: list[str],
-) -> list[EvalResult]:
+) -> list[tuple[EvalResult, HighBitRes]]:
     """
     This function is a helper of eval_transfer_func that prints the mlir func as cpp code
     When transfer is [], this function fill it into [top]
@@ -244,7 +244,7 @@ def solution_set_eval_func(
         list[FunctionWithCondition],
         list[FunctionWithCondition],
     ],
-    list[EvalResult],
+    list[tuple[EvalResult, HighBitRes]],
 ]:
     "This function returns a simplified eval_func receiving transfer functions and base functions"
     return lambda transfer=list[FunctionWithCondition], base=list[
@@ -309,7 +309,6 @@ class HelperFuncs:
     instance_constraint_func: FuncOp
     domain_constraint_func: FuncOp
     op_constraint_func: FuncOp | None
-    abs_op_constraint_func: FuncOp | None
     get_top_func: FuncOp
     transfer_func: FuncOp
     meet_func: FuncOp
@@ -320,7 +319,6 @@ class HelperFuncs:
             self.instance_constraint_func,
             self.domain_constraint_func,
             self.op_constraint_func,
-            self.abs_op_constraint_func,
             self.meet_func,
         ]
         return [x for x in canditates if x is not None]
@@ -352,9 +350,7 @@ def convert_xfer_func(fn: FuncOp, ty: AbstractValueType):
     fn.body.block.erase_arg(fn.body.block.args[2])
 
 
-def get_helper_funcs(
-    p: Path, d: AbstractDomain, const_rhs: bool
-) -> tuple[ModuleOp, HelperFuncs]:
+def get_helper_funcs(p: Path, d: AbstractDomain) -> tuple[ModuleOp, HelperFuncs]:
     with open(p, "r") as f:
         module = Parser(ctx, f.read(), p.name).parse_op()
         assert isinstance(module, ModuleOp)
@@ -390,14 +386,12 @@ def get_helper_funcs(
     meet = get_domain_fns("meet.mlir")
     constraint = get_domain_fns("get_constraint.mlir")
     instance_constraint = get_domain_fns("get_instance_constraint.mlir")
-    abs_op_con_fn = get_domain_fns("const_rhs.mlir") if const_rhs else None
 
     return module, HelperFuncs(
         crt_func=crt_func,
         instance_constraint_func=instance_constraint,
         domain_constraint_func=constraint,
         op_constraint_func=op_con_fn,
-        abs_op_constraint_func=abs_op_con_fn,
         get_top_func=top,
         transfer_func=transfer_func,
         meet_func=meet,
@@ -456,22 +450,21 @@ def run(
     total_rounds: int,
     program_length: int,
     inv_temp: int,
-    max_bitwidth: int,
-    min_bitwidth: int,
+    lbws: list[int],
+    mbws: list[tuple[int, int]],
+    hbws: list[tuple[int, int]],
     solution_size: int,
     num_iters: int,
     condition_length: int,
     num_abd_procs: int,
-    num_random_tests: int | None,
     random_seed: int | None,
     random_number_file: str | None,
     transfer_functions: Path,
     weighted_dsl: bool,
-    const_rhs: bool,
     num_unsound_candidates: int,
     outputs_folder: Path,
-) -> EvalResult:
-    assert min_bitwidth >= 4 or domain != AbstractDomain.IntegerModulo
+) -> tuple[EvalResult, HighBitRes]:
+    assert min(lbws, default=4) >= 4 or domain != AbstractDomain.IntegerModulo
 
     logger.debug("Round_ID\tSound%\tUExact%\tDisReduce\tCost")
 
@@ -480,13 +473,11 @@ def run(
     if random_number_file is not None:
         random.read_from_file(random_number_file)
 
-    samples = (random_seed, num_random_tests) if num_random_tests is not None else None
-
     context = setup_context(random, False)
     context_weighted = setup_context(random, False)
     context_cond = setup_context(random, True)
 
-    module, helper_funcs = get_helper_funcs(transfer_functions, domain, const_rhs)
+    module, helper_funcs = get_helper_funcs(transfer_functions, domain)
     helper_funcs_cpp = helper_funcs.to_cpp()
     base_transfers = get_base_xfers(module)
 
@@ -494,7 +485,7 @@ def run(
     ret_top_func.set_func_name("ret_top")
 
     data_dir = setup_eval(
-        domain, max_bitwidth, min_bitwidth, samples, "\n".join(helper_funcs_cpp)
+        domain, lbws, mbws, hbws, random_seed, "\n".join(helper_funcs_cpp)
     )
 
     solution_eval_func = solution_set_eval_func(
@@ -598,7 +589,7 @@ def run(
         raise Exception("Found no solutions")
     solution_module, solution_str = solution_set.generate_solution_and_cpp()
     save_solution(solution_module, solution_str, outputs_folder)
-    cmp_results: list[EvalResult] = eval_transfer_func(
+    cmp_results = eval_transfer_func(
         data_dir,
         ["solution"],
         [solution_str],
@@ -632,18 +623,17 @@ def main() -> None:
         total_rounds=args.total_rounds,
         program_length=args.program_length,
         inv_temp=args.inv_temp,
-        max_bitwidth=args.max_bitwidth,
-        min_bitwidth=args.min_bitwidth,
+        lbws=args.lbw,
+        mbws=args.mbw,
+        hbws=args.hbw,
         solution_size=args.solution_size,
         num_iters=args.num_iters,
         condition_length=args.condition_length,
         num_abd_procs=args.num_abd_procs,
-        num_random_tests=args.num_random_tests,
         random_seed=args.random_seed,
         random_number_file=args.random_file,
         transfer_functions=args.transfer_functions,
         weighted_dsl=args.weighted_dsl,
-        const_rhs=args.const_rhs,
         num_unsound_candidates=args.num_unsound_candidates,
         outputs_folder=args.outputs_folder,
     )
