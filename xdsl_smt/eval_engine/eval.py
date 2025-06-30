@@ -13,27 +13,24 @@ from xdsl_smt.utils.synthesizer_utils.compare_result import (
 
 
 class AbstractDomain(Enum):
-    KnownBits = ("KnownBits", 2, lambda x: x * 2, lambda x: x)  # type: ignore
-    UConstRange = ("UConstRange", 2, lambda x: 2**x - 1)  # type: ignore
-    SConstRange = ("SConstRange", 2, lambda x: 2**x - 1)  # type: ignore
-    IntegerModulo = ("IntegerModulo", 6, lambda _: 12, lambda _: 6)  # type: ignore
+    KnownBits = ("KnownBits", 2, lambda x: x * 2)  # type: ignore
+    UConstRange = ("UConstRange", 2, lambda x: (2**x - 1) * 2)  # type: ignore
+    SConstRange = ("SConstRange", 2, lambda x: (2**x - 1) * 2)  # type: ignore
+    IntegerModulo = ("IntegerModulo", 6, lambda _: 12)  # type: ignore
 
     vec_size: int
     max_dist: Callable[[int], int]
-    max_size: Callable[[int], int]
 
     def __new__(
         cls,
         value: str,
         vec_size: int,
         max_dist: Callable[[int], int],
-        max_size: Callable[[int], int],
     ):
         obj = object.__new__(cls)
         obj._value_ = value
         obj.vec_size = vec_size
         obj.max_dist = max_dist
-        obj.max_size = max_size
         return obj
 
     def __str__(self) -> str:
@@ -123,8 +120,6 @@ def _parse_engine_output(output: str) -> list[tuple[EvalResult, HighBitRes]]:
 
     low_and_med_res = _parse_low_bw(med_bw_out + low_bw_out)
     high_res = _parse_high_bw(high_bw_output)
-
-    print(list(zip(low_and_med_res, high_res)))
 
     return list(zip(low_and_med_res, high_res))
 

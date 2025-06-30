@@ -8,8 +8,7 @@ from xdsl_smt.eval_engine.eval import eval_transfer_func, AbstractDomain, setup_
 
 
 class TestInput(NamedTuple):
-    min_bw: int
-    max_bw: int
+    lbw: list[int]
     concrete_op: str
     op_constraint: str | None
     domain: AbstractDomain
@@ -160,9 +159,7 @@ def test(input: TestInput) -> None:
         else [input.concrete_op, input.op_constraint]
     )
 
-    data_dir = setup_eval(
-        input.domain, input.max_bw, input.min_bw, None, "\n".join(helpers)
-    )
+    data_dir = setup_eval(input.domain, input.lbw, [], [(1, 1)], 0, "\n".join(helpers))
 
     results = eval_transfer_func(
         data_dir, list(names), list(srcs), [], [], helpers, input.domain
@@ -172,7 +169,7 @@ def test(input: TestInput) -> None:
         return "\n".join([x.strip() for x in str(s).split("\n")]).strip()
 
     for n, r, e in zip(names, results, input.expected_outputs):
-        if normalize(str(r)) != normalize(e):
+        if normalize(str(r[0])) != normalize(e):
             print("Unit test failure:\n")
             print(f"Abstract domain: {input.domain}")
             print(f"Concrete function:\n{input.concrete_op}")
@@ -183,8 +180,7 @@ def test(input: TestInput) -> None:
 
 
 kb_or_test = TestInput(
-    1,
-    4,
+    [1, 2, 3, 4],
     cnc_or,
     None,
     AbstractDomain.KnownBits,
@@ -212,8 +208,7 @@ bw: 4  all: 6561  s: 6561  e: 6561  uall: 6480  us: 6480  ue: 6480  dis: 0     u
 )
 
 kb_and_test = TestInput(
-    1,
-    4,
+    [1, 2, 3, 4],
     cnc_and,
     None,
     AbstractDomain.KnownBits,
@@ -241,8 +236,7 @@ bw: 4  all: 6561  s: 625   e: 81    uall: 6480  us: 624   ue: 80    dis: 23328 u
 )
 
 kb_xor_test = TestInput(
-    1,
-    4,
+    [1, 2, 3, 4],
     cnc_xor,
     None,
     AbstractDomain.KnownBits,
@@ -270,8 +264,7 @@ bw: 4  all: 6561  s: 1296  e: 1296  uall: 5936  us: 1215  ue: 1215  dis: 11664 u
 )
 
 kb_add_test = TestInput(
-    1,
-    4,
+    [1, 2, 3, 4],
     cnc_add,
     None,
     AbstractDomain.KnownBits,
@@ -299,8 +292,7 @@ bw: 4  all: 6561  s: 897   e: 897   uall: 4220  us: 816   ue: 816   dis: 14974 u
 )
 
 ucr_add_test = TestInput(
-    1,
-    4,
+    [1, 2, 3, 4],
     cnc_add,
     None,
     AbstractDomain.UConstRange,
@@ -322,8 +314,7 @@ bw: 4  all: 18496 s: 11951 e: 8906  uall: 6920  us: 3420  ue: 375   dis: 75432 u
 )
 
 ucr_sub_test = TestInput(
-    1,
-    4,
+    [1, 2, 3, 4],
     cnc_sub,
     None,
     AbstractDomain.UConstRange,
@@ -345,8 +336,7 @@ bw: 4  all: 18496 s: 11951 e: 8906  uall: 6920  us: 3420  ue: 375   dis: 75432 u
 )
 
 scr_add_test = TestInput(
-    1,
-    4,
+    [1, 2, 3, 4],
     cnc_add,
     None,
     AbstractDomain.SConstRange,
@@ -362,8 +352,7 @@ bw: 4  all: 18496 s: 18496 e: 18496 uall: 7872  us: 7872  ue: 7872  dis: 0     u
 )
 
 im_add_nsw_test = TestInput(
-    4,
-    4,
+    [4],
     cnc_add,
     add_nsw_op_constraint,
     AbstractDomain.IntegerModulo,
