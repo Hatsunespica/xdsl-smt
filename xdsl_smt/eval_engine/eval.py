@@ -8,7 +8,7 @@ from xdsl_smt.utils.synthesizer_utils.compare_result import (
     EvalResult,
     HighBitRes,
     HighPerBitRes,
-    PerBitEvalResult,
+    LowPerBitRes,
 )
 
 
@@ -40,7 +40,7 @@ class AbstractDomain(Enum):
         return self.name
 
 
-def _get_per_bit(x: list[str]) -> list[PerBitEvalResult]:
+def _get_per_bit(x: list[str]) -> list[LowPerBitRes]:
     def get_floats(s: str) -> list[int]:
         return eval(s)
 
@@ -71,7 +71,7 @@ def _get_per_bit(x: list[str]) -> list[PerBitEvalResult]:
     ), "EvalEngine output mismatch"
 
     return [
-        PerBitEvalResult(
+        LowPerBitRes(
             all_cases=num_cases[i],
             sounds=sounds[i],
             exacts=exact[i],
@@ -134,7 +134,7 @@ def _parse_low_bw(output: str) -> list[EvalResult]:
     bw_evals.reverse()
     per_bits = [_get_per_bit(x.split("\n")) for x in bw_evals if x != ""]
 
-    ds: list[list[PerBitEvalResult]] = [[] for _ in range(len(per_bits[0]))]
+    ds: list[list[LowPerBitRes]] = [[] for _ in range(len(per_bits[0]))]
     for es in per_bits:
         for i, e in enumerate(es):
             ds[i].append(e)

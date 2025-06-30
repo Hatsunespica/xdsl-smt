@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 
 @dataclass
-class PerBitEvalResult:
+class LowPerBitRes:
     "The evaluation result of (a candidate transformer f MEET a set of sound transformer F) and the best transformer f_best"
 
     all_cases: int
@@ -62,7 +62,7 @@ class PerBitEvalResult:
 
 
 class EvalResult:
-    per_bit: list[PerBitEvalResult]
+    per_bit: list[LowPerBitRes]
     max_bit: int
     all_cases: int
     sounds: int
@@ -75,7 +75,7 @@ class EvalResult:
     unsolved_dist: int
     sound_dist: int
 
-    def __init__(self, per_bit: list[PerBitEvalResult]):
+    def __init__(self, per_bit: list[LowPerBitRes]):
         self.per_bit = per_bit
         self.max_bit = max(per_bit, key=lambda x: x.bitwidth).bitwidth
         self.all_cases = sum(res.all_cases for res in per_bit)
@@ -154,7 +154,20 @@ class HighPerBitRes:
     meet_score_sum: int
     num_bottoms: int
 
+    def __str__(self):
+        s = ""
+        s += f"bw: {self.bitwidth:<3}"
+        s += f"samples: {self.num_samples:<5}"
+        s += f"bottoms: {self.num_bottoms:<5}"
+        s += f"ref: {self.ref_score:<7}"
+        s += f"synth: {self.synth_score_sum:<7}"
+        s += f"meet: {self.meet_score_sum:<7}"
+        return s
+
 
 @dataclass
 class HighBitRes:
     per_bit: list[HighPerBitRes]
+
+    def __str__(self):
+        return "\n".join(str(x) for x in self.per_bit)
