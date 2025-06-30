@@ -57,6 +57,11 @@ const std::vector<std::string> parseStrList(std::istream &in) {
   return result;
 }
 
+template <AbstractDomain D>
+unsigned int getBw(const std::vector<std::tuple<D, D, D>> &toEval) {
+  return std::get<0>(toEval[0]).bw();
+}
+
 const std::vector<unsigned int> parseIntList(std::istream &in) {
   std::vector<unsigned int> result;
   std::string line;
@@ -232,15 +237,13 @@ template <AbstractDomain D>
 using ToEval = std::pair<std::vector<unsigned int>,
                          std::vector<std::vector<std::tuple<D, D, D>>>>;
 
-typedef std::pair<
-    unsigned long,
-    std::vector<std::tuple<unsigned long, unsigned long, unsigned long>>>
-    highBwRes;
-
 template <AbstractDomain D>
-const std::pair<ToEval<D>, ToEval<D>> getToEval(const std::string dirName) {
-  std::vector<std::vector<std::tuple<D, D, D>>> vecs;
-  std::vector<unsigned int> bws;
+const std::tuple<ToEval<D>, ToEval<D>, ToEval<D>>
+getToEval(const std::string dirName) {
+  std::vector<std::vector<std::tuple<D, D, D>>> lowVecs;
+  std::vector<unsigned int> lowBws;
+  std::vector<std::vector<std::tuple<D, D, D>>> medVecs;
+  std::vector<unsigned int> medBws;
   std::vector<std::vector<std::tuple<D, D, D>>> highVecs;
   std::vector<unsigned int> highBws;
 
@@ -250,13 +253,16 @@ const std::pair<ToEval<D>, ToEval<D>> getToEval(const std::string dirName) {
     if (sample.enumType == EnumType::High) {
       highBws.push_back(sample.bw);
       highVecs.push_back(read_vecs<D>(entry.path(), sample.numSamples));
+    } else if (sample.enumType == EnumType::Med) {
+      medBws.push_back(sample.bw);
+      medVecs.push_back(read_vecs<D>(entry.path(), sample.numSamples));
     } else {
-      bws.push_back(sample.bw);
-      vecs.push_back(read_vecs<D>(entry.path(), sample.numSamples));
+      lowBws.push_back(sample.bw);
+      lowVecs.push_back(read_vecs<D>(entry.path(), sample.numSamples));
     }
   }
 
-  return {{bws, vecs}, {highBws, highVecs}};
+  return {{lowBws, lowVecs}, {medBws, medVecs}, {highBws, highVecs}};
 }
 
 #endif

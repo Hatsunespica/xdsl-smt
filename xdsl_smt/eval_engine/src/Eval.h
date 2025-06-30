@@ -117,10 +117,12 @@ public:
 
   const std::vector<Results>
   eval(const std::vector<std::vector<std::tuple<D, D, D>>> toEval) const {
-    std::vector<Results> r(toEval.size(),
-                           static_cast<unsigned int>(xferFns.size()));
+    std::vector<Results> r;
 
     for (unsigned int i = 0; i < toEval.size(); ++i) {
+      r.push_back(
+          {static_cast<unsigned int>(xferFns.size()), getBw(toEval[i])});
+
       for (unsigned int j = 0; j < toEval[i].size(); ++j) {
         auto [lhs, rhs, best] = toEval[i][j];
         evalSingle(lhs, rhs, best, r[i]);
@@ -130,44 +132,34 @@ public:
     return r;
   }
 
-  const highBwRes evalSingleHighBw(const D &lhs, const D &rhs) const {
-    highBwRes r;
-
+  void evalSingleHighBw(const D &lhs, const D &rhs, HighBwRes &res) const {
     std::vector<D> synth_results(synFnWrapper(lhs, rhs));
     D ref = D::meetAll(refFnWrapper(lhs, rhs), lhs.bw());
-    r.first = ref.size().value_or(0);
-    for (const auto &syn : synth_results) {
-      std::optional<unsigned long> synSize = syn.size();
-      std::optional<unsigned long> meetSize = ref.meet(syn).size();
+    res.sumOfRef += ref.size().value_or(0);
+    res.numSamples += 1;
+    for (unsigned int i = 0; i < synth_results.size(); ++i) {
+      std::optional<unsigned long> synSize = synth_results[i].size();
+      std::optional<unsigned long> meetSize = ref.meet(synth_results[i]).size();
 
-      r.second.push_back(
-          {synSize.value_or(0), meetSize.value_or(0), synSize.has_value()});
+      res.synthScoreSum[i] += synSize.value_or(0);
+      res.meetScoreSum[i] += meetSize.value_or(0);
+      res.numBottoms[i] += !synSize.has_value();
     }
-
-    return r;
   }
 
-  const std::vector<highBwRes>
+  const std::vector<HighBwRes>
   evalHighBw(const std::vector<std::vector<std::tuple<D, D, D>>> toEval) const {
-    std::vector<highBwRes> ret;
+    std::vector<HighBwRes> ret;
 
     for (unsigned int i = 0; i < toEval.size(); ++i) {
-      unsigned int sumOfRef = 0;
-      std::vector<std::tuple<unsigned long, unsigned long, unsigned long>> r{
-          xferFns.size()};
+      HighBwRes allRes(xferFns.size(), getBw(toEval[i]));
 
       for (unsigned int j = 0; j < toEval[i].size(); ++j) {
         auto [lhs, rhs, _] = toEval[i][j];
-        const highBwRes singleRes = evalSingleHighBw(lhs, rhs);
-        sumOfRef += singleRes.first;
-        for (unsigned int k = 0; k < singleRes.second.size(); ++k) {
-          std::get<0>(r[k]) += std::get<0>(singleRes.second[k]);
-          std::get<1>(r[k]) += std::get<1>(singleRes.second[k]);
-          std::get<2>(r[k]) += std::get<2>(singleRes.second[k]);
-        }
+        evalSingleHighBw(lhs, rhs, allRes);
       }
 
-      ret.push_back({sumOfRef, r});
+      ret.push_back(allRes);
     }
 
     return ret;
@@ -184,7 +176,7 @@ public:
     std::vector<Results> r(toEval.size(), 4);
 
     for (unsigned int i = 0; i < toEval.size(); ++i) {
-      D top = D::top(std::get<0>(toEval[i][0]).bw());
+      D top = D::top(getBw(toEval[i]));
       for (unsigned int j = 0; j < toEval[i].size(); ++j) {
         auto [lhs, rhs, best] = toEval[i][j];
 

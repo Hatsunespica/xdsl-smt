@@ -10,40 +10,6 @@
 #include "llvm_tests.h"
 #include "utils.cpp"
 
-void printLows(const std::vector<unsigned int> &bws,
-               const std::vector<Results> &rs) {
-  for (unsigned int i = 0; i < rs.size(); ++i) {
-    std::cout << "bw: " << bws[i] << "\n";
-    rs[i].print();
-    std::cout << "---\n";
-  }
-}
-
-void printHighs(const std::vector<unsigned int> &bws,
-                const std::vector<highBwRes> &rs) {
-  for (unsigned int i = 0; i < rs.size(); ++i) {
-    std::cout << "bw: " << bws[i] << "\n";
-    std::cout << "ref: " << rs[i].first << "\n";
-
-    std::cout << "synths:\n[";
-    for (auto x : rs[i].second)
-      std::cout << std::get<0>(x) << ", ";
-    std::cout << "]\n";
-
-    std::cout << "meets:\n[";
-    for (auto x : rs[i].second)
-      std::cout << std::get<1>(x) << ", ";
-    std::cout << "]\n";
-
-    std::cout << "bottoms:\n[";
-    for (auto x : rs[i].second)
-      std::cout << std::get<2>(x) << ", ";
-    std::cout << "]\n";
-
-    std::cout << "---\n";
-  }
-}
-
 template <typename D, typename LLVM_D>
 void handleDomain(
     const std::string &dataDir, const std::vector<std::string> &synNames,
@@ -53,15 +19,24 @@ void handleDomain(
         &llvmTests,
     const XferWrap<D, LLVM_D> &llvmXferWrapper) {
   Jit jit(srcCode);
-  auto [low, high] = getToEval<D>(dataDir);
+  auto [low, med, high] = getToEval<D>(dataDir);
   auto [lowBws, lowToEval] = low;
+  auto [medBws, medToEval] = med;
   auto [highBws, highToEval] = high;
 
   Eval<D> e(std::move(jit), synNames, bFnNames);
   if (opName == "") {
-    printLows(lowBws, e.eval(lowToEval));
-    std::cout << "$$$$$$\n";
-    printHighs(highBws, e.evalHighBw(highToEval));
+    std::cout << "low bws:\n";
+    for (const auto &x : e.eval(lowToEval))
+      std::cout << x;
+
+    std::cout << "med bws:\n";
+    for (const auto &x : e.eval(medToEval))
+      std::cout << x;
+
+    std::cout << "high bws:\n";
+    for (const auto &x : e.evalHighBw(highToEval))
+      std::cout << x;
   } else {
     std::cerr << "final eval not working rn\n";
     (void)llvmTests;
