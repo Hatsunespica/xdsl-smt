@@ -4,12 +4,7 @@ from tempfile import mkdtemp
 from typing import Callable
 from pathlib import Path
 
-from xdsl_smt.utils.synthesizer_utils.compare_result import (
-    EvalResult,
-    HighBitRes,
-    HighPerBitRes,
-    LowPerBitRes,
-)
+from xdsl_smt.utils.synthesizer_utils.compare_result import EvalResult, PerBitRes
 
 
 class AbstractDomain(Enum):
@@ -37,7 +32,7 @@ class AbstractDomain(Enum):
         return self.name
 
 
-def _get_per_bit(x: list[str]) -> list[LowPerBitRes]:
+def _get_per_bit(x: list[str]) -> list[PerBitRes]:
     def get_floats(s: str) -> list[int]:
         return eval(s)
 
@@ -68,7 +63,7 @@ def _get_per_bit(x: list[str]) -> list[LowPerBitRes]:
     ), "EvalEngine output mismatch"
 
     return [
-        LowPerBitRes(
+        PerBitRes(
             all_cases=num_cases[i],
             sounds=sounds[i],
             exacts=exact[i],
@@ -85,70 +80,17 @@ def _get_per_bit(x: list[str]) -> list[LowPerBitRes]:
     ]
 
 
-def _get_per_bit_high(x: list[str]) -> list[HighPerBitRes]:
-    def get_floats(s: str) -> list[int]:
-        return eval(s)
-
-    bw = int(x[0][4:])
-    ref_score = int(x[1][11:])
-    num_samples = int(x[2][13:])
-    synth_score_sums = get_floats(x[4])
-    meet_score_sums = get_floats(x[6])
-    num_bottoms = get_floats(x[8])
-
-    assert (
-        len(synth_score_sums) == len(meet_score_sums) == len(num_bottoms)
-    ), "EvalEngine output mismatch"
-
-    return [
-        HighPerBitRes(
-            synth_score_sum=ss,
-            meet_score_sum=ms,
-            num_bottoms=nb,
-            num_samples=num_samples,
-            ref_score=ref_score,
-            bitwidth=bw,
-        )
-        for ss, ms, nb in zip(synth_score_sums, meet_score_sums, num_bottoms)
-    ]
-
-
-def _parse_engine_output(output: str) -> list[tuple[EvalResult, HighBitRes]]:
-    low_and_med, high_bw_output = output.split("high bws:\n")
-    low_and_med = low_and_med.replace("low bws:\n", "")
-    low_bw_out, med_bw_out = low_and_med.split("med bws:\n")
-
-    low_and_med_res = _parse_low_bw(med_bw_out + low_bw_out)
-    high_res = _parse_high_bw(high_bw_output)
-
-    return list(zip(low_and_med_res, high_res))
-
-
-def _parse_low_bw(output: str) -> list[EvalResult]:
+def _parse_engine_output(output: str) -> list[EvalResult]:
     bw_evals = output.split("---\n")
     bw_evals.reverse()
     per_bits = [_get_per_bit(x.split("\n")) for x in bw_evals if x != ""]
 
-    ds: list[list[LowPerBitRes]] = [[] for _ in range(len(per_bits[0]))]
+    ds: list[list[PerBitRes]] = [[] for _ in range(len(per_bits[0]))]
     for es in per_bits:
         for i, e in enumerate(es):
             ds[i].append(e)
 
     return [EvalResult(x) for x in ds]
-
-
-def _parse_high_bw(output: str) -> list[HighBitRes]:
-    bw_evals = output.split("---\n")
-    bw_evals.reverse()
-
-    per_bits = [_get_per_bit_high(x.split("\n")) for x in bw_evals if x != ""]
-
-    ds: list[list[HighPerBitRes]] = [[] for _ in range(len(per_bits[0]))]
-    for es in per_bits:
-        for i, e in enumerate(es):
-            ds[i].append(e)
-
-    return [HighBitRes(x) for x in ds]
 
 
 def setup_eval(
@@ -213,7 +155,7 @@ def eval_transfer_func(
     base_srcs: list[str],
     helper_srcs: list[str],
     domain: AbstractDomain,
-) -> list[tuple[EvalResult, HighBitRes]]:
+) -> list[EvalResult]:
     engine_path = Path("xdsl_smt").joinpath("eval_engine", "build", "eval_engine")
     if not engine_path.exists():
         raise FileNotFoundError(f"Eval Engine not found at: {engine_path}")
@@ -250,7 +192,7 @@ def eval_final(
     op_name: str,
     helper_srcs: list[str],
     domain: AbstractDomain,
-) -> list[tuple[EvalResult, HighBitRes]]:
+) -> list[EvalResult]:
     engine_path = Path("xdsl_smt").joinpath("eval_engine", "build", "eval_engine")
     if not engine_path.exists():
         raise FileNotFoundError(f"Eval Engine not found at: {engine_path}")

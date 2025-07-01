@@ -10,7 +10,7 @@ from xdsl.utils.hints import isa
 
 from xdsl_smt.cli.synth_one_iteration import synthesize_one_iteration
 from xdsl_smt.passes.transfer_inline import FunctionCallInline
-from xdsl_smt.utils.synthesizer_utils.compare_result import EvalResult, HighBitRes
+from xdsl_smt.utils.synthesizer_utils.compare_result import EvalResult
 from ..dialects.smt_dialect import SMTDialect
 from ..dialects.smt_bitvector_dialect import SMTBitVectorDialect
 from xdsl_smt.dialects.transfer import TransIntegerType, AbstractValueType
@@ -198,7 +198,7 @@ def eval_transfer_func_helper(
     ret_top_func: FunctionWithCondition,
     domain: AbstractDomain,
     helper_funcs: list[str],
-) -> list[tuple[EvalResult, HighBitRes]]:
+) -> list[EvalResult]:
     """
     This function is a helper of eval_transfer_func that prints the mlir func as cpp code
     When transfer is [], this function fill it into [top]
@@ -244,7 +244,7 @@ def solution_set_eval_func(
         list[FunctionWithCondition],
         list[FunctionWithCondition],
     ],
-    list[tuple[EvalResult, HighBitRes]],
+    list[EvalResult],
 ]:
     "This function returns a simplified eval_func receiving transfer functions and base functions"
     return lambda transfer=list[FunctionWithCondition], base=list[

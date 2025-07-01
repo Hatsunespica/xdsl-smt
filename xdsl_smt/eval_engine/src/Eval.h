@@ -59,7 +59,6 @@ public:
   }
 };
 
-// TODO some of the funcs in this class need to be private
 template <AbstractDomain D> class Eval {
 private:
   // types
@@ -87,17 +86,7 @@ private:
     return r;
   }
 
-public:
-  Eval(Jit _jit, const std::vector<std::string> synthFnNames,
-       const std::vector<std::string> baseFnNames)
-      : jit(std::move(_jit)), xferFns(jit.getFns<XferFn>(synthFnNames)),
-        baseFns(jit.getFns<XferFn>(baseFnNames)) {}
-
   void evalSingle(const D &lhs, const D &rhs, const D &best, Results &r) const {
-    // skip the pair if there are no concrete values in the result
-    if (best.isBottom())
-      return;
-
     std::vector<D> synth_results(synFnWrapper(lhs, rhs));
     D ref = D::meetAll(refFnWrapper(lhs, rhs), lhs.bw());
     bool solved = ref == best;
@@ -114,6 +103,12 @@ public:
 
     r.incCases(solved, baseDis);
   }
+
+public:
+  Eval(Jit _jit, const std::vector<std::string> synthFnNames,
+       const std::vector<std::string> baseFnNames)
+      : jit(std::move(_jit)), xferFns(jit.getFns<XferFn>(synthFnNames)),
+        baseFns(jit.getFns<XferFn>(baseFnNames)) {}
 
   const std::vector<Results>
   eval(const std::vector<std::vector<std::tuple<D, D, D>>> toEval) const {
@@ -132,42 +127,6 @@ public:
     return r;
   }
 
-  void evalSingleHighBw(const D &lhs, const D &rhs, HighBwRes &res) const {
-    std::vector<D> synth_results(synFnWrapper(lhs, rhs));
-    D ref = D::meetAll(refFnWrapper(lhs, rhs), lhs.bw());
-    res.sumOfRef += ref.size().value_or(0);
-    res.numSamples += 1;
-    for (unsigned int i = 0; i < synth_results.size(); ++i) {
-      std::optional<unsigned long> synSize = synth_results[i].size();
-      std::optional<unsigned long> meetSize = ref.meet(synth_results[i]).size();
-
-      res.synthScoreSum[i] += synSize.value_or(0);
-      res.meetScoreSum[i] += meetSize.value_or(0);
-      res.numBottoms[i] += !synSize.has_value();
-    }
-  }
-
-  const std::vector<HighBwRes>
-  evalHighBw(const std::vector<std::vector<std::tuple<D, D, D>>> toEval) const {
-    std::vector<HighBwRes> ret;
-
-    for (unsigned int i = 0; i < toEval.size(); ++i) {
-      HighBwRes allRes(xferFns.size(), getBw(toEval[i]));
-
-      for (unsigned int j = 0; j < toEval[i].size(); ++j) {
-        auto [lhs, rhs, _] = toEval[i][j];
-        evalSingleHighBw(lhs, rhs, allRes);
-      }
-
-      ret.push_back(allRes);
-    }
-
-    return ret;
-  }
-
-  // TODO handle eval final at high bws,
-  // we can make some cooler assumtions if we know that a particular function is
-  // sound at 64 bits
   template <typename LLVM_D>
   const std::vector<Results>
   evalFinal(const std::vector<std::vector<std::tuple<D, D, D>>> toEval,

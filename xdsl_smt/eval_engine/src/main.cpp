@@ -26,16 +26,13 @@ void handleDomain(
 
   Eval<D> e(std::move(jit), synNames, bFnNames);
   if (opName == "") {
-    std::cout << "low bws:\n";
     for (const auto &x : e.eval(lowToEval))
       std::cout << x;
 
-    std::cout << "med bws:\n";
     for (const auto &x : e.eval(medToEval))
       std::cout << x;
 
-    std::cout << "high bws:\n";
-    for (const auto &x : e.evalHighBw(highToEval))
+    for (const auto &x : e.eval(highToEval))
       std::cout << x;
   } else {
     std::cerr << "final eval not working rn\n";
