@@ -110,8 +110,7 @@ public:
       : jit(std::move(_jit)), xferFns(jit.getFns<XferFn>(synthFnNames)),
         baseFns(jit.getFns<XferFn>(baseFnNames)) {}
 
-  const std::vector<Results>
-  eval(const std::vector<std::vector<std::tuple<D, D, D>>> toEval) const {
+  const std::vector<Results> eval(const ToEval<D> toEval) const {
     std::vector<Results> r;
 
     for (unsigned int i = 0; i < toEval.size(); ++i) {
@@ -129,18 +128,17 @@ public:
 
   template <typename LLVM_D>
   const std::vector<Results>
-  evalFinal(const std::vector<std::vector<std::tuple<D, D, D>>> toEval,
+  evalFinal(const ToEval<D> toEval,
             const std::optional<LLVMXferFn<LLVM_D>> &llvmXfer,
             const XferWrap<D, LLVM_D> &llvmXferWrapper) const {
-    std::vector<Results> r(toEval.size(), 4);
+    std::vector<Results> r;
 
     for (unsigned int i = 0; i < toEval.size(); ++i) {
+      r.push_back({4, getBw(toEval[i])});
+
       D top = D::top(getBw(toEval[i]));
       for (unsigned int j = 0; j < toEval[i].size(); ++j) {
         auto [lhs, rhs, best] = toEval[i][j];
-
-        if (best.isBottom())
-          continue;
 
         bool topExact = top == best;
         unsigned long topDis = top.distance(best);

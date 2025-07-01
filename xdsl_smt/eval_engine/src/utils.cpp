@@ -234,35 +234,28 @@ SampleTypes parseSamples(const std::filesystem::directory_entry &entry) {
 }
 
 template <AbstractDomain D>
-using ToEval = std::pair<std::vector<unsigned int>,
-                         std::vector<std::vector<std::tuple<D, D, D>>>>;
+using ToEval = std::vector<std::vector<std::tuple<D, D, D>>>;
 
 template <AbstractDomain D>
 const std::tuple<ToEval<D>, ToEval<D>, ToEval<D>>
 getToEval(const std::string dirName) {
-  std::vector<std::vector<std::tuple<D, D, D>>> lowVecs;
-  std::vector<unsigned int> lowBws;
-  std::vector<std::vector<std::tuple<D, D, D>>> medVecs;
-  std::vector<unsigned int> medBws;
-  std::vector<std::vector<std::tuple<D, D, D>>> highVecs;
-  std::vector<unsigned int> highBws;
+  ToEval<D> lowVecs;
+  ToEval<D> medVecs;
+  ToEval<D> highVecs;
 
   for (const std::filesystem::directory_entry &entry :
        std::filesystem::directory_iterator(dirName)) {
     SampleTypes sample = parseSamples(entry);
     if (sample.enumType == EnumType::High) {
-      highBws.push_back(sample.bw);
       highVecs.push_back(read_vecs<D>(entry.path(), sample.numSamples));
     } else if (sample.enumType == EnumType::Med) {
-      medBws.push_back(sample.bw);
       medVecs.push_back(read_vecs<D>(entry.path(), sample.numSamples));
     } else {
-      lowBws.push_back(sample.bw);
       lowVecs.push_back(read_vecs<D>(entry.path(), sample.numSamples));
     }
   }
 
-  return {{lowBws, lowVecs}, {medBws, medVecs}, {highBws, highVecs}};
+  return {lowVecs, medVecs, highVecs};
 }
 
 #endif

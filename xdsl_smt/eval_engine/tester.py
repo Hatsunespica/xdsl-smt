@@ -159,7 +159,7 @@ def test(input: TestInput) -> None:
         else [input.concrete_op, input.op_constraint]
     )
 
-    data_dir = setup_eval(input.domain, input.lbw, [], [(1, 1)], 0, "\n".join(helpers))
+    data_dir = setup_eval(input.domain, input.lbw, [], [], 0, "\n".join(helpers))
 
     results = eval_transfer_func(
         data_dir, list(names), list(srcs), [], [], helpers, input.domain
@@ -169,7 +169,7 @@ def test(input: TestInput) -> None:
         return "\n".join([x.strip() for x in str(s).split("\n")]).strip()
 
     for n, r, e in zip(names, results, input.expected_outputs):
-        if normalize(str(r[0])) != normalize(e):
+        if normalize(str(r)) != normalize(e):
             print("Unit test failure:\n")
             print(f"Abstract domain: {input.domain}")
             print(f"Concrete function:\n{input.concrete_op}")

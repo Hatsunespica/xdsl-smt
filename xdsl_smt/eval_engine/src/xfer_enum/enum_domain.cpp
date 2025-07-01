@@ -71,8 +71,11 @@ public:
     const std::vector<D> fullLattice = D::enumVals(bw);
 
     for (const D &lhs : fullLattice)
-      for (const D &rhs : fullLattice)
-        r.push_back({lhs, rhs, evalAbstOp.toBestAbst(lhs, rhs)});
+      for (const D &rhs : fullLattice) {
+        const D best = evalAbstOp.toBestAbst(lhs, rhs);
+        if (!best.isBottom())
+          r.push_back({lhs, rhs, best});
+      }
 
     return r;
   }

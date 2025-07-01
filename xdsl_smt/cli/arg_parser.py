@@ -88,7 +88,7 @@ def register_arguments(prog: str) -> Namespace:
         "-hbw",
         nargs="*",
         type=_int_tuple,
-        default=[(16, 100)],
+        default=[],
         help="Bitwidths to sample the lattice and abstract values with",
     )
     ap.add_argument(

@@ -202,7 +202,7 @@ def eval_final(
     engine_params += f"{domain}\n"
     engine_params += f"{op_name}\n"
     engine_params += "\n"
-    engine_params += f"{xfer_name}\n"
+    engine_params += f"{[xfer_name]}\n"
     engine_params += "using A::APInt;\n"
     engine_params += "\n".join(helper_srcs + [xfer_src])
 

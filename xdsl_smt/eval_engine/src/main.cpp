@@ -20,30 +20,24 @@ void handleDomain(
     const XferWrap<D, LLVM_D> &llvmXferWrapper) {
   Jit jit(srcCode);
   auto [low, med, high] = getToEval<D>(dataDir);
-  auto [lowBws, lowToEval] = low;
-  auto [medBws, medToEval] = med;
-  auto [highBws, highToEval] = high;
 
   Eval<D> e(std::move(jit), synNames, bFnNames);
   if (opName == "") {
-    for (const auto &x : e.eval(lowToEval))
+    for (const auto &x : e.eval(high))
       std::cout << x;
-
-    for (const auto &x : e.eval(medToEval))
+    for (const auto &x : e.eval(med))
       std::cout << x;
-
-    for (const auto &x : e.eval(highToEval))
+    for (const auto &x : e.eval(low))
       std::cout << x;
   } else {
-    std::cerr << "final eval not working rn\n";
-    (void)llvmTests;
-    (void)llvmXferWrapper;
-    exit(1);
-    // TODO work on eval-final
-    //
-    // std::optional<XferFn<LLVM_D>> llvmXfer = makeTest(llvmTests, opName);
-    // return {bws, e.evalFinal(toEval, llvmXfer, llvmXferWrapper)};
-    return;
+    std::optional<XferFn<LLVM_D>> llvmXfer = makeTest(llvmTests, opName);
+
+    for (const auto &x : e.evalFinal(high, llvmXfer, llvmXferWrapper))
+      std::cout << x;
+    for (const auto &x : e.evalFinal(med, llvmXfer, llvmXferWrapper))
+      std::cout << x;
+    for (const auto &x : e.evalFinal(low, llvmXfer, llvmXferWrapper))
+      std::cout << x;
   }
 }
 
