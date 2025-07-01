@@ -215,10 +215,12 @@ def main() -> None:
 
     for (_, domain, _, _, op), (top_r, synth_r, llvm_r, meet_r) in zip(inputs, data):
         print()
-        print(f"#################################   {domain} {op}   ############################")
+        print(
+            f"#################################   {domain} {op}   ############################"
+        )
         dists = _get_dist_table(top_r, synth_r, llvm_r, meet_r, hbs)
         exacts = _get_exact_table(top_r, synth_r, llvm_r, meet_r, hbs)
-        empty_strs = ["" for _ in range(len(hbs)-1)]
+        empty_strs = ["" for _ in range(len(hbs) - 1)]
         zipped_tables = zip(dists.split("\n"), exacts.split("\n") + empty_strs)
 
         s = "\n".join([f"{d}   ||   {e}" for d, e in zipped_tables])
