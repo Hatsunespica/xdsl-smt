@@ -463,7 +463,7 @@ def run(
     weighted_dsl: bool,
     num_unsound_candidates: int,
     outputs_folder: Path,
-) -> tuple[EvalResult, HighBitRes]:
+) -> EvalResult:
     assert min(lbws, default=4) >= 4 or domain != AbstractDomain.IntegerModulo
 
     logger.debug("Round_ID\tSound%\tUExact%\tDisReduce\tCost")
