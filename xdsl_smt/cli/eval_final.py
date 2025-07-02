@@ -114,6 +114,7 @@ def _get_dist_table(
     synth: EvalResult,
     llvm: EvalResult,
     meet: EvalResult,
+    mbs: list[int],
     hbs: list[int],
 ) -> str:
     s = ""
@@ -125,8 +126,9 @@ def _get_dist_table(
     for t_pb, s_pb, l_pb, m_pb in zip(
         top.per_bit_res, synth.per_bit_res, llvm.per_bit_res, meet.per_bit_res
     ):
+        p = "+" if t_pb.bitwidth in mbs else ""
         a = "*" if t_pb.bitwidth in hbs else ""
-        bw = f"{t_pb.bitwidth}" + a
+        bw = f"{t_pb.bitwidth}" + a + p
         llvm_dist = l_pb.dist if use_llvm else "N/A"
         meet_dist = m_pb.dist if use_llvm else "N/A"
         s += f"{bw:<4}| {t_pb.dist:<7} | {s_pb.dist:<7} | {llvm_dist:<7} | {meet_dist:<7}\n"
@@ -139,6 +141,7 @@ def _get_exact_table(
     synth: EvalResult,
     llvm: EvalResult,
     meet: EvalResult,
+    mbs: list[int],
     hbs: list[int],
 ) -> str:
     def fmt(x: PerBitRes) -> str:
@@ -154,12 +157,13 @@ def _get_exact_table(
     for t_pb, s_pb, l_pb, m_pb in zip(
         top.per_bit_res, synth.per_bit_res, llvm.per_bit_res, meet.per_bit_res
     ):
-        if t_pb.bitwidth in hbs:
-            continue
+        p = "+" if t_pb.bitwidth in mbs else ""
+        a = "*" if t_pb.bitwidth in hbs else ""
+        bw = f"{t_pb.bitwidth}" + a + p
         llvm_exact = fmt(l_pb) if use_llvm else "N/A"
         meet_exact = fmt(m_pb) if use_llvm else "N/A"
 
-        s += f"{t_pb.bitwidth:<3}| {fmt(t_pb)} | {fmt(s_pb)} | {llvm_exact:<6} | {meet_exact:<6}\n"
+        s += f"{bw:<4}| {fmt(t_pb)} | {fmt(s_pb)} | {llvm_exact:<6} | {meet_exact:<6}\n"
 
     return s
 
@@ -195,6 +199,7 @@ def main() -> None:
     with Pool() as p:
         data = p.map(run_wrapper, inputs)
 
+    mbs = [x[0] for x in args.mbw]
     hbs = [x[0] for x in args.hbw]
 
     for (_, domain, _, _, op), (top_r, synth_r, llvm_r, meet_r) in zip(inputs, data):
@@ -202,12 +207,11 @@ def main() -> None:
         print(
             f"#################################   {domain} {op}   ############################"
         )
-        dists = _get_dist_table(top_r, synth_r, llvm_r, meet_r, hbs)
-        exacts = _get_exact_table(top_r, synth_r, llvm_r, meet_r, hbs)
-        empty_strs = ["" for _ in range(len(hbs) - 1)]
-        zipped_tables = zip(dists.split("\n"), exacts.split("\n") + empty_strs)
+        dists = _get_dist_table(top_r, synth_r, llvm_r, meet_r, mbs, hbs)
+        exacts = _get_exact_table(top_r, synth_r, llvm_r, meet_r, mbs, hbs)
+        zipped_tables = zip(dists.split("\n"), exacts.split("\n"))
 
-        s = "\n".join([f"{d}   ||   {e}" for d, e in zipped_tables])
+        s = "\n".join([f"{d}   ||   {e}" for d, e in zipped_tables][:-1])
         print(s)
 
 
