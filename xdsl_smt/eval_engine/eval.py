@@ -41,8 +41,6 @@ def _get_per_bit(x: list[str]) -> list[PerBitRes]:
     precs = get_floats(x[4])
     exact = get_floats(x[6])
     num_cases = get_floats(x[8])
-    unsolved_sounds = get_floats(x[10])
-    unsolved_precs = get_floats(x[12])
     unsolved_exact = get_floats(x[14])
     unsolved_num_cases = get_floats(x[16])
     base_precs = get_floats(x[18])
@@ -54,8 +52,6 @@ def _get_per_bit(x: list[str]) -> list[PerBitRes]:
         == len(precs)
         == len(exact)
         == len(num_cases)
-        == len(unsolved_sounds)
-        == len(unsolved_precs)
         == len(unsolved_exact)
         == len(unsolved_num_cases)
         == len(base_precs)
@@ -69,9 +65,7 @@ def _get_per_bit(x: list[str]) -> list[PerBitRes]:
             exacts=exact[i],
             dist=precs[i],
             unsolved_cases=unsolved_num_cases[i],
-            unsolved_sounds=unsolved_sounds[i],
             unsolved_exacts=unsolved_exact[i],
-            unsolved_dist=unsolved_precs[i],
             base_dist=base_precs[i],
             sound_dist=sound_distance[i],
             bitwidth=bw,

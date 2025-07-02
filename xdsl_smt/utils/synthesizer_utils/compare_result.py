@@ -26,16 +26,8 @@ class PerBitRes:
     unsolved_cases: int
     "The number of unsolved inputs (F do not get exact)"
 
-    unsolved_sounds: int
-    "**Deprecated**"
-    " The number of unsolved inputs on which (f MEET F) gets sound"
-
     unsolved_exacts: int
     "The number of unsolved inputs on which (f MEET F) gets exact"
-
-    unsolved_dist: int
-    "**Deprecated**"
-    r"unsolved_dis(f,g) := \sum{a, g(a) is not exact} d(f(a) /\ g(a), best(a))"
 
     sound_dist: int
     r"sound_dis(f,g) := \sum{a, f(a) is sound} d(f(a) /\ g(a), best(a)) + \sum{a, f(a) is unsound} d(g(a), best(a))"
@@ -48,10 +40,8 @@ class PerBitRes:
         s += f"s: {self.sounds:<6}"
         s += f"e: {self.exacts:<6}"
         s += f"uall: {self.unsolved_cases:<6}"
-        # s += f"us: {self.unsolved_sounds:<6}"
         s += f"ue: {self.unsolved_exacts:<6}"
         s += f"dis: {self.dist:<6}"
-        # s += f"udis: {self.unsolved_dist:<6}"
         s += f"bdis: {self.base_dist:<6}"
         s += f"sdis: {self.sound_dist:<6}"
         return s

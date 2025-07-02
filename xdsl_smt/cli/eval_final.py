@@ -133,7 +133,7 @@ def _get_dist_table(
     hbs: list[int],
 ) -> str:
     s = ""
-    use_llvm = llvm.get_exact_prop() != 0
+    use_llvm = sum(x.exacts for x in llvm.per_bit_res) != 0
 
     s += "           ######  Dists  ######           \n"
     s += "bw  | Top     | Synth   | LLVM    | Meet   \n"
@@ -162,7 +162,7 @@ def _get_exact_table(
         return f"{p*100:05.2f}%" if p < 1 else f"{p*100:05.1f}%"
 
     s = ""
-    use_llvm = llvm.get_exact_prop() != 0
+    use_llvm = sum(x.exacts for x in llvm.per_bit_res) != 0
 
     s += "        ######  Exacts  ######         \n"
     s += "bw | Top    | Synth  | LLVM   | Meet   \n"
