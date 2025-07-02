@@ -1,31 +1,27 @@
 from subprocess import run, PIPE
 from enum import Enum
 from tempfile import mkdtemp
-from typing import Callable
 from pathlib import Path
 
 from xdsl_smt.utils.synthesizer_utils.compare_result import EvalResult, PerBitRes
 
 
 class AbstractDomain(Enum):
-    KnownBits = ("KnownBits", 2, lambda x: x * 2)  # type: ignore
-    UConstRange = ("UConstRange", 2, lambda x: (2**x - 1) * 2)  # type: ignore
-    SConstRange = ("SConstRange", 2, lambda x: (2**x - 1) * 2)  # type: ignore
-    IntegerModulo = ("IntegerModulo", 6, lambda _: 12)  # type: ignore
+    KnownBits = "KnownBits", 2
+    UConstRange = "UConstRange", 2
+    SConstRange = "SConstRange", 2
+    IntegerModulo = "IntegerModulo", 6
 
     vec_size: int
-    max_dist: Callable[[int], int]
 
     def __new__(
         cls,
         value: str,
         vec_size: int,
-        max_dist: Callable[[int], int],
     ):
         obj = object.__new__(cls)
         obj._value_ = value
         obj.vec_size = vec_size
-        obj.max_dist = max_dist
         return obj
 
     def __str__(self) -> str:
@@ -41,10 +37,10 @@ def _get_per_bit(x: list[str]) -> list[PerBitRes]:
     precs = get_floats(x[4])
     exact = get_floats(x[6])
     num_cases = get_floats(x[8])
-    unsolved_exact = get_floats(x[14])
-    unsolved_num_cases = get_floats(x[16])
-    base_precs = get_floats(x[18])
-    sound_distance = get_floats(x[20])
+    unsolved_exact = get_floats(x[10])
+    unsolved_num_cases = get_floats(x[12])
+    base_precs = get_floats(x[14])
+    sound_distance = get_floats(x[16])
 
     assert len(sounds) > 0, "No output from EvalEngine"
     assert (

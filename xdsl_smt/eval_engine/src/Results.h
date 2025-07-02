@@ -12,8 +12,6 @@ public:
 
   Result(bool s, unsigned long p, bool e, bool solved, unsigned long sd)
       : sound(s), precise(p), exact(e), soundDistance(sd) {
-    unsolvedSound = !solved ? s : 0;
-    unsolvedPrecise = !solved ? p : 0;
     unsolvedExact = !solved ? e : 0;
   }
 
@@ -21,8 +19,6 @@ public:
     sound += rhs.sound;
     precise += rhs.precise;
     exact += rhs.exact;
-    unsolvedSound += rhs.unsolvedSound;
-    unsolvedPrecise += rhs.unsolvedPrecise;
     unsolvedExact += rhs.unsolvedExact;
     soundDistance += rhs.soundDistance;
 
@@ -35,8 +31,6 @@ private:
   unsigned long sound;
   unsigned long precise;
   unsigned long exact;
-  unsigned long unsolvedSound;
-  unsigned long unsolvedPrecise;
   unsigned long unsolvedExact;
   unsigned long soundDistance;
 };
@@ -76,10 +70,6 @@ public:
       (void)x;
       return a.cases;
     });
-    a.printMember(os, "unsolved_sound",
-                  [](const Result &x) { return x.unsolvedSound; });
-    a.printMember(os, "unsolved_precise",
-                  [](const Result &x) { return x.unsolvedPrecise; });
     a.printMember(os, "unsolved_exact",
                   [](const Result &x) { return x.unsolvedExact; });
     a.printMember(os, "unsolved_num_cases", [&a](const Result &x) {
