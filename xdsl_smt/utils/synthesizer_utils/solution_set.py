@@ -119,7 +119,8 @@ class SolutionSet(ABC):
         helper_funcs: list[FuncOp],
         num_unsound_candidates: int,
         ctx: Context,
-    ) -> SolutionSet: ...
+    ) -> SolutionSet:
+        ...
 
     def has_solution(self) -> bool:
         return self.solutions_size != 0

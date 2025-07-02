@@ -160,7 +160,7 @@ def synth_run(
                     "Exact Proportion": per_bit_res.get_exact_prop() * 100,
                     "Distance": per_bit_res.dist,
                 }
-                for per_bit_res in res.per_bit
+                for per_bit_res in res.per_bit_res
             ],
             "Seed": args.random_seed,
         }
