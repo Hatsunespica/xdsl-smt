@@ -1,6 +1,7 @@
 from argparse import ArgumentParser, Namespace, ArgumentDefaultsHelpFormatter
 from pathlib import Path
 from multiprocessing import Pool
+from itertools import zip_longest
 
 
 from xdsl_smt.utils.synthesizer_utils.compare_result import EvalResult, PerBitRes
@@ -157,9 +158,11 @@ def _get_exact_table(
     for t_pb, s_pb, l_pb, m_pb in zip(
         top.per_bit_res, synth.per_bit_res, llvm.per_bit_res, meet.per_bit_res
     ):
+        if t_pb.bitwidth in hbs:
+            continue
         p = "+" if t_pb.bitwidth in mbs else ""
-        a = "*" if t_pb.bitwidth in hbs else ""
-        bw = f"{t_pb.bitwidth}" + a + p
+        # a = "*" if t_pb.bitwidth in hbs else ""
+        bw = f"{t_pb.bitwidth}" + p
         llvm_exact = fmt(l_pb) if use_llvm else "N/A"
         meet_exact = fmt(m_pb) if use_llvm else "N/A"
 
@@ -209,7 +212,7 @@ def main() -> None:
         )
         dists = _get_dist_table(top_r, synth_r, llvm_r, meet_r, mbs, hbs)
         exacts = _get_exact_table(top_r, synth_r, llvm_r, meet_r, mbs, hbs)
-        zipped_tables = zip(dists.split("\n"), exacts.split("\n"))
+        zipped_tables = zip_longest(dists.split("\n"), exacts.split("\n"), fillvalue="")
 
         s = "\n".join([f"{d}   ||   {e}" for d, e in zipped_tables][:-1])
         print(s)
