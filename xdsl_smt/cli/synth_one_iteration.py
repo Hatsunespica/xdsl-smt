@@ -237,7 +237,7 @@ def synthesize_one_iteration(
             base_dis = spl.current_cmp.get_base_dist()
             new_dis = spl.current_cmp.get_sound_dist()
             logger.debug(
-                f"{ith_iter}_{rnd}_{i}\t{sound_prop:.2f}%\t{exact_prop:.2f}%\t{base_dis}->{new_dis}\t{res_cost:.3f}"
+                f"{ith_iter}_{rnd}_{i}\t{sound_prop:.2f}%\t{exact_prop:.2f}%\t{base_dis:.2f}->{new_dis:.2f}\t{res_cost:.3f}"
             )
             cost_data[i].append(res_cost)
 
