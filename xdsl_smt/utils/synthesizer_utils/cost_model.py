@@ -13,8 +13,8 @@ def general_cost(a: float, b: float, s: float, p: float) -> float:
 
 def general_sound_and_dist_cost(a: float, b: float, res: EvalResult) -> float:
     sound = res.get_sound_prop()
-    dis = res.get_sound_dist() / res.get_base_dist()
-    return general_cost(a, b, sound, 1 - dis)
+    improve = res.get_potential_improve()
+    return general_cost(a, b, sound, improve)
 
 
 def more_sound(res: EvalResult) -> float:
@@ -35,8 +35,8 @@ def sound_first(res: EvalResult) -> float:
                = (0 + (1 - p)) / 2, if sound
     """
     sound = res.get_sound_prop()
-    dis = res.get_sound_dist() / res.get_base_dist() if sound == 1 else 1
-    return general_cost(1, 1, sound, 1 - dis)
+    improve = res.get_potential_improve() if sound == 1 else 0
+    return general_cost(1, 1, sound, improve)
 
 
 def must_sound(res: EvalResult) -> float:
@@ -45,8 +45,8 @@ def must_sound(res: EvalResult) -> float:
                = 1 - p, if sound
     """
     sound = res.get_sound_prop()
-    dis = res.get_sound_dist() / res.get_base_dist() if sound == 1 else 1
-    return dis
+    improve = res.get_potential_improve() if sound == 1 else 0
+    return improve
 
 
 def gradual_cost(

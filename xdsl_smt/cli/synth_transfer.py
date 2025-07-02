@@ -465,6 +465,9 @@ def run(
     outputs_folder: Path,
 ) -> EvalResult:
     assert min(lbws, default=4) >= 4 or domain != AbstractDomain.IntegerModulo
+    EvalResult.init_bw_settings(
+        set(lbws), set([t[0] for t in mbws]), set([t[0] for t in hbws])
+    )
 
     logger.debug("Round_ID\tSound%\tUExact%\tDisReduce\tCost")
 
@@ -508,7 +511,7 @@ def run(
     # eval the initial solutions in the solution set
     init_cmp_res = solution_set.eval_improve([])
     logger.info(
-        f"Initial Solution. Exact: {init_cmp_res[0].get_exact_prop() * 100:.4f}%   Dis:{init_cmp_res[0].get_base_dist()}"
+        f"Initial Solution. Sound:{init_cmp_res[0].get_sound_prop() * 100:.4f}% Exact: {init_cmp_res[0].get_exact_prop() * 100:.4f}%"
     )
     print(
         f"init_solution\t{init_cmp_res[0].get_sound_prop() * 100:.4f}%\t{init_cmp_res[0].get_exact_prop() * 100:.4f}%"
@@ -566,12 +569,20 @@ def run(
         )
 
         final_cmp_res = solution_set.eval_improve([])
+        lbw_mbw_log = "\n".join(
+            f"bw: {res.bitwidth}, dist: {res.dist}, exact%: {res.get_exact_prop() * 100:.4f}"
+            for res in final_cmp_res[0].get_low_med_res()
+        )
+        hbw_log = "\n".join(
+            f"bw: {res.bitwidth}, dist: {res.dist}"
+            for res in final_cmp_res[0].get_high_res()
+        )
         logger.info(
-            f"Iter {ith_iter} Finished. Exact: {final_cmp_res[0].get_exact_prop() * 100:.4f}%   Dis:{final_cmp_res[0].get_base_dist()}"
+            f"""Iter {ith_iter} Finished. Result of Current Solution: \n{lbw_mbw_log}\n{hbw_log}\n"""
         )
 
         print(
-            f"Iteration {ith_iter} finished. Size of the solution set: {solution_set.solutions_size}"
+            f"Iteration {ith_iter} finished. Exact: {final_cmp_res[0].get_exact_prop() * 100:.4f}%, Size of the solution set: {solution_set.solutions_size}"
         )
 
         if solution_set.is_perfect:

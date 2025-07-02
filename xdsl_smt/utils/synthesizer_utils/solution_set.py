@@ -189,22 +189,22 @@ class SolutionSet(ABC):
         final_module.body.block.add_ops(function_lst)
         return final_module, solution_str
 
-    def remove_unsound_solutions(
-        self, concrete_op: FuncOp, helper_funcs: list[FuncOp], ctx: Context
-    ):
-        unsound_lst: list[int] = []
-        for i, sol in enumerate(self.solutions):
-            cur_helper = [sol.func]
-            if sol.cond is not None:
-                cur_helper.append(sol.cond)
-            if not verify_transfer_function(
-                sol.get_function(), concrete_op, cur_helper + helper_funcs, ctx, 1, 16
-            ):
-                unsound_lst.append(i)
-        for unsound_idx in unsound_lst[::-1]:
-            self.solutions.pop(unsound_idx)
-            self.solutions_size -= 1
-            self.is_perfect = False
+    # def remove_unsound_solutions(
+    #     self, concrete_op: FuncOp, helper_funcs: list[FuncOp], ctx: Context
+    # ):
+    #     unsound_lst: list[int] = []
+    #     for i, sol in enumerate(self.solutions):
+    #         cur_helper = [sol.func]
+    #         if sol.cond is not None:
+    #             cur_helper.append(sol.cond)
+    #         if not verify_transfer_function(
+    #             sol.get_function(), concrete_op, cur_helper + helper_funcs, ctx, 1, 16
+    #         ):
+    #             unsound_lst.append(i)
+    #     for unsound_idx in unsound_lst[::-1]:
+    #         self.solutions.pop(unsound_idx)
+    #         self.solutions_size -= 1
+    #         self.is_perfect = False
 
 
 # class SizedSolutionSet(SolutionSet):
@@ -379,9 +379,9 @@ class UnsizedSolutionSet(SolutionSet):
         while len(candidates) > 0:
             result = self.eval_improve(candidates)
             cand, max_improve_res = max(
-                zip(candidates, result), key=lambda x: x[1].get_improve()
+                zip(candidates, result), key=lambda x: x[1].get_potential_improve()
             )
-            if max_improve_res.get_improve() == 0:
+            if max_improve_res.get_potential_improve() == 0:
                 break
 
             body_number = cand.func.attributes["number"]
@@ -414,7 +414,7 @@ class UnsizedSolutionSet(SolutionSet):
                     num_cond_solutions += 1
             from_weighted_dsl = "from_weighted_dsl" in cand.func.attributes
             self.logger.info(
-                f"{log_str}, body: {body_number}, cond: {cond_number}. After adding, Exact: {max_improve_res.get_exact_prop() * 100:.2f}%, Dis: {max_improve_res.get_dist()}, weighted?: {from_weighted_dsl}"
+                f"{log_str}, body: {body_number}, cond: {cond_number}. After adding, Exact: {max_improve_res.get_exact_prop() * 100:.2f}%, Improve: {max_improve_res.get_potential_improve()}, weighted?: {from_weighted_dsl}"
             )
             candidates.remove(cand)
             self.solutions.append(cand)
@@ -468,7 +468,7 @@ class UnsizedSolutionSet(SolutionSet):
             body_number = sol.func.attributes["number"]
             cond_number = "None" if sol.cond is None else sol.cond.attributes["number"]
             self.logger.info(
-                f"\tbody {body_number}, cond {cond_number} : #exact {res.get_exacts() - res.get_unsolved_exacts()} -> {res.get_exacts()}, new exact%: {res.get_new_exact_prop():3f}, dist: {res.get_base_dist()} -> {res.get_dist()}, dist decrease: {res.get_improve()}, cond?: {self.solutions[i].cond is not None}, learn?: {to_learn}"
+                f"\tbody {body_number}, cond {cond_number} : #exact {res.get_exacts() - res.get_unsolved_exacts()} -> {res.get_exacts()}, dist_improve: {res.get_potential_improve():3f}%, cond?: {self.solutions[i].cond is not None}, learn?: {to_learn}"
             )
             if to_learn:
                 learn_form_funcs.append(self.eliminate_dead_code(sol.func))

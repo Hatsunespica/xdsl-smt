@@ -139,7 +139,7 @@ def _get_dist_table(
     s += "bw  | Top     | Synth   | LLVM    | Meet   \n"
     s += "----|---------|---------|---------|--------\n"
     for t_pb, s_pb, l_pb, m_pb in zip(
-        top.per_bit, synth.per_bit, llvm.per_bit, meet.per_bit
+        top.per_bit_res, synth.per_bit_res, llvm.per_bit_res, meet.per_bit_res
     ):
         a = "*" if t_pb.bitwidth in hbs else ""
         bw = f"{t_pb.bitwidth}" + a
@@ -168,7 +168,7 @@ def _get_exact_table(
     s += "bw | Top    | Synth  | LLVM   | Meet   \n"
     s += "---|--------|--------|--------|--------\n"
     for t_pb, s_pb, l_pb, m_pb in zip(
-        top.per_bit, synth.per_bit, llvm.per_bit, meet.per_bit
+        top.per_bit_res, synth.per_bit_res, llvm.per_bit_res, meet.per_bit_res
     ):
         if t_pb.bitwidth in hbs:
             continue
