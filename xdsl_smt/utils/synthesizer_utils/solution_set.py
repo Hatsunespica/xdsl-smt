@@ -253,6 +253,10 @@ class UnsizedSolutionSet(SolutionSet):
 
         while len(candidates) > 0:
             result = self.eval_improve(candidates)
+            if (
+                result[0].get_base_dist() == 0
+            ):  # current solution set is already perfect
+                break
             cand, max_improve_res = max(
                 zip(candidates, result), key=lambda x: x[1].get_potential_improve()
             )
@@ -289,7 +293,7 @@ class UnsizedSolutionSet(SolutionSet):
                     num_cond_solutions += 1
             from_weighted_dsl = "from_weighted_dsl" in cand.func.attributes
             self.logger.info(
-                f"{log_str}, body: {body_number}, cond: {cond_number}. After adding, Exact: {max_improve_res.get_exact_prop() * 100:.2f}%, Improve: {max_improve_res.get_potential_improve()}, weighted?: {from_weighted_dsl}"
+                f"{log_str}, body: {body_number}, cond: {cond_number}. After adding, Exact: {max_improve_res.get_exact_prop() * 100:.2f}%, Dist: {max_improve_res.get_dist():.2f}, weighted?: {from_weighted_dsl}"
             )
             candidates.remove(cand)
             self.solutions.append(cand)
@@ -323,7 +327,7 @@ class UnsizedSolutionSet(SolutionSet):
         for cand, res in top_k:
             body_number = cand.attributes["number"]
             self.logger.info(
-                f"{body_number}\tunsolved_exact: {res.get_unsolved_exact_prop() * 100:.2f}%, sound: {res.get_sound_prop() * 100:.2f}%, dist_reduce: {res.base_dist} -> {res.sound_dist}"
+                f"{body_number}\tunsolved_exact: {res.get_unsolved_exact_prop() * 100:.2f}%, sound: {res.get_sound_prop() * 100:.2f}%, dist_reduce: {res.base_dist:.2f} -> {res.sound_dist:.2f}"
             )
             self.precise_set.append(cand)
 
