@@ -2,6 +2,7 @@ from subprocess import run, PIPE
 from enum import Enum
 from tempfile import mkdtemp
 from pathlib import Path
+from typing import Callable, TypeVar
 
 from xdsl_smt.utils.synthesizer_utils.compare_result import EvalResult, PerBitRes
 
@@ -29,44 +30,53 @@ class AbstractDomain(Enum):
 
 
 def _get_per_bit(x: list[str]) -> list[PerBitRes]:
-    def get_floats(s: str) -> list[int]:
+    T = TypeVar("T")
+
+    def get(in_str: str, to_match: str, parser: Callable[[str], T]) -> T:
+        og_str, to_parse = in_str.split(":")
+
+        assert og_str.strip() == to_match
+
+        return parser(to_parse)
+
+    def get_ints(s: str) -> list[int]:
         return eval(s)
 
-    bw = int(x[0][4:])
-    sounds = get_floats(x[2])
-    precs = get_floats(x[4])
-    exact = get_floats(x[6])
-    num_cases = get_floats(x[8])
-    unsolved_exact = get_floats(x[10])
-    unsolved_num_cases = get_floats(x[12])
-    base_precs = get_floats(x[14])
-    sound_distance = get_floats(x[16])
+    def get_floats(s: str) -> list[float]:
+        return eval(s)
 
-    assert len(sounds) > 0, "No output from EvalEngine"
+    bw = get(x[0], "bw", int)
+    num_cases = get(x[1], "num cases", int)
+    num_unsolved_cases = get(x[2], "num unsolved", int)
+    base_distance = get(x[3], "base distance", float)
+    sound = get(x[4], "num sound", get_ints)
+    distance = get(x[5], "distance", get_floats)
+    exact = get(x[6], "num exact", get_ints)
+    num_unsolved_exact_cases = get(x[7], "num unsolved exact", get_ints)
+    sound_distance = get(x[8], "sound distance", get_floats)
+
+    assert len(sound) > 0, "No output from EvalEngine"
     assert (
-        len(sounds)
-        == len(precs)
+        len(sound)
+        == len(distance)
         == len(exact)
-        == len(num_cases)
-        == len(unsolved_exact)
-        == len(unsolved_num_cases)
-        == len(base_precs)
+        == len(num_unsolved_exact_cases)
         == len(sound_distance)
     ), "EvalEngine output mismatch"
 
     return [
         PerBitRes(
-            all_cases=num_cases[i],
-            sounds=sounds[i],
+            all_cases=num_cases,
+            sounds=sound[i],
             exacts=exact[i],
-            dist=precs[i],
-            unsolved_cases=unsolved_num_cases[i],
-            unsolved_exacts=unsolved_exact[i],
-            base_dist=base_precs[i],
+            dist=distance[i],
+            unsolved_cases=num_unsolved_cases,
+            unsolved_exacts=num_unsolved_exact_cases[i],
+            base_dist=base_distance,
             sound_dist=sound_distance[i],
             bitwidth=bw,
         )
-        for i in range(len(sounds))
+        for i in range(len(sound))
     ]
 
 

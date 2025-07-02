@@ -2,7 +2,9 @@
 #define Results_H
 
 #include <functional>
+#include <iomanip>
 #include <iostream>
+#include <optional>
 #include <string_view>
 #include <vector>
 
@@ -11,13 +13,13 @@ public:
   Result() = default;
 
   Result(bool s, unsigned long p, bool e, bool solved, unsigned long sd)
-      : sound(s), precise(p), exact(e), soundDistance(sd) {
+      : sound(s), distance(p), exact(e), soundDistance(sd) {
     unsolvedExact = !solved ? e : 0;
   }
 
   Result &operator+=(const Result &rhs) {
     sound += rhs.sound;
-    precise += rhs.precise;
+    distance += rhs.distance;
     exact += rhs.exact;
     unsolvedExact += rhs.unsolvedExact;
     soundDistance += rhs.soundDistance;
@@ -29,7 +31,7 @@ public:
 
 private:
   unsigned long sound;
-  unsigned long precise;
+  unsigned long distance;
   unsigned long exact;
   unsigned long unsolvedExact;
   unsigned long soundDistance;
@@ -41,19 +43,24 @@ private:
   std::vector<Result> r;
   unsigned int cases = {};
   unsigned int unsolvedCases = {};
-  unsigned int basePrecise = {};
+  unsigned int baseDistance = {};
 
 public:
   Results(unsigned int numFns, unsigned int bw_) : bw(bw_) {
     r = std::vector<Result>(numFns);
   }
 
-  void printMember(
-      std::ostream &os, std::string_view name,
-      const std::function<unsigned int(const Result &x)> &getter) const {
-    os << name << ":\n[";
+  void printMember(std::ostream &os, std::string_view name,
+                   const std::function<unsigned int(const Result &x)> &getter,
+                   const std::optional<double> &maxDist) const {
+    os << std::left << std::setw(20) << name;
+    os << "[";
     for (auto it = r.begin(); it != r.end(); ++it) {
-      os << getter(*it);
+      os << std::right << std::setw(8);
+      if (maxDist)
+        os << getter(*it) / maxDist.value();
+      else
+        os << getter(*it);
       if (std::next(it) != r.end())
         os << ", ";
       else
@@ -61,30 +68,31 @@ public:
     }
   }
 
-  friend std::ostream &operator<<(std::ostream &os, const Results &a) {
-    os << "bw: " << a.bw << "\n";
-    a.printMember(os, "sound", [](const Result &x) { return x.sound; });
-    a.printMember(os, "precise", [](const Result &x) { return x.precise; });
-    a.printMember(os, "exact", [](const Result &x) { return x.exact; });
-    a.printMember(os, "num_cases", [&a](const Result &x) {
-      (void)x;
-      return a.cases;
-    });
-    a.printMember(os, "unsolved_exact",
-                  [](const Result &x) { return x.unsolvedExact; });
-    a.printMember(os, "unsolved_num_cases", [&a](const Result &x) {
-      (void)x;
-      return a.unsolvedCases;
-    });
-    a.printMember(os, "base_precise", [&a](const Result &x) {
-      (void)x;
-      return a.basePrecise;
-    });
-    a.printMember(os, "sound_distance",
-                  [](const Result &x) { return x.soundDistance; });
+  void print(std::ostream &os,
+             const std::function<double(unsigned int)> &maxDist) const {
+    os << std::left << std::setw(20) << "bw:" << bw << "\n";
+    os << std::left << std::setw(20) << "num cases:" << cases << "\n";
+    os << std::left << std::setw(20) << "num unsolved:" << unsolvedCases
+       << "\n";
+    os << std::left << std::setw(20)
+       << "base distance:" << baseDistance / maxDist(bw) << "\n";
+    printMember(
+        os, "num sound:", [](const Result &x) { return x.sound; },
+        std::nullopt);
+    printMember(
+        os, "distance:", [](const Result &x) { return x.distance; },
+        maxDist(bw));
+    printMember(
+        os, "num exact:", [](const Result &x) { return x.exact; },
+        std::nullopt);
+    printMember(
+        os,
+        "num unsolved exact:", [](const Result &x) { return x.unsolvedExact; },
+        std::nullopt);
+    printMember(
+        os, "sound distance:", [](const Result &x) { return x.soundDistance; },
+        maxDist(bw));
     os << "---\n";
-
-    return os;
   }
 
   void incResult(const Result &newR, unsigned int i) { r[i] += newR; }
@@ -92,7 +100,7 @@ public:
   void incCases(bool solved, unsigned long dis) {
     cases += 1;
     unsolvedCases += !solved ? 1 : 0;
-    basePrecise += dis;
+    baseDistance += dis;
   }
 };
 

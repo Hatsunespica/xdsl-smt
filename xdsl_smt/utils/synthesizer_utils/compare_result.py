@@ -17,10 +17,10 @@ class PerBitRes:
     exacts: int
     "The number of inputs on which (f MEET F) gets exact"
 
-    dist: int
+    dist: float
     r"dist(f,g) := \sum{a} d(f(a) /\ g(a), best(a))"
 
-    base_dist: int
+    base_dist: float
     r"base_dis(f,g) := \sum{a} d(g(a), best(a))"
 
     unsolved_cases: int
@@ -29,7 +29,7 @@ class PerBitRes:
     unsolved_exacts: int
     "The number of unsolved inputs on which (f MEET F) gets exact"
 
-    sound_dist: int
+    sound_dist: float
     r"sound_dis(f,g) := \sum{a, f(a) is sound} d(f(a) /\ g(a), best(a)) + \sum{a, f(a) is unsound} d(g(a), best(a))"
     "sound_dis is equal to dist if f is sound."
 
@@ -41,9 +41,9 @@ class PerBitRes:
         s += f"e: {self.exacts:<6}"
         s += f"uall: {self.unsolved_cases:<6}"
         s += f"ue: {self.unsolved_exacts:<6}"
-        s += f"dis: {self.dist:<6}"
-        s += f"bdis: {self.base_dist:<6}"
-        s += f"sdis: {self.sound_dist:<6}"
+        s += f"dis: {self.dist:<8}"
+        s += f"bdis: {self.base_dist:<8}"
+        s += f"sdis: {self.sound_dist:<8}"
         return s
 
     def get_sound_prop(self) -> float:

@@ -6,6 +6,7 @@
 
 #include "AbstVal.h"
 #include "Eval.h"
+#include "Results.h"
 #include "jit.h"
 #include "llvm_tests.h"
 #include "utils.cpp"
@@ -23,21 +24,21 @@ void handleDomain(
 
   Eval<D> e(std::move(jit), synNames, bFnNames);
   if (opName == "") {
-    for (const auto &x : e.eval(high))
-      std::cout << x;
-    for (const auto &x : e.eval(med))
-      std::cout << x;
-    for (const auto &x : e.eval(low))
-      std::cout << x;
+    for (const Results &x : e.eval(high))
+      x.print(std::cout, D::maxDist);
+    for (const Results &x : e.eval(med))
+      x.print(std::cout, D::maxDist);
+    for (const Results &x : e.eval(low))
+      x.print(std::cout, D::maxDist);
   } else {
     std::optional<XferFn<LLVM_D>> llvmXfer = makeTest(llvmTests, opName);
 
-    for (const auto &x : e.evalFinal(high, llvmXfer, llvmXferWrapper))
-      std::cout << x;
-    for (const auto &x : e.evalFinal(med, llvmXfer, llvmXferWrapper))
-      std::cout << x;
-    for (const auto &x : e.evalFinal(low, llvmXfer, llvmXferWrapper))
-      std::cout << x;
+    for (const Results &x : e.evalFinal(high, llvmXfer, llvmXferWrapper))
+      x.print(std::cout, D::maxDist);
+    for (const Results &x : e.evalFinal(med, llvmXfer, llvmXferWrapper))
+      x.print(std::cout, D::maxDist);
+    for (const Results &x : e.evalFinal(low, llvmXfer, llvmXferWrapper))
+      x.print(std::cout, D::maxDist);
   }
 }
 

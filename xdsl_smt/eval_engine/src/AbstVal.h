@@ -27,6 +27,7 @@ concept AbstractDomain = requires(const D d, unsigned int bw, const A::APInt &a,
   { D::deserialize(p, o) } -> std::same_as<const D>;
   { D::joinAll(v, bw) } -> std::same_as<const D>;
   { D::meetAll(v, bw) } -> std::same_as<const D>;
+  { D::maxDist(bw) } -> std::same_as<double>;
 
   // Instance methods
   { d == d } -> std::convertible_to<bool>;
@@ -79,6 +80,8 @@ public:
   static const Domain deserialize(unsigned char *ptr, unsigned int &offset) {
     return Vec<N>::deserialize(ptr, offset);
   }
+
+  static double maxDist(unsigned int bw) { return Domain::maxDist(bw); }
 
   // normal methods
   bool operator==(const AbstVal &rhs) const { return v == rhs.v; }
@@ -250,6 +253,8 @@ public:
 
     return ret;
   }
+
+  static double maxDist(unsigned int bw) { return 2 * bw; }
 };
 
 class UConstRange : public AbstVal<UConstRange, 2> {
@@ -380,6 +385,13 @@ public:
 
     return ret;
   }
+
+  static double maxDist(unsigned int bw) {
+    if (bw == 1)
+      return 2;
+    return static_cast<double>(A::APInt::getMaxValue(bw).getZExtValue() - 1) *
+           2;
+  }
 };
 
 class SConstRange : public AbstVal<SConstRange, 2> {
@@ -509,6 +521,13 @@ public:
     }
 
     return ret;
+  }
+
+  static double maxDist(unsigned int bw) {
+    if (bw == 1)
+      return 2;
+    return static_cast<double>(A::APInt::getMaxValue(bw).getZExtValue() - 1) *
+           2;
   }
 };
 
@@ -786,6 +805,8 @@ public:
 
     return r;
   }
+
+  static double maxDist(unsigned int _) { return 2 * N; }
 };
 
 static_assert(AbstractDomain<KnownBits>);
