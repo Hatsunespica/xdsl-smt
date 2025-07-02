@@ -91,7 +91,7 @@ def setup_eval(
     domain: AbstractDomain,
     low_bws: list[int],
     med_bws: list[tuple[int, int]],
-    high_bws: list[tuple[int, int]],
+    high_bws: list[tuple[int, int, int]],
     seed: int,
     conc_op_src: str,
 ) -> str:

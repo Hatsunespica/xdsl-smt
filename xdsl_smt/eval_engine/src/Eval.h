@@ -44,16 +44,24 @@ public:
   }
 
   const std::tuple<D, D, D> genRand(unsigned int bw, std::mt19937 &rng,
-                                    bool computeBest) const {
+                                    int numConcSamples) const {
     while (true) {
       const D lhs = D::rand(rng, bw);
       const D rhs = D::rand(rng, bw);
-      if (computeBest) {
+      if (numConcSamples == -1) {
         const D res = toBestAbst(lhs, rhs);
         if (!res.isBottom())
           return {lhs, rhs, res};
       } else {
-        return {lhs, rhs, D::bottom(bw)};
+        D res = D::bottom(bw);
+
+        for (int i = 0; i < numConcSamples; ++i) {
+          const A::APInt lhsConc = lhs.getRandConcrete(rng);
+          const A::APInt rhsConc = rhs.getRandConcrete(rng);
+          res = res.join(D::fromConcrete(concOp(lhsConc, rhsConc)));
+        }
+
+        return {lhs, rhs, res};
       }
     }
   }

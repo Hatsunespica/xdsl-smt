@@ -452,7 +452,7 @@ def run(
     inv_temp: int,
     lbws: list[int],
     mbws: list[tuple[int, int]],
-    hbws: list[tuple[int, int]],
+    hbws: list[tuple[int, int, int]],
     solution_size: int,
     num_iters: int,
     condition_length: int,

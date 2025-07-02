@@ -100,6 +100,27 @@ parsePairs(std::istream &in) {
   return result;
 }
 
+const std::vector<std::tuple<unsigned int, unsigned int, unsigned int>>
+parseTriples(std::istream &in) {
+  std::vector<std::tuple<unsigned int, unsigned int, unsigned int>> result;
+  std::string line;
+  std::getline(in, line);
+
+  std::regex triple_regex(R"(\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\))");
+  std::smatch match;
+
+  std::string::const_iterator searchStart(line.cbegin());
+  while (std::regex_search(searchStart, line.cend(), match, triple_regex)) {
+    unsigned int first = static_cast<unsigned int>(std::stoul(match[1].str()));
+    unsigned int second = static_cast<unsigned int>(std::stoul(match[2].str()));
+    unsigned int third = static_cast<unsigned int>(std::stoul(match[3].str()));
+    result.emplace_back(first, second, third);
+    searchStart = match.suffix().first;
+  }
+
+  return result;
+}
+
 const std::string makeVecFname(const std::string &dirPath,
                                const std::string &type, unsigned int bw,
                                unsigned long samples) {

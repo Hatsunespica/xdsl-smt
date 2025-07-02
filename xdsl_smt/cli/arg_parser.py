@@ -9,7 +9,7 @@ from xdsl_smt.eval_engine.eval import AbstractDomain
 from pathlib import Path
 
 
-def _int_tuple(s: str) -> tuple[int, int]:
+def int_tuple(s: str) -> tuple[int, int]:
     try:
         items = s.split(",")
         if len(items) != 2:
@@ -18,6 +18,18 @@ def _int_tuple(s: str) -> tuple[int, int]:
     except Exception:
         raise ArgumentTypeError(
             f"Invalid tuple format: '{s}'. Expected format: int,int"
+        )
+
+
+def int_triple(s: str) -> tuple[int, int, int]:
+    try:
+        items = s.split(",")
+        if len(items) != 3:
+            raise ValueError
+        return (int(items[0]), int(items[1]), int(items[2]))
+    except Exception:
+        raise ArgumentTypeError(
+            f"Invalid tuple format: '{s}'. Expected format: int,int,int"
         )
 
 
@@ -80,14 +92,14 @@ def register_arguments(prog: str) -> Namespace:
     ap.add_argument(
         "-mbw",
         nargs="*",
-        type=_int_tuple,
+        type=int_tuple,
         default=[],
         help="Bitwidths to evaluate sampled lattice elements exhaustively",
     )
     ap.add_argument(
         "-hbw",
         nargs="*",
-        type=_int_tuple,
+        type=int_triple,
         default=[],
         help="Bitwidths to sample the lattice and abstract values with",
     )

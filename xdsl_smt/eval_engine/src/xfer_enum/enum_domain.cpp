@@ -20,8 +20,7 @@ public:
         evalAbstOp(jit.getFn<ConcOpFn>("concrete_op"),
                    jit.getOptFn<OpConFn>("op_constraint")) {}
 
-  const std::vector<std::vector<std::tuple<D, D, D>>>
-  genLows(const std::vector<unsigned int> &bws) {
+  const ToEval<D> genLows(const std::vector<unsigned int> &bws) {
     std::vector<std::vector<std::tuple<D, D, D>>> r;
     std::transform(bws.begin(), bws.end(), std::back_inserter(r),
                    [this](unsigned int bw) { return getFullLattice(bw); });
@@ -29,28 +28,31 @@ public:
     return r;
   }
 
-  const std::vector<std::vector<std::tuple<D, D, D>>>
+  const ToEval<D>
   genMids(const std::vector<std::pair<unsigned int, unsigned int>> &bws,
           std::mt19937 &rng) {
 
     std::vector<std::vector<std::tuple<D, D, D>>> r;
     std::transform(bws.begin(), bws.end(), std::back_inserter(r),
                    [this, &rng](std::pair<unsigned int, unsigned int> bw) {
-                     return sampleLattice(bw.first, bw.second, rng, true);
+                     return sampleLattice(bw.first, bw.second, rng, -1);
                    });
 
     return r;
   }
 
-  const std::vector<std::vector<std::tuple<D, D, D>>>
-  genHighs(const std::vector<std::pair<unsigned int, unsigned int>> &bws,
-           std::mt19937 &rng) {
+  const ToEval<D> genHighs(
+      const std::vector<std::tuple<unsigned int, unsigned int, unsigned int>>
+          &bws,
+      std::mt19937 &rng) {
 
     std::vector<std::vector<std::tuple<D, D, D>>> r;
-    std::transform(bws.begin(), bws.end(), std::back_inserter(r),
-                   [this, &rng](std::pair<unsigned int, unsigned int> bw) {
-                     return sampleLattice(bw.first, bw.second, rng, false);
-                   });
+    std::transform(
+        bws.begin(), bws.end(), std::back_inserter(r),
+        [this, &rng](std::tuple<unsigned int, unsigned int, unsigned int> bw) {
+          return sampleLattice(std::get<0>(bw), std::get<1>(bw), rng,
+                               static_cast<int>(std::get<2>(bw)));
+        });
 
     return r;
   }
@@ -58,10 +60,10 @@ public:
   const std::vector<std::tuple<D, D, D>> sampleLattice(unsigned int bw,
                                                        unsigned int samples,
                                                        std::mt19937 &rng,
-                                                       bool computeBest) {
+                                                       int concSamples) {
     std::vector<std::tuple<D, D, D>> r;
     for (unsigned int i = 0; i < samples; ++i)
-      r.push_back(evalAbstOp.genRand(bw, rng, computeBest));
+      r.push_back(evalAbstOp.genRand(bw, rng, concSamples));
 
     return r;
   }

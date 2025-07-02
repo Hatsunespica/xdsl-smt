@@ -1,9 +1,4 @@
-from argparse import (
-    ArgumentParser,
-    Namespace,
-    ArgumentTypeError,
-    ArgumentDefaultsHelpFormatter,
-)
+from argparse import ArgumentParser, Namespace, ArgumentDefaultsHelpFormatter
 from pathlib import Path
 from multiprocessing import Pool
 
@@ -13,18 +8,7 @@ from xdsl_smt.eval_engine.eval import AbstractDomain, setup_eval, eval_final
 from xdsl.dialects.func import FuncOp
 from xdsl_smt.utils.synthesizer_utils.random import Random
 from xdsl_smt.cli.synth_transfer import print_to_cpp, get_helper_funcs, parse_file
-
-
-def _int_tuple(s: str) -> tuple[int, int]:
-    try:
-        items = s.split(",")
-        if len(items) != 2:
-            raise ValueError
-        return (int(items[0]), int(items[1]))
-    except Exception:
-        raise ArgumentTypeError(
-            f"Invalid tuple format: '{s}'. Expected format: int,int"
-        )
+from xdsl_smt.cli.arg_parser import int_triple, int_tuple
 
 
 def register_all_arguments() -> Namespace:
@@ -46,14 +30,14 @@ def register_all_arguments() -> Namespace:
     ap.add_argument(
         "-mbw",
         nargs="*",
-        type=_int_tuple,
+        type=int_tuple,
         default=[],
         help="Bitwidths to evaluate sampled lattice elements exhaustively",
     )
     ap.add_argument(
         "-hbw",
         nargs="*",
-        type=_int_tuple,
+        type=int_triple,
         default=[],
         help="Bitwidths to sample the lattice and abstract values with",
     )
@@ -65,7 +49,7 @@ def run(
     domain: AbstractDomain,
     lbws: list[int],
     mbws: list[tuple[int, int]],
-    hbws: list[tuple[int, int]],
+    hbws: list[tuple[int, int, int]],
     input_path: Path,
     solution_path: Path,
     random_seed: int | None,

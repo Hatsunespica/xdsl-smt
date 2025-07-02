@@ -22,7 +22,8 @@ template <AbstractDomain D>
 void handleDomain(
     Jit jit, const std::vector<unsigned int> &lbws,
     const std::vector<std::pair<unsigned int, unsigned int>> &mbws,
-    const std::vector<std::pair<unsigned int, unsigned int>> &hbws,
+    const std::vector<std::tuple<unsigned int, unsigned int, unsigned int>>
+        &hbws,
     std::mt19937 &rng, const std::string &dirPath) {
   EnumDomain<D> e(std::move(jit));
 
@@ -47,8 +48,8 @@ int main() {
   std::vector<unsigned int> lbws = parseIntList(std::cin);
   std::vector<std::pair<unsigned int, unsigned int>> mbws =
       parsePairs(std::cin);
-  std::vector<std::pair<unsigned int, unsigned int>> hbws =
-      parsePairs(std::cin);
+  std::vector<std::tuple<unsigned int, unsigned int, unsigned int>> hbws =
+      parseTriples(std::cin);
 
   std::string tmpStr;
   std::getline(std::cin, tmpStr);
