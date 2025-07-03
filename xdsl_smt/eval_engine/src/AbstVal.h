@@ -1,7 +1,6 @@
 #ifndef AbstVal_H
 #define AbstVal_H
 
-#include <iostream>
 #include <numeric>
 #include <random>
 #include <sstream>

@@ -58,7 +58,8 @@ public:
         for (int i = 0; i < numConcSamples; ++i) {
           const A::APInt lhsConc = lhs.getRandConcrete(rng);
           const A::APInt rhsConc = rhs.getRandConcrete(rng);
-          res = res.join(D::fromConcrete(concOp(lhsConc, rhsConc)));
+          if (!opCon || opCon.value()(lhsConc, rhsConc))
+            res = res.join(D::fromConcrete(concOp(lhsConc, rhsConc)));
         }
 
         return {lhs, rhs, res};
