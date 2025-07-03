@@ -161,7 +161,6 @@ def _get_exact_table(
         if t_pb.bitwidth in hbs:
             continue
         p = "+" if t_pb.bitwidth in mbs else ""
-        # a = "*" if t_pb.bitwidth in hbs else ""
         bw = f"{t_pb.bitwidth}" + p
         llvm_exact = fmt(l_pb) if use_llvm else "N/A"
         meet_exact = fmt(m_pb) if use_llvm else "N/A"
