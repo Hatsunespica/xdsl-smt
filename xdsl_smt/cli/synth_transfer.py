@@ -570,11 +570,11 @@ def run(
 
         final_cmp_res = solution_set.eval_improve([])
         lbw_mbw_log = "\n".join(
-            f"bw: {res.bitwidth}, dist: {res.dist}, exact%: {res.get_exact_prop() * 100:.4f}"
+            f"bw: {res.bitwidth}, dist: {res.dist:.2f}, exact%: {res.get_exact_prop() * 100:.4f}"
             for res in final_cmp_res[0].get_low_med_res()
         )
         hbw_log = "\n".join(
-            f"bw: {res.bitwidth}, dist: {res.dist}"
+            f"bw: {res.bitwidth}, dist: {res.dist:.2f}"
             for res in final_cmp_res[0].get_high_res()
         )
         logger.info(
