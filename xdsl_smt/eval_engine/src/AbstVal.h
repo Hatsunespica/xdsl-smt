@@ -26,6 +26,7 @@ concept AbstractDomain = requires(const D d, unsigned int bw, const A::APInt &a,
   { D::deserialize(p, o) } -> std::same_as<const D>;
   { D::joinAll(v, bw) } -> std::same_as<const D>;
   { D::meetAll(v, bw) } -> std::same_as<const D>;
+  { D::maxDist(bw) } -> std::same_as<double>;
 
   // Instance methods
   { d == d } -> std::convertible_to<bool>;
@@ -36,8 +37,9 @@ concept AbstractDomain = requires(const D d, unsigned int bw, const A::APInt &a,
   { d.meet(d) } -> std::same_as<const D>;
   { d.join(d) } -> std::same_as<const D>;
   { d.toConcrete() } -> std::same_as<const std::vector<A::APInt>>;
+  { d.getRandConcrete(rng) } -> std::same_as<const A::APInt>;
   { d.display() } -> std::same_as<const std::string>;
-  { d.distance(d) } -> std::same_as<unsigned int>;
+  { d.distance(d) } -> std::same_as<unsigned long>;
   { d.bw() } -> std::same_as<unsigned int>;
 };
 
@@ -78,6 +80,8 @@ public:
     return Vec<N>::deserialize(ptr, offset);
   }
 
+  static double maxDist(unsigned int bw) { return Domain::maxDist(bw); }
+
   // normal methods
   bool operator==(const AbstVal &rhs) const { return v == rhs.v; }
   unsigned int bw() const { return v[0].getBitWidth(); }
@@ -98,7 +102,10 @@ public:
   const std::vector<A::APInt> toConcrete() const {
     return static_cast<const Domain *>(this)->toConcrete();
   }
-  unsigned int distance(const Domain &rhs) const {
+  const A::APInt getRandConcrete(std::mt19937 &rng) const {
+    return static_cast<const Domain *>(this)->getRandConcrete(rng);
+  }
+  unsigned long distance(const Domain &rhs) const {
     return Domain::distance(rhs);
   }
   const std::string display() const {
@@ -166,19 +173,47 @@ public:
     return ret;
   }
 
-  unsigned int distance(const KnownBits &rhs) const {
+  const A::APInt getRandConcrete(std::mt19937 &rng) const {
+    std::uniform_int_distribution<unsigned long> dist(
+        0, A::APInt::getAllOnes(bw()).getZExtValue());
+
+    A::APInt val = A::APInt(bw(), dist(rng));
+    val &= ~zero();
+    val |= one();
+
+    return val;
+  }
+
+  unsigned long distance(const KnownBits &rhs) const {
+    if (isBottom() && rhs.isBottom())
+      return 0;
+
+    if (isBottom())
+      return rhs.bw() - (rhs.zero() ^ rhs.one()).popcount();
+
+    if (rhs.isBottom())
+      return bw() - (zero() ^ one()).popcount();
+
     return (zero() ^ rhs.zero()).popcount() + (one() ^ rhs.one()).popcount();
   }
 
   static const KnownBits rand(std::mt19937 &rng, unsigned int bw) {
-    KnownBits kb({A::APInt::getAllOnes(bw), A::APInt::getAllOnes(bw)});
-    std::uniform_int_distribution<unsigned long> dist(0, (1 << bw) - 1);
-    while (kb.isBottom()) {
-      kb.v[0] = A::APInt(bw, dist(rng));
-      kb.v[1] = A::APInt(bw, dist(rng));
-    }
+    std::uniform_int_distribution<unsigned long> dist(
+        0, A::APInt::getAllOnes(bw).getZExtValue());
 
-    return kb;
+    A::APInt zeros = A::APInt(bw, dist(rng));
+    A::APInt ones = A::APInt(bw, dist(rng));
+    const A::APInt makeUnknown = A::APInt(bw, dist(rng));
+    const A::APInt resolveTo = A::APInt(bw, dist(rng));
+
+    A::APInt conflicts = zeros & ones;
+    zeros &= ~(conflicts & makeUnknown);
+    ones &= ~(conflicts & makeUnknown);
+
+    zeros &= ~(resolveTo & (conflicts & ~makeUnknown));
+    ones &= ~(~resolveTo & (conflicts & ~makeUnknown));
+
+    return KnownBits({zeros, ones});
   }
 
   static const KnownBits fromConcrete(const A::APInt &x) {
@@ -217,6 +252,8 @@ public:
 
     return ret;
   }
+
+  static double maxDist(unsigned int bw) { return 2 * bw; }
 };
 
 class UConstRange : public AbstVal<UConstRange, 2> {
@@ -277,20 +314,34 @@ public:
     return ret;
   }
 
-  unsigned int distance(const UConstRange &rhs) const {
+  const A::APInt getRandConcrete(std::mt19937 &rng) const {
+    std::uniform_int_distribution<unsigned long> dist(lower().getZExtValue(),
+                                                      upper().getZExtValue());
+    return A::APInt(bw(), dist(rng));
+  }
+
+  unsigned long distance(const UConstRange &rhs) const {
+    if (isBottom() && rhs.isBottom())
+      return 0;
+
+    if (isBottom())
+      return A::APIntOps::abdu(rhs.lower(), rhs.upper()).getZExtValue();
+
+    if (rhs.isBottom())
+      return A::APIntOps::abdu(lower(), upper()).getZExtValue();
+
     unsigned long ld = A::APIntOps::abdu(lower(), rhs.lower()).getZExtValue();
     unsigned long ud = A::APIntOps::abdu(upper(), rhs.upper()).getZExtValue();
     return static_cast<unsigned int>(ld + ud);
   }
 
   static const UConstRange rand(std::mt19937 &rng, unsigned int bw) {
+    std::uniform_int_distribution<unsigned long> dist(
+        0, A::APInt::getAllOnes(bw).getZExtValue());
 
-    UConstRange ucr({A::APInt::getMaxValue(bw), A::APInt::getMinValue(bw)});
-    std::uniform_int_distribution<unsigned long> dist(0, (1 << bw) - 1);
-    ucr.v[0] = A::APInt(bw, dist(rng));
-    ucr.v[1] = A::APInt(bw, dist(rng));
+    UConstRange ucr({A::APInt(bw, dist(rng)), A::APInt(bw, dist(rng))});
     if (ucr.isBottom()) {
-      A::APInt tmp = ucr.v[0];
+      const A::APInt tmp = ucr.v[0];
       ucr.v[0] = ucr.v[1];
       ucr.v[1] = tmp;
     }
@@ -332,6 +383,13 @@ public:
     }
 
     return ret;
+  }
+
+  static double maxDist(unsigned int bw) {
+    if (bw == 1)
+      return 2;
+    return static_cast<double>(A::APInt::getMaxValue(bw).getZExtValue() - 1) *
+           2;
   }
 };
 
@@ -393,20 +451,34 @@ public:
     return ret;
   }
 
-  unsigned int distance(const SConstRange &rhs) const {
+  const A::APInt getRandConcrete(std::mt19937 &rng) const {
+    std::uniform_int_distribution<long> dist(lower().getSExtValue(),
+                                             upper().getSExtValue());
+    return A::APInt(bw(), static_cast<unsigned long>(dist(rng)));
+  }
+
+  unsigned long distance(const SConstRange &rhs) const {
+    if (isBottom() && rhs.isBottom())
+      return 0;
+
+    if (isBottom())
+      return A::APIntOps::abds(rhs.lower(), rhs.upper()).getZExtValue();
+
+    if (rhs.isBottom())
+      return A::APIntOps::abds(lower(), upper()).getZExtValue();
+
     unsigned long ld = A::APIntOps::abds(lower(), rhs.lower()).getZExtValue();
     unsigned long ud = A::APIntOps::abds(upper(), rhs.upper()).getZExtValue();
     return static_cast<unsigned int>(ld + ud);
   }
 
   static const SConstRange rand(std::mt19937 &rng, unsigned int bw) {
-    SConstRange scr(
-        {A::APInt::getSignedMaxValue(bw), A::APInt::getSignedMinValue(bw)});
-    std::uniform_int_distribution<unsigned long> dist(0, (1 << bw) - 1);
-    scr.v[0] = A::APInt(bw, dist(rng));
-    scr.v[1] = A::APInt(bw, dist(rng));
+    std::uniform_int_distribution<unsigned long> dist(
+        0, A::APInt::getAllOnes(bw).getZExtValue());
+
+    SConstRange scr({A::APInt(bw, dist(rng)), A::APInt(bw, dist(rng))});
     if (scr.isBottom()) {
-      A::APInt tmp = scr.v[0];
+      const A::APInt tmp = scr.v[0];
       scr.v[0] = scr.v[1];
       scr.v[1] = tmp;
     }
@@ -448,6 +520,13 @@ public:
     }
 
     return ret;
+  }
+
+  static double maxDist(unsigned int bw) {
+    if (bw == 1)
+      return 2;
+    return static_cast<double>(A::APInt::getMaxValue(bw).getZExtValue() - 1) *
+           2;
   }
 };
 
@@ -611,7 +690,27 @@ public:
     return r;
   }
 
-  unsigned int distance(const IntegerModulo &rhs) const {
+  const A::APInt getRandConcrete(std::mt19937 &rng) const {
+    std::uniform_int_distribution<unsigned long> dist(
+        0, A::APInt::getAllOnes(this->bw()).getZExtValue());
+
+    A::APInt val = A::APInt(this->bw(), dist(rng));
+    val *= p;
+    val += crt;
+
+    return val;
+  }
+
+  unsigned long distance(const IntegerModulo &rhs) const {
+    if (isBottom() && rhs.isBottom())
+      return 0;
+
+    if (isBottom())
+      return rhs.numTs;
+
+    if (rhs.isBottom())
+      return numTs;
+
     unsigned int d = 0;
     for (unsigned int i = 0; i < N; ++i)
       if (residues()[i] != rhs.residues()[i]) {
@@ -705,6 +804,8 @@ public:
 
     return r;
   }
+
+  static double maxDist(unsigned int _) { return 2 * N; }
 };
 
 static_assert(AbstractDomain<KnownBits>);

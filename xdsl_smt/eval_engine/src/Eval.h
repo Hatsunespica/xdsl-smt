@@ -43,94 +43,43 @@ public:
     return res;
   }
 
-  const std::tuple<D, D, D> genRand(unsigned int ebw, std::mt19937 &rng) const {
+  const std::tuple<D, D, D> genRand(unsigned int bw, std::mt19937 &rng,
+                                    int numConcSamples) const {
     while (true) {
-      D lhs = D::rand(rng, ebw);
-      D rhs = D::rand(rng, ebw);
-      D res = toBestAbst(lhs, rhs);
-      if (!res.isBottom())
+      const D lhs = D::rand(rng, bw);
+      const D rhs = D::rand(rng, bw);
+      if (numConcSamples == -1) {
+        const D res = toBestAbst(lhs, rhs);
+        if (!res.isBottom())
+          return {lhs, rhs, res};
+      } else {
+        D res = D::bottom(bw);
+
+        for (int i = 0; i < numConcSamples; ++i) {
+          const A::APInt lhsConc = lhs.getRandConcrete(rng);
+          const A::APInt rhsConc = rhs.getRandConcrete(rng);
+          if (!opCon || opCon.value()(lhsConc, rhsConc))
+            res = res.join(D::fromConcrete(concOp(lhsConc, rhsConc)));
+        }
+
         return {lhs, rhs, res};
+      }
     }
-  }
-};
-
-template <AbstractDomain D> class EnumAbstDomain {
-private:
-  // members
-  Jit jit;
-  unsigned int lbw;
-  unsigned int ubw;
-  EvalAbstOp<D> evalAbstOp;
-
-public:
-  EnumAbstDomain(Jit _jit, unsigned int _lbw, unsigned int _ubw)
-      : jit(std::move(_jit)), lbw(_lbw), ubw(_ubw),
-        evalAbstOp(jit.getFn<ConcOpFn>("concrete_op"),
-                   jit.getOptFn<OpConFn>("op_constraint")) {}
-
-  const std::vector<std::tuple<D, D, D>>
-  genRands(unsigned int samples, unsigned int ebw, std::mt19937 &rng) {
-    std::vector<std::tuple<D, D, D>> r;
-    for (unsigned int i = 0; i < samples; ++i)
-      r.push_back(evalAbstOp.genRand(ebw, rng));
-
-    return r;
-  }
-
-  const std::vector<std::tuple<D, D, D>> genLattice(unsigned int ebw) {
-    std::vector<std::tuple<D, D, D>> r;
-    const std::vector<D> fullLattice = D::enumVals(ebw);
-
-    for (D lhs : fullLattice)
-      for (D rhs : fullLattice)
-        r.push_back({lhs, rhs, evalAbstOp.toBestAbst(lhs, rhs)});
-
-    return r;
-  }
-
-  const std::vector<std::vector<std::tuple<D, D, D>>> genAllBws() {
-    std::vector<std::vector<std::tuple<D, D, D>>> r;
-
-    for (unsigned int ebw = lbw; ebw <= ubw; ++ebw)
-      r.push_back(genLattice(ebw));
-
-    return r;
-  }
-
-  const std::vector<std::vector<std::tuple<D, D, D>>>
-  genAllBwsRand(unsigned int seed, unsigned int samples) {
-    std::vector<std::vector<std::tuple<D, D, D>>> r;
-    std::mt19937 rng(seed);
-
-    for (unsigned int ebw = lbw; ebw <= std::min(ubw, 4u); ++ebw)
-      r.push_back(genLattice(ebw));
-
-    if (ubw > 4) {
-      unsigned int tmplbw = std::max(5u, lbw);
-      unsigned int sample_per_bw = samples / (ubw - tmplbw + 1);
-      for (unsigned int ebw = tmplbw; ebw <= ubw; ++ebw)
-        r.push_back(genRands(sample_per_bw, ebw, rng));
-    }
-
-    return r;
   }
 };
 
 template <AbstractDomain D> class Eval {
 private:
   // types
-  typedef bool (*AbsOpConFn)(D, D);
   typedef D (*XferFn)(D, D);
 
   // members
   Jit jit;
   std::vector<XferFn> xferFns;
   std::vector<XferFn> baseFns;
-  std::optional<AbsOpConFn> absOpCon;
-  EvalAbstOp<D> evalAbstOp;
 
   // methods
-  std::vector<D> synth_function_wrapper(const D &lhs, const D &rhs) const {
+  std::vector<D> synFnWrapper(const D &lhs, const D &rhs) const {
     std::vector<D> r;
     std::transform(
         xferFns.begin(), xferFns.end(), std::back_inserter(r),
@@ -138,7 +87,7 @@ private:
     return r;
   }
 
-  std::vector<D> base_function_wrapper(const D &lhs, const D &rhs) const {
+  std::vector<D> refFnWrapper(const D &lhs, const D &rhs) const {
     std::vector<D> r;
     std::transform(
         baseFns.begin(), baseFns.end(), std::back_inserter(r),
@@ -146,35 +95,17 @@ private:
     return r;
   }
 
-public:
-  Eval(Jit _jit, const std::vector<std::string> synthFnNames,
-       const std::vector<std::string> baseFnNames)
-      : jit(std::move(_jit)), xferFns(jit.getFns<XferFn>(synthFnNames)),
-        baseFns(jit.getFns<XferFn>(baseFnNames)),
-        absOpCon(jit.getOptFn<AbsOpConFn>("abs_op_constraint")),
-        evalAbstOp(EvalAbstOp<D>(jit.getFn<ConcOpFn>("concrete_op"),
-                                 jit.getOptFn<OpConFn>("op_constraint"))) {}
-
-  void evalSingle(const D &lhs, const D &rhs, const D &best, Results &r) {
-    // skip this pair if absOpCon returns false
-    if (absOpCon && !absOpCon.value()(lhs, rhs))
-      return;
-
-    // skip the pair if there are no concrete values in the result
-    if (best.isBottom())
-      return;
-
-    std::vector<D> synth_results(synth_function_wrapper(lhs, rhs));
-    std::vector<D> ref_results(base_function_wrapper(lhs, rhs));
-    D ref_meet = D::meetAll(ref_results, lhs.bw());
-    bool solved = ref_meet == best;
-    unsigned int baseDis = ref_meet.distance(best);
+  void evalSingle(const D &lhs, const D &rhs, const D &best, Results &r) const {
+    std::vector<D> synth_results(synFnWrapper(lhs, rhs));
+    D ref = D::meetAll(refFnWrapper(lhs, rhs), lhs.bw());
+    bool solved = ref == best;
+    unsigned long baseDis = ref.distance(best);
     for (unsigned int i = 0; i < synth_results.size(); ++i) {
-      D synth_after_meet = ref_meet.meet(synth_results[i]);
+      D synth_after_meet = ref.meet(synth_results[i]);
       bool sound = synth_after_meet.isSuperset(best);
       bool exact = synth_after_meet == best;
-      unsigned int dis = synth_after_meet.distance(best);
-      unsigned int soundDis = sound ? dis : baseDis;
+      unsigned long dis = synth_after_meet.distance(best);
+      unsigned long soundDis = sound ? dis : baseDis;
 
       r.incResult(Result(sound, dis, exact, solved, soundDis), i);
     }
@@ -182,36 +113,19 @@ public:
     r.incCases(solved, baseDis);
   }
 
-  const std::vector<std::tuple<D, D, D>>
-  rejectSample(unsigned int bw, unsigned int samples, std::mt19937 &rng) const {
-    std::vector<std::tuple<D, D, D>> r;
+public:
+  Eval(Jit _jit, const std::vector<std::string> synthFnNames,
+       const std::vector<std::string> baseFnNames)
+      : jit(std::move(_jit)), xferFns(jit.getFns<XferFn>(synthFnNames)),
+        baseFns(jit.getFns<XferFn>(baseFnNames)) {}
 
-    for (unsigned int i = 0; i < samples; ++i) {
-      while (true) {
-        auto [lhs, rhs, res] = evalAbstOp.genRand(bw, rng);
-
-        if (absOpCon && !absOpCon.value()(lhs, rhs))
-          continue;
-
-        std::vector<D> ref_results(base_function_wrapper(lhs, rhs));
-        D ref_meet = D::meetAll(ref_results, bw);
-
-        if (ref_meet != res) {
-          r.push_back({lhs, rhs, res});
-          break;
-        }
-      }
-    }
-
-    return r;
-  }
-
-  const std::vector<Results>
-  eval(const std::vector<std::vector<std::tuple<D, D, D>>> toEval) {
-    std::vector<Results> r(toEval.size(),
-                           static_cast<unsigned int>(xferFns.size()));
+  const std::vector<Results> eval(const ToEval<D> toEval) const {
+    std::vector<Results> r;
 
     for (unsigned int i = 0; i < toEval.size(); ++i) {
+      r.push_back(
+          {static_cast<unsigned int>(xferFns.size()), getBw(toEval[i])});
+
       for (unsigned int j = 0; j < toEval[i].size(); ++j) {
         auto [lhs, rhs, best] = toEval[i][j];
         evalSingle(lhs, rhs, best, r[i]);
@@ -223,30 +137,29 @@ public:
 
   template <typename LLVM_D>
   const std::vector<Results>
-  evalFinal(const std::vector<std::vector<std::tuple<D, D, D>>> toEval,
+  evalFinal(const ToEval<D> toEval,
             const std::optional<LLVMXferFn<LLVM_D>> &llvmXfer,
-            const XferWrap<D, LLVM_D> &llvmXferWrapper) {
-    std::vector<Results> r(toEval.size(), 4);
+            const XferWrap<D, LLVM_D> &llvmXferWrapper) const {
+    std::vector<Results> r;
 
     for (unsigned int i = 0; i < toEval.size(); ++i) {
-      D top = D::top(std::get<0>(toEval[i][0]).bw());
+      r.push_back({4, getBw(toEval[i])});
+
+      D top = D::top(getBw(toEval[i]));
       for (unsigned int j = 0; j < toEval[i].size(); ++j) {
         auto [lhs, rhs, best] = toEval[i][j];
 
-        if (best.isBottom())
-          continue;
-
         bool topExact = top == best;
-        unsigned int topDis = top.distance(best);
+        unsigned long topDis = top.distance(best);
 
-        D synth = base_function_wrapper(lhs, rhs)[0];
+        D synth = refFnWrapper(lhs, rhs)[0];
         bool synthExact = synth == best;
-        unsigned int synthDis = synth.distance(best);
+        unsigned long synthDis = synth.distance(best);
 
         bool llvmExact = false;
-        unsigned int llvmDis = 0;
+        unsigned long llvmDis = 0;
         bool meetExact = false;
-        unsigned int meetDis = 0;
+        unsigned long meetDis = 0;
         if (llvmXfer) {
           D xferRes = llvmXferWrapper(lhs, rhs, llvmXfer.value());
           llvmExact = xferRes == best;

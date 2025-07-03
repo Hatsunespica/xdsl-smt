@@ -134,19 +134,18 @@ def synth_run(
             num_programs=args.num_programs,
             program_length=args.program_length,
             inv_temp=args.inv_temp,
-            max_bitwidth=args.max_bitwidth,
-            min_bitwidth=args.min_bitwidth,
+            lbws=args.lbw,
+            mbws=args.mbw,
+            hbws=args.hbw,
             solution_size=args.solution_size,
             num_iters=args.num_iters,
             condition_length=args.condition_length,
             num_abd_procs=args.num_abd_procs,
-            num_random_tests=args.num_random_tests,
             random_seed=args.random_seed,
             random_number_file=None,
             total_rounds=args.total_rounds,
             transfer_functions=tf_path,
             weighted_dsl=args.weighted_dsl,
-            const_rhs=False,
             num_unsound_candidates=args.num_unsound_candidates,
             outputs_folder=output_folder,
         )
@@ -161,7 +160,7 @@ def synth_run(
                     "Exact Proportion": per_bit_res.get_exact_prop() * 100,
                     "Distance": per_bit_res.dist,
                 }
-                for per_bit_res in res.per_bit
+                for per_bit_res in res.per_bit_res
             ],
             "Seed": args.random_seed,
         }

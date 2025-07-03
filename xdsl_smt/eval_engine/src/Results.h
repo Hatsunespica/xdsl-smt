@@ -1,8 +1,10 @@
 #ifndef Results_H
 #define Results_H
 
-#include <cstdio>
 #include <functional>
+#include <iomanip>
+#include <iostream>
+#include <optional>
 #include <string_view>
 #include <vector>
 
@@ -10,20 +12,15 @@ class Result {
 public:
   Result() = default;
 
-  Result(unsigned int s, unsigned int p, unsigned int e, bool solved,
-         unsigned int sd)
-      : sound(s), precise(p), exact(e), soundDistance(sd) {
-    unsolvedSound = !solved ? s : 0;
-    unsolvedPrecise = !solved ? p : 0;
+  Result(bool s, unsigned long p, bool e, bool solved, unsigned long sd)
+      : sound(s), distance(p), exact(e), soundDistance(sd) {
     unsolvedExact = !solved ? e : 0;
   }
 
   Result &operator+=(const Result &rhs) {
     sound += rhs.sound;
-    precise += rhs.precise;
+    distance += rhs.distance;
     exact += rhs.exact;
-    unsolvedSound += rhs.unsolvedSound;
-    unsolvedPrecise += rhs.unsolvedPrecise;
     unsolvedExact += rhs.unsolvedExact;
     soundDistance += rhs.soundDistance;
 
@@ -33,66 +30,77 @@ public:
   friend class Results;
 
 private:
-  unsigned int sound;
-  unsigned int precise;
-  unsigned int exact;
-  unsigned int unsolvedSound;
-  unsigned int unsolvedPrecise;
-  unsigned int unsolvedExact;
-  unsigned int soundDistance;
+  unsigned long sound;
+  unsigned long distance;
+  unsigned long exact;
+  unsigned long unsolvedExact;
+  unsigned long soundDistance;
 };
 
 class Results {
 private:
+  unsigned int bw = {};
   std::vector<Result> r;
   unsigned int cases = {};
   unsigned int unsolvedCases = {};
-  unsigned int basePrecise = {};
+  unsigned int baseDistance = {};
 
 public:
-  Results(unsigned int numFns) { r = std::vector<Result>(numFns); }
-
-  void printMember(
-      std::string_view name,
-      const std::function<unsigned int(const Result &x)> &getter) const {
-    printf("%s:\n[", name.data());
-    for (auto x : r)
-      printf("%d, ", getter(x));
-    printf("]\n");
+  Results(unsigned int numFns, unsigned int bw_) : bw(bw_) {
+    r = std::vector<Result>(numFns);
   }
 
-  void print() const {
-    printMember("sound", [](const Result &x) { return x.sound; });
-    printMember("precise", [](const Result &x) { return x.precise; });
-    printMember("exact", [](const Result &x) { return x.exact; });
-    printMember("num_cases", [this](const Result &x) {
-      (void)x;
-      return cases;
-    });
-    printMember("unsolved_sound",
-                [](const Result &x) { return x.unsolvedSound; });
-    printMember("unsolved_precise",
-                [](const Result &x) { return x.unsolvedPrecise; });
-    printMember("unsolved_exact",
-                [](const Result &x) { return x.unsolvedExact; });
-    printMember("unsolved_num_cases", [this](const Result &x) {
-      (void)x;
-      return unsolvedCases;
-    });
-    printMember("base_precise", [this](const Result &x) {
-      (void)x;
-      return basePrecise;
-    });
-    printMember("sound_distance",
-                [](const Result &x) { return x.soundDistance; });
+  void printMember(std::ostream &os, std::string_view name,
+                   const std::function<unsigned int(const Result &x)> &getter,
+                   const std::optional<double> &maxDist) const {
+    os << std::left << std::setw(20) << name;
+    os << "[";
+    for (auto it = r.begin(); it != r.end(); ++it) {
+      os << std::right << std::setw(8);
+      if (maxDist)
+        os << getter(*it) / maxDist.value();
+      else
+        os << getter(*it);
+      if (std::next(it) != r.end())
+        os << ", ";
+      else
+        os << "]\n";
+    }
+  }
+
+  void print(std::ostream &os,
+             const std::function<double(unsigned int)> &maxDist) const {
+    os << std::left << std::setw(20) << "bw:" << bw << "\n";
+    os << std::left << std::setw(20) << "num cases:" << cases << "\n";
+    os << std::left << std::setw(20) << "num unsolved:" << unsolvedCases
+       << "\n";
+    os << std::left << std::setw(20)
+       << "base distance:" << baseDistance / maxDist(bw) << "\n";
+    printMember(
+        os, "num sound:", [](const Result &x) { return x.sound; },
+        std::nullopt);
+    printMember(
+        os, "distance:", [](const Result &x) { return x.distance; },
+        maxDist(bw));
+    printMember(
+        os, "num exact:", [](const Result &x) { return x.exact; },
+        std::nullopt);
+    printMember(
+        os,
+        "num unsolved exact:", [](const Result &x) { return x.unsolvedExact; },
+        std::nullopt);
+    printMember(
+        os, "sound distance:", [](const Result &x) { return x.soundDistance; },
+        maxDist(bw));
+    os << "---\n";
   }
 
   void incResult(const Result &newR, unsigned int i) { r[i] += newR; }
 
-  void incCases(bool solved, unsigned int dis) {
+  void incCases(bool solved, unsigned long dis) {
     cases += 1;
     unsolvedCases += !solved ? 1 : 0;
-    basePrecise += dis;
+    baseDistance += dis;
   }
 };
 

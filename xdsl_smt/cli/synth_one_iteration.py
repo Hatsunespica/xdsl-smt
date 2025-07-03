@@ -213,7 +213,8 @@ def synthesize_one_iteration(
                 # Update sound_most_exact_tfs
                 if (
                     res.is_sound()
-                    and res.get_improve() > sound_most_improve_tfs[i][1].get_improve()
+                    and res.get_potential_improve()
+                    > sound_most_improve_tfs[i][1].get_potential_improve()
                 ):
                     sound_most_improve_tfs[i] = tmp_tuple
                 # Update most_exact_tfs
@@ -233,14 +234,11 @@ def synthesize_one_iteration(
             res_cost = spl.compute_current_cost()
             sound_prop = spl.current_cmp.get_sound_prop() * 100
             exact_prop = spl.current_cmp.get_unsolved_exact_prop() * 100
-
-            # avg_dist_norm = spl.current_cmp.get_unsolved_dist_avg_norm(domain.max_dist)
             base_dis = spl.current_cmp.get_base_dist()
             new_dis = spl.current_cmp.get_sound_dist()
             logger.debug(
-                f"{ith_iter}_{rnd}_{i}\t{sound_prop:.2f}%\t{exact_prop:.2f}%\t{base_dis}->{new_dis}\t{res_cost:.3f}"
+                f"{ith_iter}_{rnd}_{i}\t{sound_prop:.2f}%\t{exact_prop:.2f}%\t{base_dis:.2f}->{new_dis:.2f}\t{res_cost:.3f}"
             )
-
             cost_data[i].append(res_cost)
 
         logger.debug(f"Used Time: {used_time:.2f}")
@@ -264,7 +262,7 @@ def synthesize_one_iteration(
     for i in list(sp_range) + list(p_range):
         if (
             sound_most_improve_tfs[i][1].is_sound()
-            and sound_most_improve_tfs[i][1].get_improve() > 0
+            and sound_most_improve_tfs[i][1].get_potential_improve() > 0
         ):
             candidates_sp.append(FunctionWithCondition(sound_most_improve_tfs[i][0]))
         if (
@@ -275,7 +273,7 @@ def synthesize_one_iteration(
     for i in c_range:
         if (
             sound_most_improve_tfs[i][1].is_sound()
-            and sound_most_improve_tfs[i][1].get_improve() > 0
+            and sound_most_improve_tfs[i][1].get_potential_improve() > 0
         ):
             candidates_c.append(
                 FunctionWithCondition(
