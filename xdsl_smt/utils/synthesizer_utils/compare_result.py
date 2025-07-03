@@ -88,6 +88,7 @@ class EvalResult:
         cls.hbws = hbws
 
     def __init__(self, per_bit_res: list[PerBitRes]):
+        per_bit_res.sort(key=lambda x: x.bitwidth)
         self.per_bit_res = per_bit_res
         self.max_bit = max(per_bit_res, key=lambda x: x.bitwidth).bitwidth
         self.all_cases = sum(res.all_cases for res in per_bit_res)
