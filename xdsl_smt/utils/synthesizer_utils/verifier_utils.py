@@ -62,7 +62,7 @@ from xdsl_smt.semantics.transfer_semantics import (
 from xdsl_smt.semantics.comb_semantics import comb_semantics
 
 
-def verify_pattern(ctx: Context, op: ModuleOp) -> bool:
+def verify_pattern(ctx: Context, op: ModuleOp, timeout: int) -> bool | None:
     cloned_op = op.clone()
     stream = StringIO()
     LowerPairs().apply(ctx, cloned_op)
@@ -70,12 +70,16 @@ def verify_pattern(ctx: Context, op: ModuleOp) -> bool:
     DeadCodeElimination().apply(ctx, cloned_op)
 
     print_to_smtlib(cloned_op, stream)
-    res = subprocess.run(
-        ["z3", "-in"],
-        capture_output=True,
-        input=stream.getvalue(),
-        text=True,
-    )
+    try:
+        res = subprocess.run(
+            ["z3", "-in"],
+            capture_output=True,
+            input=stream.getvalue(),
+            text=True,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired:
+        return None
 
     if res.returncode != 0:
         raise Exception(res.stderr)
@@ -252,7 +256,8 @@ def soundness_check(
     instance_constraint: FunctionCollection,
     int_attr: dict[int, int],
     ctx: Context,
-) -> bool:
+    timeout: int,
+) -> bool | None:
     query_module = ModuleOp([])
     if smt_transfer_function.is_forward:
         added_ops: list[Operation] = forward_soundness_check(
@@ -271,7 +276,7 @@ def soundness_check(
     query_module.body.block.add_ops(added_ops)
     FunctionCallInline(True, {}).apply(ctx, query_module)
 
-    return verify_pattern(ctx, query_module)
+    return verify_pattern(ctx, query_module, timeout)
 
 
 def verify_smt_transfer_function(
@@ -279,7 +284,8 @@ def verify_smt_transfer_function(
     domain_constraint: FunctionCollection,
     instance_constraint: FunctionCollection,
     ctx: Context,
-) -> bool:
+    timeout: int,
+) -> bool | None:
     # Soundness check
     int_attr = generate_int_attr_arg(smt_transfer_function.int_attr_arg)
     # assert current use has no int_attr
@@ -294,10 +300,11 @@ def verify_smt_transfer_function(
         instance_constraint,
         int_attr,
         ctx,
+        timeout,
     )
-    if not soundness_result:
-        return False
-    return True
+    if soundness_result is None:
+        return None
+    return soundness_result
 
 
 def build_init_module(
@@ -375,7 +382,8 @@ def verify_transfer_function(
     ctx: Context,
     min_verify_bits: int,
     max_verify_bits: int,
-) -> int:
+    timeout: int,
+) -> int | None:
     is_custom_concrete_func = check_custom_concrete_func(concrete_func)
     (
         module_op,
@@ -481,7 +489,10 @@ def verify_transfer_function(
             domain_constraint,
             instance_constraint,
             ctx,
+            timeout,
         )
+        if result is None:
+            return None
 
         if not result:
             return width

@@ -31,12 +31,13 @@ def verify_function(
     concrete_op: FuncOp,
     helper_funcs: list[FuncOp],
     ctx: Context,
-) -> int:
+    timeout: int,
+) -> int | None:
     cur_helper = [func.func]
     if func.cond is not None:
         cur_helper.append(func.cond)
     return verify_transfer_function(
-        func.get_function(), concrete_op, cur_helper + helper_funcs, ctx, 1, 32
+        func.get_function(), concrete_op, cur_helper + helper_funcs, ctx, 1, 32, timeout
     )
 
 
@@ -269,8 +270,16 @@ class UnsizedSolutionSet(SolutionSet):
             )
 
             if (cand in new_candidates_sp) or (cand in new_candidates_c):
-                unsound_bit = verify_function(cand, concrete_op, helper_funcs, ctx)
-                if unsound_bit != 0:
+                unsound_bit = verify_function(
+                    cand, concrete_op, helper_funcs, ctx, timeout=200
+                )
+                if unsound_bit is None:
+                    self.logger.error(
+                        f"Skip a function of which verification timed out, body: {body_number}, cond: {cond_number}"
+                    )
+                    candidates.remove(cand)
+                    continue
+                elif unsound_bit != 0:
                     self.logger.info(
                         f"Skip a unsound function at bit width {unsound_bit}, body: {body_number}, cond: {cond_number}"
                     )
