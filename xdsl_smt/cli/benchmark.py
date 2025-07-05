@@ -60,29 +60,6 @@ all_test_names = [
     "Xor.mlir",
 ]
 
-kb_tests = [
-    "Add.mlir",
-    "AddNsw.mlir",
-    "AddNuw.mlir",
-    "And.mlir",
-    "Mul.mlir",
-    "AvgFloorU.mlir",
-    "Lshr.mlir",
-    "Shl.mlir",
-    "UdivExact.mlir",
-    "Udiv.mlir",
-    "Umax.mlir",
-]
-
-cr_tests = [
-    "Add.mlir",
-    "AddNuw.mlir",
-    "And.mlir",
-    "Shl.mlir",
-    "Mul.mlir",
-    "Udiv.mlir",
-    "Umax.mlir",
-]
 
 im_tests = [
     "AddNsw.mlir",
@@ -126,19 +103,18 @@ def synth_run(
             num_programs=args.num_programs,
             program_length=args.program_length,
             inv_temp=args.inv_temp,
-            max_bitwidth=args.max_bitwidth,
-            min_bitwidth=args.min_bitwidth,
+            lbws=args.lbw,
+            mbws=args.mbw,
+            hbws=args.hbw,
             solution_size=args.solution_size,
             num_iters=args.num_iters,
             condition_length=args.condition_length,
             num_abd_procs=args.num_abd_procs,
-            num_random_tests=args.num_random_tests,
             random_seed=args.random_seed,
             random_number_file=None,
             total_rounds=args.total_rounds,
             transfer_functions=tf_path,
             weighted_dsl=args.weighted_dsl,
-            const_rhs=False,
             num_unsound_candidates=args.num_unsound_candidates,
             outputs_folder=output_folder,
         )
@@ -148,12 +124,12 @@ def synth_run(
             "Function": func_name,
             "Per Bit Result": [
                 {
-                    "Bitwidth": bw,
+                    "Bitwidth": per_bit_res.bitwidth,
                     "Sound Proportion": per_bit_res.get_sound_prop() * 100,
                     "Exact Proportion": per_bit_res.get_exact_prop() * 100,
                     "Distance": per_bit_res.dist,
                 }
-                for bw, per_bit_res in res.per_bit.items()
+                for per_bit_res in res.per_bit_res
             ],
             "Seed": args.random_seed,
         }
@@ -176,16 +152,6 @@ def main() -> None:
         raise FileExistsError(
             f'Output folder "{args.outputs_folder}" already exists. Please remove it or choose a different one.'
         )
-
-    kb_inputs = [
-        (x.split(".")[0], AbstractDomain.KnownBits, start_dir.joinpath(x), args)
-        for x in kb_tests
-    ]
-
-    cr_inputs = [
-        (x.split(".")[0], AbstractDomain.ConstantRange, start_dir.joinpath(x), args)
-        for x in cr_tests
-    ]
 
     im_inputs = [
         (x.split(".")[0], AbstractDomain.IntegerModulo, start_dir.joinpath(x), args)

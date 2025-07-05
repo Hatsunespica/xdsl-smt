@@ -57,15 +57,18 @@ class MCMCSampler:
     current_cmp: EvalResult
     context: SynthesizerContext
     random: Random
-    compute_cost: Callable[[EvalResult], float]
+    cost_func: Callable[[EvalResult, float], float]
+    step_cnt: int
+    total_steps: int
     is_cond: bool
 
     def __init__(
         self,
         func: FuncOp,
         context: SynthesizerContext,
-        compute_cost: Callable[[EvalResult], float],
+        cost_func: Callable[[EvalResult, float], float],
         length: int,
+        total_steps: int,
         reset_init_program: bool = True,
         random_init_program: bool = True,
         is_cond: bool = False,
@@ -77,14 +80,18 @@ class MCMCSampler:
                 [i1],
             )
             func = FuncOp("cond", cond_type)
-
         self.context = context
-        self.compute_cost = compute_cost
+        self.cost_func = cost_func
+        self.total_steps = total_steps
+        self.step_cnt = 0
         self.random = context.get_random_class()
         if reset_init_program:
             self.current = self.construct_init_program(func, length)
             if random_init_program:
                 self.reset_to_random_prog(length)
+
+    def compute_cost(self, cmp: EvalResult) -> float:
+        return self.cost_func(cmp, self.step_cnt / self.total_steps)
 
     def compute_current_cost(self):
         return self.compute_cost(self.current_cmp)
@@ -95,9 +102,11 @@ class MCMCSampler:
     def accept_proposed(self, proposed_cmp: EvalResult):
         self.current.remove_history()
         self.current_cmp = proposed_cmp
+        self.step_cnt += 1
 
     def reject_proposed(self):
         self.current.revert_operation()
+        self.step_cnt += 1
 
     def replace_entire_operation(self, idx: int, history: bool):
         """

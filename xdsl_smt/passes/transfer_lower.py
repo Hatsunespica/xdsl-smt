@@ -1,8 +1,9 @@
 from typing import TextIO
-from xdsl.dialects.func import *
-from xdsl.pattern_rewriter import *
 from functools import singledispatch
 from dataclasses import dataclass
+
+from xdsl.dialects.func import FuncOp
+from xdsl.dialects.builtin import ModuleOp
 from xdsl.passes import ModulePass
 
 from xdsl.ir import Operation
@@ -23,13 +24,12 @@ from xdsl.pattern_rewriter import (
     PatternRewriteWalker,
     GreedyRewritePatternApplier,
 )
-from xdsl.dialects import builtin
 
 autogen = 0
 
 
 @singledispatch
-def transferFunction(op, fout):
+def transferFunction(op: Operation, fout: TextIO):
     pass
 
 
@@ -41,13 +41,11 @@ inductionOp: list[FuncOp] = []
 
 
 @transferFunction.register
-def _(op: Operation, fout):
+def _(op: Operation, fout: TextIO):
     global needDispatch
     global inductionOp
     if isinstance(op, ModuleOp):
         return
-        # print(lowerDispatcher(needDispatch))
-        # fout.write(lowerDispatcher(needDispatch))
     if len(op.results) > 0 and op.results[0].name_hint is None:
         global autogen
         op.results[0].name_hint = "autogen" + str(autogen)
@@ -72,11 +70,11 @@ def _(op: Operation, fout):
 
 @dataclass
 class LowerOperation(RewritePattern):
-    def __init__(self, fout):
+    def __init__(self, fout: TextIO):
         self.fout = fout
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: Operation, _: PatternRewriter):
         transferFunction(op, self.fout)
 
 
@@ -89,17 +87,16 @@ def addInductionOps(fout: TextIO):
 def addDispatcher(fout: TextIO, is_forward: bool):
     global needDispatch
     if len(needDispatch) != 0:
-        # print(lowerDispatcher(needDispatch))
         fout.write(lowerDispatcher(needDispatch, is_forward))
 
 
 @dataclass(frozen=True)
 class LowerToCpp(ModulePass):
     name = "trans_lower"
-    fout: TextIO = None
+    fout: TextIO
     int_to_apint: bool = False
 
-    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         global autogen
         autogen = 0
         set_int_to_apint(self.int_to_apint)

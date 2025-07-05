@@ -2,6 +2,8 @@
 
 # run this script on cloudlab with:
 # `nohup ./cloudlab_setup.sh > out_logs.txt 2> err_logs.txt < /dev/null &`
+# `nohup benchmark-synth > out_logs.txt 2> err_logs.txt < /dev/null &`
+# `nohup eval-final ./tests/synth/Operations/ ./outputs/ -min_bitwidth 8 -max_bitwidth 8 -random_seed 2333 -num_random_tests 500000  > out_logs.txt 2> err_logs.txt < /dev/null &`
 # to check on the progress you can run any of the following:
 # `ps aux | grep cloudlab_setup.sh`
 # `tail -f out_logs.txt`

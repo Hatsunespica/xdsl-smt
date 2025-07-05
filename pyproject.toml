@@ -3,7 +3,7 @@ name = "xdsl-smt"
 version = "0.0.0"
 dependencies = [
   "z3-solver==4.12.1.0",
-  "xdsl==0.36.0",
+  "xdsl==0.41.0",
 ]
 
 [project.optional-dependencies]
@@ -32,11 +32,13 @@ xdsl-translate = "xdsl_smt.cli.xdsl_translate:main"
 verify-pdl = "xdsl_smt.cli.verify_pdl:main"
 verifier = "xdsl_smt.cli.transfer_function_verifier:main"
 cpp-translate = "xdsl_smt.cli.cpp_translate:main"
+generate-equivalent-boolean-smts = "xdsl_smt.cli.generate_equivalent_boolean_smts:main"
 superoptimize = "xdsl_smt.cli.superoptimize:main"
 syn-test = "xdsl_smt.cli.syn_test:main"
 synth-transfer = "xdsl_smt.cli.synth_transfer:main"
 benchmark-synth = "xdsl_smt.cli.benchmark:main"
 eval-final = "xdsl_smt.cli.eval_final:main"
+xdsl-smt-run = "xdsl_smt.cli.xdsl_smt_run:main"
 
 [build-system]
 requires = ["setuptools>=61", "wheel"]
@@ -48,14 +50,4 @@ reportImportCycles = false
 reportUnnecessaryIsInstance = false
 typeCheckingMode = "strict"
 include = ["xdsl_smt"]
-ignore = [
-  "xdsl_smt/utils/z3_to_dialect.py",
-  "xdsl_smt/utils/integer_to_z3.py",
-  "xdsl_smt/utils/lower_utils.py",
-  "xdsl_smt/passes/calculate_smt.py",
-  "xdsl_smt/passes/transfer_lower.py",
-  "xdsl_smt/cli/xdsl_translate.py",
-  "xdsl_smt/cli/verifier.py",
-  "tests",
-  "outputs"
-]
+ignore = ["tests", "outputs"]

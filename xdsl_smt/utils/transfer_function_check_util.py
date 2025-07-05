@@ -24,7 +24,7 @@ from ..dialects.smt_dialect import (
     ForallOp,
     AndOp,
     OrOp,
-    XorOp,
+    XOrOp,
     EqOp,
     IteOp,
     DistinctOp,
@@ -581,7 +581,7 @@ def get_forall_crt_res_prime_constraint(
         forall_crt_res_prime_constraint_consequent_eq.res,
     )
     forall_crt_res_prime_constraint_yield = YieldOp(
-        forall_crt_res_prime_constraint_imply.res
+        forall_crt_res_prime_constraint_imply.result
     )
 
     forall_crt_res_prime_constraint_block.add_ops(
@@ -960,7 +960,7 @@ def module_op_validity_check(module: ModuleOp) -> bool:
         if (
             isinstance(op, AndOp)
             or isinstance(op, OrOp)
-            or isinstance(op, XorOp)
+            or isinstance(op, XOrOp)
             or isinstance(op, EqOp)
         ):
             return op.operands[0].type == op.operands[1].type

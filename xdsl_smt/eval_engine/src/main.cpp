@@ -1,34 +1,45 @@
-#include <filesystem>
 #include <iostream>
 #include <iterator>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "AbstVal.h"
 #include "Eval.h"
+#include "Results.h"
 #include "jit.h"
+#include "llvm_tests.h"
 #include "utils.cpp"
 
-template <typename D>
-const std::pair<std::vector<unsigned int>,
-                std::vector<std::vector<std::tuple<D, D, D>>>>
-getToEval(const std::string dirName) {
-  std::vector<std::vector<std::tuple<D, D, D>>> v;
-  std::vector<unsigned int> bws;
+template <typename D, typename LLVM_D>
+void handleDomain(
+    const std::string &dataDir, const std::vector<std::string> &synNames,
+    const std::vector<std::string> &bFnNames, const std::string &srcCode,
+    const std::string &opName,
+    const std::vector<std::tuple<std::string, std::optional<XferFn<LLVM_D>>>>
+        &llvmTests,
+    const XferWrap<D, LLVM_D> &llvmXferWrapper) {
+  Jit jit(srcCode);
+  auto [low, med, high] = getToEval<D>(dataDir);
 
-  for (const std::filesystem::directory_entry &entry :
-       std::filesystem::directory_iterator(dirName)) {
-    std::vector<std::string> split_fname = split_whitespace(entry.path());
-    unsigned int elems = static_cast<unsigned int>(
-        std::atol(split_fname[split_fname.size() - 1].data()));
+  Eval<D> e(std::move(jit), synNames, bFnNames);
+  if (opName == "") {
+    for (const Results &x : e.eval(high))
+      x.print(std::cout, D::maxDist);
+    for (const Results &x : e.eval(med))
+      x.print(std::cout, D::maxDist);
+    for (const Results &x : e.eval(low))
+      x.print(std::cout, D::maxDist);
+  } else {
+    std::optional<XferFn<LLVM_D>> llvmXfer = makeTest(llvmTests, opName);
 
-    bws.push_back(static_cast<unsigned int>(
-        std::atol(split_fname[split_fname.size() - 3].data())));
-
-    v.push_back(read_vecs<D>(entry.path(), elems));
+    for (const Results &x : e.evalFinal(high, llvmXfer, llvmXferWrapper))
+      x.print(std::cout, D::maxDist);
+    for (const Results &x : e.evalFinal(med, llvmXfer, llvmXferWrapper))
+      x.print(std::cout, D::maxDist);
+    for (const Results &x : e.evalFinal(low, llvmXfer, llvmXferWrapper))
+      x.print(std::cout, D::maxDist);
   }
-
-  return {bws, v};
 }
 
 int main() {
@@ -38,35 +49,42 @@ int main() {
   std::string domain;
   std::getline(std::cin, domain);
 
-  std::string tmpStr;
-  std::getline(std::cin, tmpStr);
-  std::vector<std::string> synNames = split_whitespace(tmpStr);
+  std::string opName;
+  std::getline(std::cin, opName);
 
-  std::getline(std::cin, tmpStr);
-  std::vector<std::string> bFnNames = split_whitespace(tmpStr);
-
+  std::vector<std::string> synNames = parseStrList(std::cin);
+  std::vector<std::string> bFnNames = parseStrList(std::cin);
   std::string fnSrcCode(std::istreambuf_iterator<char>(std::cin), {});
-  Jit jit(fnSrcCode);
 
-  std::pair<std::vector<unsigned int>, std::vector<Results>> r;
+  if (opName != "" && synNames.size() != 0) {
+    std::cerr << "No synthed functions allowed on final eval\n";
+    exit(1);
+  }
+
+  if (opName != "" && bFnNames.size() != 1) {
+    std::cerr << "Only one reference function allowed on final eval\n";
+    exit(1);
+  }
+
   if (domain == "KnownBits") {
-    auto [bws, toEval] = getToEval<KnownBits>(fname);
-    r = {bws, Eval<KnownBits>(std::move(jit), synNames, bFnNames).eval(toEval)};
-  } else if (domain == "ConstantRange") {
-    auto [bws, toEval] = getToEval<ConstantRange>(fname);
-    r = {bws,
-         Eval<ConstantRange>(std::move(jit), synNames, bFnNames).eval(toEval)};
+    handleDomain<KnownBits, llvm::KnownBits>(fname, synNames, bFnNames,
+                                             fnSrcCode, opName, KB_TESTS,
+                                             kb_xfer_wrapper);
+  } else if (domain == "UConstRange") {
+    handleDomain<UConstRange, llvm::ConstantRange>(fname, synNames, bFnNames,
+                                                   fnSrcCode, opName, UCR_TESTS,
+                                                   ucr_xfer_wrapper);
+  } else if (domain == "SConstRange") {
+    handleDomain<SConstRange, std::nullopt_t>(fname, synNames, bFnNames,
+                                              fnSrcCode, opName, EMPTY_TESTS,
+                                              scr_xfer_wrapper);
   } else if (domain == "IntegerModulo") {
-    auto [bws, toEval] = getToEval<IntegerModulo<6>>(fname);
-    r = {bws, Eval<IntegerModulo<6>>(std::move(jit), synNames, bFnNames)
-                  .eval(toEval)};
-  } else
+    handleDomain<IntegerModulo<6>, std::nullopt_t>(
+        fname, synNames, bFnNames, fnSrcCode, opName, EMPTY_TESTS,
+        im_xfer_wrapper);
+  } else {
     std::cerr << "Unknown domain: " << domain << "\n";
-
-  for (unsigned int i = 0; i < r.first.size(); ++i) {
-    std::cout << "bw: " << r.first[i] << "\n";
-    r.second[i].print();
-    std::cout << "---\n";
+    exit(1);
   }
 
   return 0;

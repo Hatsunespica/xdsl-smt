@@ -61,38 +61,6 @@ target_compile_options(eval_engine PRIVATE
     -Wno-unused-command-line-argument
 )
 
-add_executable(llvm_eval
-  src/llvm_eval/llvm_eval.cpp
-  src/llvm_eval/cr_tests.h
-  src/llvm_eval/kb_tests.h
-  src/llvm_eval/common.cpp
-)
-
-target_include_directories(llvm_eval PRIVATE
-  ${CMAKE_BINARY_DIR}
-  ${LLVM_INCLUDE_DIRS}
-  ${CLANG_INCLUDE_DIRS}
-)
-
-target_compile_options(llvm_eval PRIVATE
-    -Wall
-    -Wextra
-    -Wpedantic
-    -Werror
-    -Wshadow
-    -Wconversion
-    -Wsign-conversion
-    -Wold-style-cast
-    -Wcast-qual
-    -Wformat=2
-    -O3
-    -march=native
-    -flto
-    -DNDEBUG
-    -fstrict-enums
-    -Wno-unused-command-line-argument
-)
-
 add_executable(xfer_enum
   src/xfer_enum/xfer_enum.cpp
 )
@@ -122,45 +90,12 @@ target_compile_options(xfer_enum PRIVATE
     -Wno-unused-command-line-argument
 )
 
-add_executable(reject_sampling
-  src/reject_sampling/reject_sampling.cpp
-)
-
-target_include_directories(reject_sampling PRIVATE
-  ${CMAKE_BINARY_DIR}
-  ${LLVM_INCLUDE_DIRS}
-  ${CLANG_INCLUDE_DIRS}
-)
-
-target_compile_options(reject_sampling PRIVATE
-    -Wall
-    -Wextra
-    -Wpedantic
-    -Werror
-    -Wshadow
-    -Wconversion
-    -Wsign-conversion
-    -Wold-style-cast
-    -Wcast-qual
-    -Wformat=2
-    -O3
-    -march=native
-    -flto
-    -DNDEBUG
-    -fstrict-enums
-    -Wno-unused-command-line-argument
-)
-
 add_custom_target(generate_header DEPENDS ${GENERATED_HEADER})
 add_dependencies(eval_engine generate_header)
 
 # Link against LLVM and Clang
 target_link_libraries(xfer_enum PRIVATE ${LLVM_LIBS} ${CLANG_LIBS})
-target_link_libraries(llvm_eval PRIVATE ${LLVM_LIBS} ${CLANG_LIBS})
-target_link_libraries(reject_sampling PRIVATE ${LLVM_LIBS} ${CLANG_LIBS})
 target_link_libraries(eval_engine PRIVATE ${LLVM_LIBS} ${CLANG_LIBS})
 
 target_link_options(eval_engine PRIVATE -Wl,--copy-dt-needed-entries)
-target_link_options(llvm_eval PRIVATE -Wl,--copy-dt-needed-entries)
-target_link_options(reject_sampling PRIVATE -Wl,--copy-dt-needed-entries)
 target_link_options(xfer_enum PRIVATE -Wl,--copy-dt-needed-entries)

@@ -49,7 +49,6 @@ from xdsl_smt.utils.transfer_function_check_util import (
     backward_soundness_check,
 )
 from xdsl_smt.passes.transfer_unroll_loop import UnrollTransferLoop
-from xdsl_smt.semantics import transfer_semantics
 from xdsl_smt.traits.smt_printer import print_to_smtlib
 from xdsl_smt.passes.lower_pairs import LowerPairs
 from xdsl.transforms.canonicalize import CanonicalizePass
@@ -63,10 +62,6 @@ from xdsl_smt.semantics.transfer_semantics import (
 from xdsl_smt.semantics.comb_semantics import comb_semantics
 
 
-def solve_vector_width(maximal_bits: int):
-    return list(range(1, maximal_bits + 1))
-
-
 def verify_pattern(ctx: Context, op: ModuleOp) -> bool:
     cloned_op = op.clone()
     stream = StringIO()
@@ -75,15 +70,16 @@ def verify_pattern(ctx: Context, op: ModuleOp) -> bool:
     DeadCodeElimination().apply(ctx, cloned_op)
 
     print_to_smtlib(cloned_op, stream)
-    # print(stream.getvalue())
     res = subprocess.run(
         ["z3", "-in"],
         capture_output=True,
         input=stream.getvalue(),
         text=True,
     )
+
     if res.returncode != 0:
         raise Exception(res.stderr)
+
     return "unsat" in res.stdout
 
 
@@ -275,8 +271,7 @@ def soundness_check(
     query_module.body.block.add_ops(added_ops)
     FunctionCallInline(True, {}).apply(ctx, query_module)
 
-    result = verify_pattern(ctx, query_module)
-    return result
+    return verify_pattern(ctx, query_module)
 
 
 def verify_smt_transfer_function(
@@ -338,9 +333,7 @@ def build_init_module(
 
         if func_name == transfer_function_name:
             assert transfer_function_obj is None
-            transfer_function_obj = TransferFunction(
-                func,
-            )
+            transfer_function_obj = TransferFunction(func)
         if func_name == DOMAIN_CONSTRAINT:
             assert domain_constraint is None
             domain_constraint = FunctionCollection(func, create_smt_function, ctx)
@@ -380,7 +373,8 @@ def verify_transfer_function(
     concrete_func: FuncOp,
     helper_funcs: list[FuncOp],
     ctx: Context,
-    maximal_verify_bits: int = 32,
+    min_verify_bits: int,
+    max_verify_bits: int,
 ) -> int:
     is_custom_concrete_func = check_custom_concrete_func(concrete_func)
     (
@@ -394,7 +388,8 @@ def verify_transfer_function(
     )
 
     FunctionCallInline(False, func_name_to_func).apply(ctx, module_op)
-    for width in solve_vector_width(maximal_verify_bits):
+
+    for width in range(min_verify_bits, max_verify_bits + 1):
         smt_module = module_op.clone()
 
         # expand for loops
@@ -487,6 +482,8 @@ def verify_transfer_function(
             instance_constraint,
             ctx,
         )
+
         if not result:
             return width
+
     return 0

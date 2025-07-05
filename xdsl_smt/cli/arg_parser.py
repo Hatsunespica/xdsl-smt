@@ -1,22 +1,40 @@
-from argparse import ArgumentParser, Namespace, ArgumentDefaultsHelpFormatter, FileType
+from argparse import (
+    ArgumentParser,
+    Namespace,
+    ArgumentDefaultsHelpFormatter,
+    FileType,
+    ArgumentTypeError,
+)
 from xdsl_smt.eval_engine.eval import AbstractDomain
 from pathlib import Path
 
 
+def int_tuple(s: str) -> tuple[int, int]:
+    try:
+        items = s.split(",")
+        if len(items) != 2:
+            raise ValueError
+        return (int(items[0]), int(items[1]))
+    except Exception:
+        raise ArgumentTypeError(
+            f"Invalid tuple format: '{s}'. Expected format: int,int"
+        )
+
+
+def int_triple(s: str) -> tuple[int, int, int]:
+    try:
+        items = s.split(",")
+        if len(items) != 3:
+            raise ValueError
+        return (int(items[0]), int(items[1]), int(items[2]))
+    except Exception:
+        raise ArgumentTypeError(
+            f"Invalid tuple format: '{s}'. Expected format: int,int,int"
+        )
+
+
 def register_arguments(prog: str) -> Namespace:
     ap = ArgumentParser(prog=prog, formatter_class=ArgumentDefaultsHelpFormatter)
-    MIN_BITWIDTH = 1
-    MAX_BITWIDTH = 4
-    PROGRAM_LENGTH = 28
-    CONDITION_LENGTH = 10
-    NUM_PROGRAMS = 100
-    TOTAL_ROUNDS = 1500
-    INV_TEMP = 200
-    SOLUTION_SIZE = 0
-    NUM_ITERS = 10
-    NUM_ABD_PROCS = 30
-    OUTPUT_FOLDER = Path("outputs")
-    NUM_UNSOUND_CANDIDATES = 15
 
     if prog == "synth_transfer":
         ap.add_argument(
@@ -38,63 +56,66 @@ def register_arguments(prog: str) -> Namespace:
             help="Add a constraint to the abstract value on the RHS must be constant",
         )
 
-    if prog == "benchmark":
-        pass
-
     ap.add_argument(
         "-outputs_folder",
         type=Path,
         help="Output folder for logs",
-        default=OUTPUT_FOLDER,
+        default=Path("outputs"),
     )
     ap.add_argument("-random_seed", type=int, help="seed for synthesis")
     ap.add_argument(
         "-program_length",
         type=int,
         help="length of synthed program",
-        default=PROGRAM_LENGTH,
+        default=28,
     )
     ap.add_argument(
         "-total_rounds",
         type=int,
         help="number of rounds the synthesizer should run",
-        default=TOTAL_ROUNDS,
+        default=1500,
     )
     ap.add_argument(
         "-num_programs",
         type=int,
         help="number of programs that run every round",
-        default=NUM_PROGRAMS,
+        default=100,
     )
     ap.add_argument(
         "-inv_temp",
         type=int,
         help="Inverse temperature for MCMC. The larger the value is, the lower the probability of accepting a program with a higher cost.",
-        default=INV_TEMP,
+        default=200,
     )
     ap.add_argument(
-        "-min_bitwidth",
+        "-lbw",
+        nargs="*",
         type=int,
-        help="min bitwidth for the evaluation engine",
-        default=MIN_BITWIDTH,
+        default=[1, 2, 3, 4],
+        help="Bitwidths to evaluate exhaustively",
     )
     ap.add_argument(
-        "-max_bitwidth",
-        type=int,
-        help="max bitwidth for the evaluation engine",
-        default=MAX_BITWIDTH,
+        "-mbw",
+        nargs="*",
+        type=int_tuple,
+        default=[],
+        help="Bitwidths to evaluate sampled lattice elements exhaustively",
     )
     ap.add_argument(
-        "-solution_size",
-        type=int,
-        help="size of the solution set",
-        default=SOLUTION_SIZE,
+        "-hbw",
+        nargs="*",
+        type=int_triple,
+        default=[],
+        help="Bitwidths to sample the lattice and abstract values with",
+    )
+    ap.add_argument(
+        "-solution_size", type=int, help="size of the solution set", default=0
     )
     ap.add_argument(
         "-num_iters",
         type=int,
         help="number of iterations for the synthesizer",
-        default=NUM_ITERS,
+        default=10,
     )
     ap.add_argument(
         "-no_weighted_dsl",
@@ -104,27 +125,19 @@ def register_arguments(prog: str) -> Namespace:
     )
     ap.set_defaults(weighted_dsl=True)
     ap.add_argument(
-        "-condition_length",
-        type=int,
-        help="the length of synthesized abduction",
-        default=CONDITION_LENGTH,
+        "-condition_length", type=int, help="length of synthd abduction", default=10
     )
     ap.add_argument(
         "-num_abd_procs",
         type=int,
         help="number of mcmc processes used for abduction. Must be less than num_programs",
-        default=NUM_ABD_PROCS,
-    )
-    ap.add_argument(
-        "-num_random_tests",
-        type=int,
-        help="number of random test inputs at higher bitwidth",
+        default=30,
     )
     ap.add_argument(
         "-num_unsound_candidates",
         type=int,
         help="number of unsound candidates considered for abduction",
-        default=NUM_UNSOUND_CANDIDATES,
+        default=15,
     )
     ap.add_argument("-quiet", action="store_true")
 

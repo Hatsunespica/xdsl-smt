@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TypeVar, IO, overload
+from typing import ClassVar, TypeVar, IO, overload
 
 from xdsl.dialects.builtin import IntAttr, IntegerAttr, IntegerType
 
@@ -8,9 +8,7 @@ from xdsl.ir import (
     Attribute,
     Dialect,
     OpResult,
-    ParametrizedAttribute,
     SSAValue,
-    TypeAttribute,
     VerifyException,
 )
 from xdsl.irdl import (
@@ -18,119 +16,57 @@ from xdsl.irdl import (
     operand_def,
     result_def,
     Operand,
-    ParameterDef,
     irdl_op_definition,
-    irdl_attr_definition,
     IRDLOperation,
     traits_def,
+    VarConstraint,
+    base,
+    prop_def,
 )
-from xdsl.parser import AttrParser
-from xdsl.printer import Printer
 from xdsl import traits
 from xdsl.traits import HasCanonicalizationPatternsTrait
 from xdsl.pattern_rewriter import RewritePattern
 
-from ..traits.smt_printer import SMTConversionCtx, SMTLibOp, SMTLibSort, SimpleSMTLibOp
-from ..traits.effects import Pure
-from .smt_dialect import BoolType
-
-
-@irdl_attr_definition
-class BitVectorType(ParametrizedAttribute, SMTLibSort, TypeAttribute):
-    name = "smt.bv.bv"
-    width: ParameterDef[IntAttr]
-
-    def print_sort_to_smtlib(self, stream: IO[str]):
-        print(f"(_ BitVec {self.width.data})", file=stream, end="")
-
-    def __init__(self, value: int | IntAttr):
-        if isinstance(value, int):
-            value = IntAttr(value)
-        super().__init__([value])
-
-    @staticmethod
-    def from_int(value: int) -> BitVectorType:
-        return BitVectorType(value)
-
-    @classmethod
-    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
-        parser.parse_punctuation("<")
-        width = parser.parse_integer()
-        parser.parse_punctuation(">")
-        return [IntAttr(width)]
-
-    def print_parameters(self, printer: Printer) -> None:
-        printer.print("<", self.width.data, ">")
-
-
-@irdl_attr_definition
-class BitVectorValue(ParametrizedAttribute):
-    name = "smt.bv.bv_val"
-
-    value: ParameterDef[IntAttr]
-    width: ParameterDef[IntAttr]
-
-    def __init__(self, value: int | IntAttr, width: int | IntAttr):
-        if isinstance(value, int):
-            value = IntAttr(value)
-        if isinstance(width, int):
-            width = IntAttr(width)
-        super().__init__([value, width])
-
-    @staticmethod
-    def from_int_value(value: int, width: int = 32) -> BitVectorValue:
-        return BitVectorValue(value, width)
-
-    def get_type(self) -> BitVectorType:
-        return BitVectorType.from_int(self.width.data)
-
-    def verify(self) -> None:
-        if not (0 <= self.value.data < 2**self.width.data):
-            raise VerifyException("BitVector value out of range")
-
-    def as_smtlib_str(self) -> str:
-        return f"(_ bv{self.value.data} {self.width.data})"
-
-    @classmethod
-    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
-        parser.parse_punctuation("<")
-        value = parser.parse_integer()
-        parser.parse_punctuation(":")
-        width = parser.parse_integer()
-        parser.parse_punctuation(">")
-        return [IntAttr(value), IntAttr(width)]
-
-    def print_parameters(self, printer: Printer) -> None:
-        printer.print("<", self.value.data, ": ", self.width.data, ">")
+from xdsl_smt.traits.smt_printer import SMTConversionCtx, SMTLibOp, SimpleSMTLibOp
+from xdsl_smt.traits.effects import Pure
+from xdsl_smt.dialects.smt_dialect import BoolType
+from xdsl.dialects.smt import BitVectorType, BitVectorAttr
 
 
 @irdl_op_definition
 class ConstantOp(IRDLOperation, Pure, SMTLibOp):
     name = "smt.bv.constant"
-    value: BitVectorValue = attr_def(BitVectorValue)
-    res: OpResult = result_def(BitVectorType)
 
-    traits = traits_def(traits.Pure())
+    T: ClassVar = VarConstraint("T", base(BitVectorType))
+
+    value = prop_def(BitVectorAttr.constr(T))
+    result = result_def(T)
+
+    assembly_format = "qualified($value) attr-dict"
+
+    @property
+    def res(self) -> OpResult[BitVectorType]:
+        return self.result
 
     @overload
     def __init__(self, value: int | IntAttr, width: int | IntAttr) -> None:
         ...
 
     @overload
-    def __init__(self, value: IntegerAttr[IntegerType] | BitVectorValue) -> None:
+    def __init__(self, value: IntegerAttr[IntegerType] | BitVectorAttr) -> None:
         ...
 
     def __init__(
         self,
-        value: int | IntAttr | IntegerAttr[IntegerType] | BitVectorValue,
+        value: int | IntAttr | IntegerAttr[IntegerType] | BitVectorAttr,
         width: int | IntAttr | None = None,
     ) -> None:
-        attr: BitVectorValue
+        attr: BitVectorAttr
         if isinstance(value, int | IntAttr):
             if not isinstance(width, int | IntAttr):
                 raise ValueError("Expected width with an `int` value")
-            attr = BitVectorValue(value, width)
-        elif isinstance(value, BitVectorValue):
+            attr = BitVectorAttr(value, BitVectorType(width))
+        elif isinstance(value, BitVectorAttr):
             attr = value
         else:
             width = value.type.width.data
@@ -139,18 +75,22 @@ class ConstantOp(IRDLOperation, Pure, SMTLibOp):
                 if value.value.data < 0
                 else value.value.data
             )
-            attr = BitVectorValue(value_int, width)
-        super().__init__(result_types=[attr.get_type()], attributes={"value": attr})
+            attr = BitVectorAttr(value_int, BitVectorType(width))
+        super().__init__(result_types=[attr.get_type()], properties={"value": attr})
 
     @staticmethod
     def from_int_value(value: int, width: int) -> ConstantOp:
-        bv_value = BitVectorValue.from_int_value(value, width)
+        bv_value = BitVectorAttr(value, BitVectorType(width))
         return ConstantOp.create(
-            result_types=[bv_value.get_type()], attributes={"value": bv_value}
+            result_types=[bv_value.get_type()], properties={"value": bv_value}
         )
 
     def print_expr_to_smtlib(self, stream: IO[str], ctx: SMTConversionCtx) -> None:
-        print(self.value.as_smtlib_str(), file=stream, end="")
+        print(
+            f"(_ bv{self.value.value.data} {self.value.type.width.data})",
+            file=stream,
+            end="",
+        )
 
 
 _UOpT = TypeVar("_UOpT", bound="UnaryBVOp")
@@ -267,9 +207,19 @@ class MulOp(BinaryBVOp, SimpleSMTLibOp):
         return "bvmul"
 
 
+class URemCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl_smt.passes.canonicalization_patterns.smt_bv import URemFold
+
+        return (URemFold(),)
+
+
 @irdl_op_definition
 class URemOp(BinaryBVOp, SimpleSMTLibOp):
     name = "smt.bv.urem"
+
+    traits = traits_def(traits.Pure(), URemCanonicalizationPatterns())
 
     def op_name(self) -> str:
         return "bvurem"
@@ -278,9 +228,7 @@ class URemOp(BinaryBVOp, SimpleSMTLibOp):
 class SRemCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl_smt.passes.canonicalization_patterns.smt_bv import (
-            SRemFold,
-        )
+        from xdsl_smt.passes.canonicalization_patterns.smt_bv import SRemFold
 
         return (SRemFold(),)
 
@@ -330,9 +278,7 @@ class AShrOp(BinaryBVOp, SimpleSMTLibOp):
 class SDivCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl_smt.passes.canonicalization_patterns.smt_bv import (
-            SDivFold,
-        )
+        from xdsl_smt.passes.canonicalization_patterns.smt_bv import SDivFold
 
         return (SDivFold(),)
 
@@ -347,9 +293,19 @@ class SDivOp(BinaryBVOp, SimpleSMTLibOp):
         return "bvsdiv"
 
 
+class UDivCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl_smt.passes.canonicalization_patterns.smt_bv import UDivFold
+
+        return (UDivFold(),)
+
+
 @irdl_op_definition
 class UDivOp(BinaryBVOp, SimpleSMTLibOp):
     name = "smt.bv.udiv"
+
+    traits = traits_def(traits.Pure(), UDivCanonicalizationPatterns())
 
     def op_name(self) -> str:
         return "bvudiv"
@@ -936,5 +892,5 @@ SMTBitVectorDialect = Dialect(
         ZeroExtendOp,
         SignExtendOp,
     ],
-    [BitVectorType, BitVectorValue],
+    [BitVectorType, BitVectorAttr],
 )

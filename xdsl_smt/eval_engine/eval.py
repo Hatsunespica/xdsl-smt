@@ -1,51 +1,119 @@
-from os import path
 from subprocess import run, PIPE
 from enum import Enum
 from tempfile import mkdtemp
-from typing import Callable
+from pathlib import Path
+from typing import Callable, TypeVar
 
-from xdsl_smt.utils.synthesizer_utils.compare_result import EvalResult, PerBitEvalResult
+from xdsl_smt.utils.synthesizer_utils.compare_result import EvalResult, PerBitRes
 
 
 class AbstractDomain(Enum):
-    KnownBits = ("KnownBits", 2, lambda x: x * 2)  # type: ignore
-    ConstantRange = ("ConstantRange", 2, lambda x: (2**x - 1) * 2)  # type: ignore
-    IntegerModulo = ("IntegerModulo", 6, lambda _: 12)  # type: ignore
+    KnownBits = "KnownBits", 2
+    UConstRange = "UConstRange", 2
+    SConstRange = "SConstRange", 2
+    IntegerModulo = "IntegerModulo", 6
 
     vec_size: int
-    max_dist: Callable[[int], int]
 
-    def __new__(cls, value: str, vec_size: int, max_dist: Callable[[int], int]):
+    def __new__(
+        cls,
+        value: str,
+        vec_size: int,
+    ):
         obj = object.__new__(cls)
         obj._value_ = value
         obj.vec_size = vec_size
-        obj.max_dist = max_dist
         return obj
 
     def __str__(self) -> str:
         return self.name
 
 
+def _get_per_bit(x: list[str]) -> list[PerBitRes]:
+    T = TypeVar("T")
+
+    def get(in_str: str, to_match: str, parser: Callable[[str], T]) -> T:
+        og_str, to_parse = in_str.split(":")
+
+        assert og_str.strip() == to_match
+
+        return parser(to_parse)
+
+    def get_ints(s: str) -> list[int]:
+        return eval(s)
+
+    def get_floats(s: str) -> list[float]:
+        return eval(s)
+
+    bw = get(x[0], "bw", int)
+    num_cases = get(x[1], "num cases", int)
+    num_unsolved_cases = get(x[2], "num unsolved", int)
+    base_distance = get(x[3], "base distance", float)
+    sound = get(x[4], "num sound", get_ints)
+    distance = get(x[5], "distance", get_floats)
+    exact = get(x[6], "num exact", get_ints)
+    num_unsolved_exact_cases = get(x[7], "num unsolved exact", get_ints)
+    sound_distance = get(x[8], "sound distance", get_floats)
+
+    assert len(sound) > 0, "No output from EvalEngine"
+    assert (
+        len(sound)
+        == len(distance)
+        == len(exact)
+        == len(num_unsolved_exact_cases)
+        == len(sound_distance)
+    ), "EvalEngine output mismatch"
+
+    return [
+        PerBitRes(
+            all_cases=num_cases,
+            sounds=sound[i],
+            exacts=exact[i],
+            dist=distance[i],
+            unsolved_cases=num_unsolved_cases,
+            unsolved_exacts=num_unsolved_exact_cases[i],
+            base_dist=base_distance,
+            sound_dist=sound_distance[i],
+            bitwidth=bw,
+        )
+        for i in range(len(sound))
+    ]
+
+
+def _parse_engine_output(output: str) -> list[EvalResult]:
+    bw_evals = output.split("---\n")
+    bw_evals.reverse()
+    per_bits = [_get_per_bit(x.split("\n")) for x in bw_evals if x != ""]
+
+    ds: list[list[PerBitRes]] = [[] for _ in range(len(per_bits[0]))]
+    for es in per_bits:
+        for i, e in enumerate(es):
+            ds[i].append(e)
+
+    return [EvalResult(x) for x in ds]
+
+
 def setup_eval(
     domain: AbstractDomain,
-    min_bitwidth: int,
-    bitwidth: int,
-    samples: tuple[int, int] | None,
+    low_bws: list[int],
+    med_bws: list[tuple[int, int]],
+    high_bws: list[tuple[int, int, int]],
+    seed: int,
     conc_op_src: str,
 ) -> str:
-    base_dir = path.join("xdsl_smt", "eval_engine")
-    engine_path = path.join(base_dir, "build", "xfer_enum")
-    if not path.exists(engine_path):
-        raise FileExistsError(f"Enumeration Engine not found at: {engine_path}")
+    engine_path = Path("xdsl_smt").joinpath("eval_engine", "build", "xfer_enum")
+    if not engine_path.exists():
+        raise FileNotFoundError(f"Enumeration Engine not found at: {engine_path}")
 
     dirpath = f"{mkdtemp()}/"
 
     engine_params = ""
     engine_params += f"{dirpath}\n"
     engine_params += f"{domain}\n"
-    engine_params += f"{min_bitwidth}\n"
-    engine_params += f"{bitwidth}\n"
-    engine_params += f"{samples[0]} {samples[1]}\n" if samples is not None else "\n"
+    engine_params += f"{low_bws}\n"
+    engine_params += f"{med_bws}\n"
+    engine_params += f"{high_bws}\n"
+    engine_params += f"{seed}\n"
     engine_params += "using A::APInt;\n"
     engine_params += f"{conc_op_src}"
 
@@ -73,34 +141,10 @@ def reject_sampler(
     conc_op_and_helpers: list[str],
     base_names: list[str],
     base_srcs: list[str],
-):
-    base_dir = path.join("xdsl_smt", "eval_engine")
-    engine_path = path.join(base_dir, "build", "reject_sampling")
-    if not path.exists(engine_path):
-        raise FileExistsError(f"Reject Sampler not found at: {engine_path}")
-
-    engine_params = ""
-    engine_params += f"{data_dir}\n"
-    engine_params += f"{domain}\n"
-    engine_params += f"{samples}\n"
-    engine_params += f"{seed}\n"
-    engine_params += f"{' '.join(base_names)}\n"
-    engine_params += "using A::APInt;\n"
-    engine_params += "\n".join(conc_op_and_helpers)
-    engine_params += "\n".join(base_srcs)
-
-    eval_output = run(
-        [engine_path],
-        input=engine_params,
-        text=True,
-        stdout=PIPE,
-        stderr=PIPE,
-    )
-
-    if eval_output.returncode != 0:
-        print("EvalEngine failed with this error:")
-        print(eval_output.stderr, end="")
-        exit(eval_output.returncode)
+) -> None:
+    print("reject sampler not impl'd yet")
+    print(domain, data_dir, samples, seed, conc_op_and_helpers, base_names, base_srcs)
+    exit(1)
 
 
 def eval_transfer_func(
@@ -112,20 +156,18 @@ def eval_transfer_func(
     helper_srcs: list[str],
     domain: AbstractDomain,
 ) -> list[EvalResult]:
-    base_dir = path.join("xdsl_smt", "eval_engine")
-    engine_path = path.join(base_dir, "build", "eval_engine")
-    if not path.exists(engine_path):
-        raise FileExistsError(f"Eval Engine not found at: {engine_path}")
+    engine_path = Path("xdsl_smt").joinpath("eval_engine", "build", "eval_engine")
+    if not engine_path.exists():
+        raise FileNotFoundError(f"Eval Engine not found at: {engine_path}")
 
     engine_params = ""
     engine_params += f"{data_dir}\n"
     engine_params += f"{domain}\n"
-    engine_params += f"{' '.join(xfer_names)}\n"
-    engine_params += f"{' '.join(base_names)}\n"
+    engine_params += "\n"
+    engine_params += f"{xfer_names}\n"
+    engine_params += f"{base_names}\n"
     engine_params += "using A::APInt;\n"
-
-    all_src = "\n".join(helper_srcs + xfer_srcs + base_srcs)
-    engine_params += all_src
+    engine_params += "\n".join(helper_srcs + xfer_srcs + base_srcs)
 
     eval_output = run(
         [engine_path],
@@ -140,60 +182,41 @@ def eval_transfer_func(
         print(eval_output.stderr, end="")
         exit(eval_output.returncode)
 
-    def get_floats(s: str) -> list[int]:
-        return eval(s)
+    return _parse_engine_output(eval_output.stdout)
 
-    def get_per_bit(x: list[str]) -> tuple[int, list[PerBitEvalResult]]:
-        bw = int(x[0][4:])
-        sounds = get_floats(x[2])
-        precs = get_floats(x[4])
-        exact = get_floats(x[6])
-        num_cases = get_floats(x[8])
-        unsolved_sounds = get_floats(x[10])
-        unsolved_precs = get_floats(x[12])
-        unsolved_exact = get_floats(x[14])
-        unsolved_num_cases = get_floats(x[16])
-        base_precs = get_floats(x[18])
-        sound_distance = get_floats(x[20])
 
-        assert len(sounds) > 0, f"No output from EvalEngine: {eval_output}"
-        assert (
-            len(sounds)
-            == len(precs)
-            == len(exact)
-            == len(num_cases)
-            == len(unsolved_sounds)
-            == len(unsolved_precs)
-            == len(unsolved_exact)
-            == len(unsolved_num_cases)
-            == len(base_precs)
-            == len(sound_distance)
-        ), f"EvalEngine output mismatch: {eval_output}"
+def eval_final(
+    data_dir: str,
+    xfer_name: str,
+    xfer_src: str,
+    op_name: str,
+    helper_srcs: list[str],
+    domain: AbstractDomain,
+) -> list[EvalResult]:
+    engine_path = Path("xdsl_smt").joinpath("eval_engine", "build", "eval_engine")
+    if not engine_path.exists():
+        raise FileNotFoundError(f"Eval Engine not found at: {engine_path}")
 
-        return bw, [
-            PerBitEvalResult(
-                num_cases[i],
-                sounds[i],
-                exact[i],
-                precs[i],
-                unsolved_num_cases[i],
-                unsolved_sounds[i],
-                unsolved_exact[i],
-                unsolved_precs[i],
-                base_precs[i],
-                sound_distance[i],
-                bw,
-            )
-            for i in range(len(sounds))
-        ]
+    engine_params = ""
+    engine_params += f"{data_dir}\n"
+    engine_params += f"{domain}\n"
+    engine_params += f"{op_name}\n"
+    engine_params += "\n"
+    engine_params += f"{[xfer_name]}\n"
+    engine_params += "using A::APInt;\n"
+    engine_params += "\n".join(helper_srcs + [xfer_src])
 
-    bw_evals = eval_output.stdout.split("---\n")
-    bw_evals.reverse()
-    per_bits = [get_per_bit(x.split("\n")) for x in bw_evals if x != ""]
+    eval_output = run(
+        [engine_path],
+        input=engine_params,
+        text=True,
+        stdout=PIPE,
+        stderr=PIPE,
+    )
 
-    ds: list[dict[int, PerBitEvalResult]] = [{} for _ in range(len(per_bits[0][1]))]
-    for bw, es in per_bits:
-        for i, e in enumerate(es):
-            ds[i][bw] = e
+    if eval_output.returncode != 0:
+        print("EvalEngine failed with this error:")
+        print(eval_output.stderr, end="")
+        exit(eval_output.returncode)
 
-    return [EvalResult(x) for x in ds]
+    return _parse_engine_output(eval_output.stdout)
