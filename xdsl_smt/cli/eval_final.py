@@ -198,6 +198,8 @@ def main() -> None:
 
         inputs.append((args, domain, input_path, solution_path, op))
 
+    inputs = sorted(inputs, key=lambda x: (x[1].value, x[4]))
+
     with Pool() as p:
         data = p.map(run_wrapper, inputs)
 
