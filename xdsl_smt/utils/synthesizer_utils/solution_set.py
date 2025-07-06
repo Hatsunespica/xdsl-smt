@@ -274,7 +274,7 @@ class UnsizedSolutionSet(SolutionSet):
                     cand, concrete_op, helper_funcs, ctx, timeout=200
                 )
                 if unsound_bit is None:
-                    self.logger.error(
+                    self.logger.info(
                         f"Skip a function of which verification timed out, body: {body_number}, cond: {cond_number}"
                     )
                     candidates.remove(cand)
