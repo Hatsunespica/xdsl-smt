@@ -253,7 +253,7 @@ public:
     return ret;
   }
 
-  static double maxDist(unsigned int bw) { return 2 * bw; }
+  static double maxDist(unsigned int bw) { return bw; }
 };
 
 class UConstRange : public AbstVal<UConstRange, 2> {
@@ -325,14 +325,14 @@ public:
       return 0;
 
     if (isBottom())
-      return A::APIntOps::abdu(rhs.lower(), rhs.upper()).getZExtValue();
+      return A::APIntOps::abdu(rhs.lower(), rhs.upper()).getActiveBits();
 
     if (rhs.isBottom())
-      return A::APIntOps::abdu(lower(), upper()).getZExtValue();
+      return A::APIntOps::abdu(lower(), upper()).getActiveBits();
 
-    unsigned long ld = A::APIntOps::abdu(lower(), rhs.lower()).getZExtValue();
-    unsigned long ud = A::APIntOps::abdu(upper(), rhs.upper()).getZExtValue();
-    return static_cast<unsigned int>(ld + ud);
+    A::APInt ld = A::APIntOps::abdu(lower(), rhs.lower());
+    A::APInt ud = A::APIntOps::abdu(upper(), rhs.upper());
+    return static_cast<unsigned long>((ld + ud).getActiveBits());
   }
 
   static const UConstRange rand(std::mt19937 &rng, unsigned int bw) {
@@ -385,12 +385,7 @@ public:
     return ret;
   }
 
-  static double maxDist(unsigned int bw) {
-    if (bw == 1)
-      return 2;
-    return static_cast<double>(A::APInt::getMaxValue(bw).getZExtValue() - 1) *
-           2;
-  }
+  static double maxDist(unsigned int bw) { return static_cast<double>(bw); }
 };
 
 class SConstRange : public AbstVal<SConstRange, 2> {
@@ -462,14 +457,14 @@ public:
       return 0;
 
     if (isBottom())
-      return A::APIntOps::abds(rhs.lower(), rhs.upper()).getZExtValue();
+      return A::APIntOps::abds(rhs.lower(), rhs.upper()).getActiveBits();
 
     if (rhs.isBottom())
-      return A::APIntOps::abds(lower(), upper()).getZExtValue();
+      return A::APIntOps::abds(lower(), upper()).getActiveBits();
 
-    unsigned long ld = A::APIntOps::abds(lower(), rhs.lower()).getZExtValue();
-    unsigned long ud = A::APIntOps::abds(upper(), rhs.upper()).getZExtValue();
-    return static_cast<unsigned int>(ld + ud);
+    A::APInt ld = A::APIntOps::abds(lower(), rhs.lower());
+    A::APInt ud = A::APIntOps::abds(upper(), rhs.upper());
+    return static_cast<unsigned long>((ld + ud).getActiveBits());
   }
 
   static const SConstRange rand(std::mt19937 &rng, unsigned int bw) {
@@ -522,12 +517,7 @@ public:
     return ret;
   }
 
-  static double maxDist(unsigned int bw) {
-    if (bw == 1)
-      return 2;
-    return static_cast<double>(A::APInt::getMaxValue(bw).getZExtValue() - 1) *
-           2;
-  }
+  static double maxDist(unsigned int bw) { return static_cast<double>(bw); }
 };
 
 template <unsigned int N>

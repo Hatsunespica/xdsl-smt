@@ -149,6 +149,15 @@ public:
       for (unsigned int j = 0; j < toEval[i].size(); ++j) {
         auto [lhs, rhs, best] = toEval[i][j];
 
+        // Xuanyu added this check. Ideally, the value of the best transformer
+        // would not be bottom, if at least one "valid" concrete value that
+        // satisfys op_constraint have been sampled. However, there is not a
+        // general way to determine whether an abstract input contains such a
+        // valid concrete value, so we do the skip here. In practice, this issue
+        // only happens when concrete_op is shifting operators.
+        if (best.isBottom())
+          continue;
+
         bool topExact = top == best;
         unsigned long topDis = top.distance(best);
 

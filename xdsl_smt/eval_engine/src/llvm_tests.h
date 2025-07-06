@@ -24,7 +24,7 @@ inline llvm::ConstantRange make_llvm_ucr(const UConstRange &x) {
 
 inline const UConstRange
 ucr_xfer_wrapper(const UConstRange &lhs, const UConstRange &rhs,
-                const XferFn<llvm::ConstantRange> &fn) {
+                 const XferFn<llvm::ConstantRange> &fn) {
   llvm::ConstantRange x = fn(make_llvm_ucr(lhs), make_llvm_ucr(rhs));
 
   if (x.isWrappedSet())
@@ -38,7 +38,7 @@ ucr_xfer_wrapper(const UConstRange &lhs, const UConstRange &rhs,
                       A::APInt(lhs.bw(), x.getUpper().getZExtValue()) - 1});
 }
 
-#define UCR_OP(e)                                                               \
+#define UCR_OP(e)                                                              \
   [](const llvm::ConstantRange &l, const llvm::ConstantRange &r) { return e; }
 
 const std::vector<

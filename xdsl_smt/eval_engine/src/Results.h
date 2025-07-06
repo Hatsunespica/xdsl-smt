@@ -75,7 +75,8 @@ public:
     os << std::left << std::setw(20) << "num unsolved:" << unsolvedCases
        << "\n";
     os << std::left << std::setw(20)
-       << "base distance:" << baseDistance / maxDist(bw) << "\n";
+       << "base distance:" << static_cast<double>(baseDistance) / maxDist(bw)
+       << "\n";
     printMember(
         os, "num sound:", [](const Result &x) { return x.sound; },
         std::nullopt);
