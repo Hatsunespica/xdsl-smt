@@ -105,7 +105,8 @@ public:
     return llvm::cantFail(jit->lookup(fnName)).toPtr<T>();
   }
 
-  template <typename T> std::vector<T> getFns(const std::vector<std::string> &v) {
+  template <typename T>
+  std::vector<T> getFns(const std::vector<std::string> &v) {
     std::vector<T> fns;
     std::transform(v.begin(), v.end(), std::back_inserter(fns),
                    [this](const std::string &x) { return getFn<T>(x); });
