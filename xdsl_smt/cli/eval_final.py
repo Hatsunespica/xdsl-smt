@@ -121,9 +121,9 @@ def _get_dist_table(
     s = ""
     use_llvm = sum(x.exacts for x in llvm.per_bit_res) != 0
 
-    s += "           ######  Dists  ######           \n"
-    s += "bw  | Top     | Synth   | LLVM    | Meet   \n"
-    s += "----|---------|---------|---------|--------\n"
+    s += "           ######  Dists  ######                     \n"
+    s += "bw  | Cases   | Top     | Synth   | LLVM    | Meet   \n"
+    s += "----|---------|---------|---------|---------|--------\n"
     for t_pb, s_pb, l_pb, m_pb in zip(
         top.per_bit_res, synth.per_bit_res, llvm.per_bit_res, meet.per_bit_res
     ):
@@ -132,7 +132,7 @@ def _get_dist_table(
         bw = f"{t_pb.bitwidth}" + a + p
         llvm_dist = l_pb.dist if use_llvm else "N/A"
         meet_dist = m_pb.dist if use_llvm else "N/A"
-        s += f"{bw:<4}| {t_pb.dist:<7} | {s_pb.dist:<7} | {llvm_dist:<7} | {meet_dist:<7}\n"
+        s += f"{bw:<4}| {t_pb.all_cases:<7} | {t_pb.dist:<7} | {s_pb.dist:<7} | {llvm_dist:<7} | {meet_dist:<7}\n"
 
     return s
 
