@@ -4,8 +4,9 @@
     %signed_max = "transfer.get_signed_max_value"(%arg0) : (!transfer.integer) -> !transfer.integer
     %signed_min = "transfer.get_signed_min_value"(%arg0) : (!transfer.integer) -> !transfer.integer
     %shlRes = "transfer.shl"(%arg0, %arg1) : (!transfer.integer, !transfer.integer) -> !transfer.integer
-    %overflow = "transfer.sshl_overflow"(%arg0, %arg1) {predicate=9:i64}: (!transfer.integer, !transfer.integer) -> i1
-    %arg0_is_neg = "transfer.is_negative"(%arg0): (!transfer.integer) -> i1
+    %overflow = "transfer.sshl_overflow"(%arg0, %arg1): (!transfer.integer, !transfer.integer) -> i1
+    %zero = "transfer.constant"(%arg0){value=0:index} : (!transfer.integer) -> !transfer.integer
+    %arg0_is_neg = "transfer.cmp"(%arg0, %zero){predicate=2:i64}: (!transfer.integer, !transfer.integer) -> i1
     %sat_res = "transfer.select"(%arg0_is_neg, %signed_min, %signed_max) : (i1, !transfer.integer, !transfer.integer) ->!transfer.integer
     %result = "transfer.select"(%overflow, %sat_res, %shlRes) : (i1, !transfer.integer, !transfer.integer) ->!transfer.integer
     "func.return"(%result) : (!transfer.integer) -> ()

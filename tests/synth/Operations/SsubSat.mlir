@@ -5,7 +5,7 @@
     %signed_min = "transfer.get_signed_min_value"(%arg0) : (!transfer.integer) -> !transfer.integer
     %subRes = "transfer.sub"(%arg0, %arg1) : (!transfer.integer, !transfer.integer) -> !transfer.integer
     %overflow = "transfer.ssub_overflow"(%arg0, %arg1): (!transfer.integer,!transfer.integer)->i1
-    $arg0_is_neg = "transfer.is_negative"(%arg0): (!transfer.integer) -> i1
+    %arg0_is_neg = "transfer.is_negative"(%arg0): (!transfer.integer) -> i1
     %sat_res = "transfer.select"(%arg0_is_neg, %signed_min, %signed_max) : (i1, !transfer.integer, !transfer.integer) ->!transfer.integer
     %result = "transfer.select"(%overflow, %sat_res, %subRes) : (i1, !transfer.integer, !transfer.integer) ->!transfer.integer
     "func.return"(%result) : (!transfer.integer) -> ()
