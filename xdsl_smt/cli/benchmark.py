@@ -60,56 +60,59 @@ all_test_names = [
     "Xor.mlir",
 ]
 
-kb_representative_test_names = [
+tests_1 = [
+    "Abds.mlir",
+    "Abdu.mlir",
     "Add.mlir",
     "AddNsw.mlir",
+    "AddNswNuw.mlir",
     "AddNuw.mlir",
     "And.mlir",
-    "Mul.mlir",
-    "AvgFloorU.mlir",
-    "Lshr.mlir",
-    "Shl.mlir",
-    "UdivExact.mlir",
-    "Udiv.mlir",
-    "Umax.mlir",
-]
-
-cr_representative_test_names = [
-    "Add.mlir",
-    "AddNuw.mlir",
-    "And.mlir",
-    "Shl.mlir",
-    "Mul.mlir",
-    "Udiv.mlir",
-    "Umax.mlir",
-]
-
-kb_not_best_test_names = [
-    "Mul.mlir",
-    "Udiv.mlir",
-    "Sdiv.mlir",
-    "Modu.mlir",
-    "Mods.mlir",
-    "UdivExact.mlir",
-    "Add.mlir",
-    "Umax.mlir",
-    "And.mlir",
-    "AvgFloorU.mlir",
-]
-# Some best tests are also included (Add, Umax, And, AvgFloorU)
-
-cr_not_best_test_names = [
-    "And.mlir",
-    "Xor.mlir",
-    "Mul.mlir",
-    "Modu.mlir",
-    "Shl.mlir",
-    "Lshr.mlir",
+    "AshrExact.mlir",
     "Ashr.mlir",
-    "Umax.mlir",
-    "Add.mlir",
+    "AvgCeilS.mlir",
+    "AvgCeilU.mlir",
+    "AvgFloorS.mlir",
+    "AvgFloorU.mlir",
+    "LshrExact.mlir",
+    "Lshr.mlir",
+    "Mods.mlir",
 ]
-# Some best tests are also included (Umax, Add)
+tests_2 = [
+    "Modu.mlir",
+    "Mul.mlir",
+    "MulNsw.mlir",
+    "MulNswNuw.mlir",
+    "MulNuw.mlir",
+    "Or.mlir",
+    "SaddSat.mlir",
+    "SdivExact.mlir",
+    "Sdiv.mlir",
+    "Shl.mlir",
+    "ShlNsw.mlir",
+    "ShlNswNuw.mlir",
+    "ShlNuw.mlir",
+    "Smax.mlir",
+    "Smin.mlir",
+    "SmulSat.mlir",
+]
+tests_3 = [
+    "SshlSat.mlir",
+    "SsubSat.mlir",
+    "Sub.mlir",
+    "SubNsw.mlir",
+    "SubNswNuw.mlir",
+    "SubNuw.mlir",
+    "UaddSat.mlir",
+    "UdivExact.mlir",
+    "Udiv.mlir",
+    "Umax.mlir",
+    "Umin.mlir",
+    "UmulSat.mlir",
+    "UshlSat.mlir",
+    "UsubSat.mlir",
+    "Xor.mlir",
+]
 
 
 def synth_run(
@@ -184,18 +187,13 @@ def main() -> None:
             f'Output folder "{args.outputs_folder}" already exists. Please remove it or choose a different one.'
         )
 
-    kb_inputs = [
-        (x.split(".")[0], AbstractDomain.KnownBits, start_dir.joinpath(x), args)
-        for x in kb_not_best_test_names
-    ]
-
     cr_inputs = [
         (x.split(".")[0], AbstractDomain.UConstRange, start_dir.joinpath(x), args)
-        for x in cr_not_best_test_names
+        for x in tests_1
     ]
 
     with Pool() as p:
-        data = p.map(synth_run, kb_inputs + cr_inputs)
+        data = p.map(synth_run, cr_inputs)
 
     with open(args.outputs_folder.joinpath("data.json"), "w") as f:
         dump(data, f, indent=2)
