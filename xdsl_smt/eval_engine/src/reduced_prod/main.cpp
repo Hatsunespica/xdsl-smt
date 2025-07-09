@@ -1,3 +1,4 @@
+#include <iostream>
 #include <tuple>
 #include <vector>
 
@@ -9,6 +10,41 @@ SUPPRESS_WARNINGS_BEGIN
 #include "llvm/IR/ConstantRange.h"
 #include "llvm/Support/KnownBits.h"
 SUPPRESS_WARNINGS_END
+
+void brute_force_tester() {
+  std::vector<std::string> bFnNames = parseStrList(std::cin);
+  std::string fnSrcCode(std::istreambuf_iterator<char>(std::cin), {});
+  Jit jit(fnSrcCode);
+  RPEval e{std::move(jit), bFnNames[0], bFnNames[1], bFnNames[2]};
+
+  const std::vector<Product> fullLattice = e.enumVals(4);
+
+  int i = 0;
+  unsigned long total = 0;
+  for (const Product &latVal : fullLattice) {
+    Product myReduce = reduce(latVal);
+    Product bruteReduced = bruteReduce(latVal);
+    ++total;
+    if (myReduce != bruteReduced) {
+      ++i;
+      std::cout << "##########################################\n";
+      std::cout << "OG kb: " << latVal.kb.display() << "\n";
+      std::cout << "OG ucr: " << latVal.ucr.display() << "\n";
+      std::cout << "OG scr: " << latVal.scr.display() << "\n";
+      std::cout << "---\n";
+      std::cout << "my kb: " << myReduce.kb.display() << "\n";
+      std::cout << "my ucr: " << myReduce.ucr.display() << "\n";
+      std::cout << "my scr: " << myReduce.scr.display() << "\n";
+      std::cout << "---\n";
+      std::cout << "br kb: " << bruteReduced.kb.display() << "\n";
+      std::cout << "br ucr: " << bruteReduced.ucr.display() << "\n";
+      std::cout << "br scr: " << bruteReduced.scr.display() << "\n";
+      std::cout << "##########################################\n";
+    }
+  }
+  std::cout << "num wrong: " << i << "\n";
+  std::cout << "total: " << total << "\n";
+}
 
 int main() {
   std::vector<unsigned int> lbws = parseIntList(std::cin);

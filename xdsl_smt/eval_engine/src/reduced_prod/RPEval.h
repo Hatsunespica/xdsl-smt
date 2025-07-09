@@ -42,68 +42,285 @@ struct Product {
   }
 };
 
+inline const Product bruteReduce(const Product &x) {
+  std::vector<A::APInt> cncVals;
+  std::vector<A::APInt> kbVals = x.kb.toConcrete();
+  std::vector<A::APInt> ucrVals = x.ucr.toConcrete();
+  std::vector<A::APInt> scrVals = x.scr.toConcrete();
+
+  auto cmp = [](const A::APInt &lhs, const A::APInt &rhs) {
+    return lhs.ult(rhs);
+  };
+
+  std::sort(kbVals.begin(), kbVals.end(), cmp);
+  std::sort(ucrVals.begin(), ucrVals.end(), cmp);
+  std::sort(scrVals.begin(), scrVals.end(), cmp);
+
+  std::vector<A::APInt> kb_and_ucr;
+  std::set_intersection(kbVals.begin(), kbVals.end(), ucrVals.begin(),
+                        ucrVals.end(), std::back_inserter(kb_and_ucr), cmp);
+
+  std::set_intersection(kb_and_ucr.begin(), kb_and_ucr.end(), scrVals.begin(),
+                        scrVals.end(), std::back_inserter(cncVals), cmp);
+
+  KnownBits kbRes = KnownBits::bottom(x.kb.bw());
+  UConstRange ucrRes = UConstRange::bottom(x.kb.bw());
+  SConstRange scrRes = SConstRange::bottom(x.kb.bw());
+
+  for (const A::APInt &x_ : cncVals) {
+    kbRes = kbRes.join(KnownBits::fromConcrete(x_));
+    ucrRes = ucrRes.join(UConstRange::fromConcrete(x_));
+    scrRes = scrRes.join(SConstRange::fromConcrete(x_));
+  }
+
+  return Product({kbRes, ucrRes, scrRes});
+}
+
 inline const std::pair<UConstRange, SConstRange>
 reduceCr(const UConstRange &ucr, const SConstRange &scr) {
   UConstRange newUcr = ucr;
   SConstRange newScr = scr;
 
-  if (!ucr.v[0].sgt(ucr.v[1])) {
-    if (ucr.v[0].isNegative() && ucr.v[1].isNegative())
-      newScr = newScr.meet(SConstRange({ucr.v[1], ucr.v[0]}));
-    else
-      newScr = newScr.meet(SConstRange({ucr.v[0], ucr.v[1]}));
+  bool overlap = false;
+  if (scr.v[0].ule(scr.v[1])) {
+    overlap = !(scr.v[0].ugt(ucr.v[1]) || scr.v[1].ult(ucr.v[0]));
+  } else {
+    bool overlap_high = !(scr.v[0].ugt(ucr.v[1]));
+    bool overlap_low = !(scr.v[1].ult(ucr.v[0]));
+    overlap = overlap_high || overlap_low;
   }
 
-  if (!scr.v[0].ugt(scr.v[1]))
+  if (!overlap)
+    return {UConstRange::bottom(ucr.bw()), SConstRange::bottom(scr.bw())};
+
+  if (ucr.v[0].isNegative() == ucr.v[1].isNegative())
+    newScr = newScr.meet(SConstRange({ucr.v[0], ucr.v[1]}));
+
+  if (scr.v[0].isNegative() == scr.v[1].isNegative())
     newUcr = newUcr.meet(UConstRange({scr.v[0], scr.v[1]}));
+
+  if ((ucr.v[0].isNegative() != ucr.v[1].isNegative()) &&
+      (scr.v[0].isNegative() != scr.v[1].isNegative())) {
+    if (newUcr.v[1].uge(newScr.v[0]) && newUcr.v[0].ugt(newScr.v[1])) {
+      newScr = newScr.meet(SConstRange({scr.v[0], ucr.v[1]}));
+      newUcr = newUcr.meet(UConstRange({scr.v[0], ucr.v[1]}));
+    }
+
+    if (newUcr.v[0].ule(newScr.v[1]) && newUcr.v[1].ult(newScr.v[0])) {
+      newScr = newScr.meet(SConstRange({ucr.v[0], scr.v[1]}));
+      newUcr = newUcr.meet(UConstRange({ucr.v[0], scr.v[1]}));
+    }
+  }
 
   return {newUcr, newScr};
 }
 
-inline const Product reduce(const Product &x) {
-  auto [newUcr, newScr] = reduceCr(x.ucr, x.scr);
-  KnownBits newKb = x.kb;
+inline const std::pair<UConstRange, SConstRange> kbToCr(const Product &x) {
+  A::APInt kbMin = x.kb.v[1];
+  A::APInt kbMax = ~x.kb.v[0];
 
-  A::APInt min = newUcr.isTop() ? newScr.v[0] : newUcr.v[0];
-  A::APInt max = newUcr.isTop() ? newScr.v[1] : newUcr.v[1];
+  UConstRange ucr = x.ucr;
+  SConstRange scr = x.scr;
+  unsigned int bw = x.kb.bw();
 
-  if (min != max) {
-    if (min.ugt(max)) {
-      A::APInt tmp = max;
-      max = min;
-      min = tmp;
+  //////////////////////////////////////
+  // UCR rules
+  //////////////////////////////////////
+
+  // Known zero but min ucr has a one
+  for (unsigned int i = bw - 1;; --i) {
+    for (unsigned int j = i;; --j) {
+      if (x.kb.v[0][j] && ucr.v[0][j]) {
+        ucr.v[0] += 1 << j;
+        ucr.v[0] &= ~(~kbMin & A::APInt::getLowBitsSet(x.kb.bw(), j));
+        break;
+      }
+      if (j == 0)
+        break;
+    }
+    if (i == 0)
+      break;
+  }
+
+  // Known one but min ucr has a zero
+  for (unsigned int i = bw - 1;; --i) {
+    for (unsigned int j = i;; --j) {
+      if (x.kb.v[1][j] && !ucr.v[0][j]) {
+        ucr.v[0] += 1 << j;
+        ucr.v[0] &= ~(~kbMin & A::APInt::getLowBitsSet(x.kb.bw(), j));
+        break;
+      }
+      if (j == 0)
+        break;
+    }
+    if (i == 0)
+      break;
+  }
+
+  // Known zero but max ucr has a one
+  for (unsigned int i = 0; i < bw; ++i) {
+    for (unsigned int j = i; j < bw; ++j) {
+      if (x.kb.v[0][j] && ucr.v[1][j]) {
+        ucr.v[1] -= 1 << j;
+        ucr.v[1] |= kbMax & A::APInt::getLowBitsSet(x.kb.bw(), j);
+        break;
+      }
+    }
+  }
+
+  // Known one but max ucr has a zero
+  for (unsigned int i = 0; i < bw; ++i) {
+    for (unsigned int j = i; j < bw; ++j) {
+      if (x.kb.v[1][j] && !ucr.v[1][j]) {
+        ucr.v[1] -= 1 << j;
+        ucr.v[1] |= kbMax & A::APInt::getLowBitsSet(x.kb.bw(), j);
+        break;
+      }
+    }
+  }
+
+  ////////////////////
+  // SCR rules
+  ////////////////////
+
+  // Known zero but min scr has a one
+  for (unsigned int i = bw - 1;; --i) {
+    for (unsigned int j = i;; --j) {
+      if (x.kb.v[0][j] && scr.v[0][j]) {
+        scr.v[0] += 1 << j;
+        scr.v[0] &= ~(~kbMin & A::APInt::getLowBitsSet(x.kb.bw(), j));
+        break;
+      }
+      if (j == 0)
+        break;
+    }
+    if (i == 0)
+      break;
+  }
+
+  // Known one but min scr has a zero
+  for (unsigned int i = bw - 1;; --i) {
+    for (unsigned int j = i;; --j) {
+      if (x.kb.v[1][j] && !scr.v[0][j]) {
+        scr.v[0] += 1 << j;
+        scr.v[0] &= ~(~kbMin & A::APInt::getLowBitsSet(x.kb.bw(), j));
+        break;
+      }
+      if (j == 0)
+        break;
+    }
+    if (i == 0)
+      break;
+  }
+
+  // Known zero but max scr has a one
+  for (unsigned int i = 0; i < bw; ++i) {
+    for (unsigned int j = i; j < bw; ++j) {
+      if (x.kb.v[0][j] && scr.v[1][j]) {
+        scr.v[1] -= 1 << j;
+        scr.v[1] |= kbMax & A::APInt::getLowBitsSet(x.kb.bw(), j);
+        break;
+      }
+    }
+  }
+
+  // Known one but max scr has a zero
+  for (unsigned int i = 0; i < bw; ++i) {
+    for (unsigned int j = i; j < bw; ++j) {
+      if (x.kb.v[1][j] && !scr.v[1][j]) {
+        scr.v[1] -= 1 << j;
+        scr.v[1] |= kbMax & A::APInt::getLowBitsSet(x.kb.bw(), j);
+        break;
+      }
+    }
+  }
+
+  ucr = ucr.meet(UConstRange({kbMin, kbMax}));
+
+  if (!x.kb.v[0].isSignBitSet() && !x.kb.v[1].isSignBitSet()) {
+    kbMin.setSignBit();
+    kbMax.clearSignBit();
+  }
+
+  scr = scr.meet(SConstRange({kbMin, kbMax}));
+
+  return reduceCr(ucr, scr);
+}
+
+inline const KnownBits crToKb(const UConstRange &ucr, const SConstRange &scr) {
+  if (ucr.v[0].eq(scr.v[1]) && ucr.v[1].eq(scr.v[0]))
+    return {KnownBits::fromConcrete(ucr.v[0]).join(
+        KnownBits::fromConcrete(ucr.v[1]))};
+
+  if ((ucr.v[0].isNegative() != ucr.v[1].isNegative()) &&
+      (scr.v[0].isNegative() != scr.v[1].isNegative())) {
+    KnownBits lowKb = KnownBits::fromConcrete(ucr.v[0]);
+    if (ucr.v[0] != scr.v[1]) {
+      unsigned int diffBit =
+          ucr.bw() - ((ucr.v[0] ^ scr.v[1]).countl_zero() + 1);
+      lowKb.v[0].clearLowBits(diffBit + 1);
+      lowKb.v[1].clearLowBits(diffBit + 1);
     }
 
-    unsigned int diffBit = min.getBitWidth() - ((min ^ max).countl_zero() + 1);
-    A::APInt newKbZero = min;
-    A::APInt newKbOnes = min;
-    newKbZero.clearLowBits(diffBit + 1);
-    newKbOnes.clearLowBits(diffBit + 1);
+    KnownBits highKb = KnownBits::fromConcrete(scr.v[0]);
+    if (scr.v[0] != ucr.v[1]) {
+      unsigned int diffBit =
+          scr.bw() - ((scr.v[0] ^ ucr.v[1]).countl_zero() + 1);
+      highKb.v[0].clearLowBits(diffBit + 1);
+      highKb.v[1].clearLowBits(diffBit + 1);
+    }
 
-    newKb = newKb.meet(KnownBits({newKbZero, newKbOnes}));
+    return lowKb.join(highKb);
   }
 
-  A::APInt aMin = newKb.v[1];
-  A::APInt aMax = ~newKb.v[0];
-  newUcr = newUcr.meet(UConstRange({aMin, aMax}));
-
-  if (newKb.v[0].isSignBitSet()) {
-    newScr = newScr.meet(SConstRange({aMin, aMax}));
-  }
-  if (newKb.v[1].isSignBitSet()) {
-    newScr = newScr.meet(SConstRange({aMax, aMin}));
-  } else {
-    aMin.setSignBit();
-    aMax.clearSignBit();
-    newScr = newScr.meet(SConstRange({aMin, aMax}));
+  KnownBits ucrKb = KnownBits::fromConcrete(ucr.v[0]);
+  if (ucr.v[0] != ucr.v[1]) {
+    unsigned int diffBit = ucr.bw() - ((ucr.v[0] ^ ucr.v[1]).countl_zero() + 1);
+    ucrKb.v[0].clearLowBits(diffBit + 1);
+    ucrKb.v[1].clearLowBits(diffBit + 1);
   }
 
-  return Product({newKb, newUcr, newScr});
+  KnownBits scrKb = KnownBits::fromConcrete(scr.v[0]);
+  if (scr.v[0] != scr.v[1]) {
+    unsigned int diffBit = scr.bw() - ((scr.v[0] ^ scr.v[1]).countl_zero() + 1);
+    scrKb.v[0].clearLowBits(diffBit + 1);
+    scrKb.v[1].clearLowBits(diffBit + 1);
+  }
+
+  return ucrKb.meet(scrKb);
 }
 
-inline bool isBottom(const Product &x) {
-  return x.kb.isBottom() || x.ucr.isBottom() || x.scr.isBottom();
+inline const Product reduceOneStep(const Product &x) {
+  auto [newUcr, newScr] = reduceCr(x.ucr, x.scr);
+
+  KnownBits newKb = x.kb.meet(crToKb(newUcr, newScr));
+
+  auto [newNewUcr, newNewScr] = kbToCr({newKb, newUcr, newScr});
+  newNewUcr = newNewUcr.meet(newUcr);
+  newNewScr = newNewScr.meet(newScr);
+
+  if (newNewUcr.isBottom() || newNewScr.isBottom() || newKb.isBottom())
+    return Product({KnownBits::bottom(x.kb.bw()),
+                    UConstRange::bottom(x.kb.bw()),
+                    SConstRange::bottom(x.kb.bw())});
+
+  return Product({newKb, newNewUcr, newNewScr});
 }
+
+inline const Product reduce(const Product &x) {
+  Product oldProd = x;
+  Product newProd = reduceOneStep(oldProd);
+  while (oldProd != newProd) {
+    oldProd = newProd;
+    newProd = reduceOneStep(oldProd);
+  }
+
+  return newProd;
+}
+
+// inline bool isBottom(const Product &x) {
+//   return x.kb.isBottom() || x.ucr.isBottom() || x.scr.isBottom();
+// }
 
 unsigned int inline getBw(
     const std::vector<std::tuple<Product, Product, Product>> &toEval) {
@@ -467,7 +684,8 @@ public:
       for (const UConstRange &ucrVal : ucrLattice) {
         for (const SConstRange &scrVal : scrLattice) {
           const Product reducedVal = reduce({kbVal, ucrVal, scrVal});
-          if (!isBottom(reducedVal))
+          if (!reducedVal.kb.isBottom() && !reducedVal.ucr.isBottom() &&
+              !reducedVal.scr.isBottom())
             r.push_back(reducedVal);
         }
       }

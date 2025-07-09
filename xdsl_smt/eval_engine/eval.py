@@ -220,3 +220,45 @@ def eval_final(
         exit(eval_output.returncode)
 
     return _parse_engine_output(eval_output.stdout)
+
+
+def rp_final(
+    low_bws: list[int],
+    med_bws: list[tuple[int, int]],
+    high_bws: list[tuple[int, int, int]],
+    seed: int,
+    kb_xfer_name: str,
+    ucr_xfer_name: str,
+    scr_xfer_name: str,
+    xfer_src: str,
+    op_name: str,
+    helper_srcs: list[str],
+) -> list[EvalResult]:
+    engine_path = Path("xdsl_smt").joinpath("eval_engine", "build", "rp_enum")
+    if not engine_path.exists():
+        raise FileNotFoundError(f"Eval Engine not found at: {engine_path}")
+
+    engine_params = ""
+    engine_params += f"{low_bws}\n"
+    engine_params += f"{med_bws}\n"
+    engine_params += f"{high_bws}\n"
+    engine_params += f"{seed}\n"
+    engine_params += f"{op_name}\n"
+    engine_params += f"{[kb_xfer_name, ucr_xfer_name, scr_xfer_name]}\n"
+    engine_params += "using A::APInt;\n"
+    engine_params += "\n".join(helper_srcs + [xfer_src])
+
+    eval_output = run(
+        [engine_path],
+        input=engine_params,
+        text=True,
+        stdout=PIPE,
+        stderr=PIPE,
+    )
+
+    if eval_output.returncode != 0:
+        print("EvalEngine failed with this error:")
+        print(eval_output.stderr, end="")
+        exit(eval_output.returncode)
+
+    return _parse_engine_output(eval_output.stdout)
