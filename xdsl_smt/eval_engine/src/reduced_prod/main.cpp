@@ -69,15 +69,11 @@ int main() {
   const std::vector<std::vector<std::tuple<Product, Product, Product>>> lows =
       e.genLows(lbws);
 
-  const std::vector<std::vector<std::tuple<Product, Product, Product>>> mids =
-      e.genMids(mbws, rng);
-
   const std::vector<std::vector<std::tuple<Product, Product, Product>>> highs =
       e.genHighs(hbws, rng);
 
   std::vector<std::vector<std::tuple<Product, Product, Product>>> toEval;
   toEval.insert(toEval.end(), lows.begin(), lows.end());
-  toEval.insert(toEval.end(), mids.begin(), mids.end());
   toEval.insert(toEval.end(), highs.begin(), highs.end());
 
   std::optional<XferFn<llvm::KnownBits>> llvmKbXfer =
@@ -85,12 +81,9 @@ int main() {
   std::optional<XferFn<llvm::ConstantRange>> llvmCrXfer =
       makeTest(UCR_TESTS, opName);
 
-  std::vector<Results> r = e.evalFinal(toEval, llvmKbXfer, llvmCrXfer);
+  std::vector<Results> r = e.evalFinal(toEval, llvmKbXfer);
   for (auto x : r)
     x.print(std::cout, KnownBits::maxDist);
-  // TODO fix the dist thing
-  // for (auto [_, crRes] : r)
-  //   crRes.print(std::cout, UConstRange::maxDist);
 
   return 0;
 }

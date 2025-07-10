@@ -318,10 +318,6 @@ inline const Product reduce(const Product &x) {
   return newProd;
 }
 
-// inline bool isBottom(const Product &x) {
-//   return x.kb.isBottom() || x.ucr.isBottom() || x.scr.isBottom();
-// }
-
 unsigned int inline getBw(
     const std::vector<std::tuple<Product, Product, Product>> &toEval) {
   return std::get<0>(toEval[0]).kb.bw();
@@ -440,17 +436,14 @@ public:
   const std::vector<Results> evalFinal(
       const std::vector<std::vector<std::tuple<Product, Product, Product>>>
           &toEval,
-      const std::optional<LLVMXferFn<llvm::KnownBits>> &llvmKbXfer,
-      const std::optional<LLVMXferFn<llvm::ConstantRange>> &llvmCrXfer) const {
+      const std::optional<LLVMXferFn<llvm::KnownBits>> &llvmKbXfer) const {
     std::vector<Results> r;
 
     for (unsigned int i = 0; i < toEval.size(); ++i) {
       unsigned int bw = getBw(toEval[i]);
-      r.push_back({12, bw});
+      r.push_back({7, bw});
 
       KnownBits kbTop = KnownBits::top(bw);
-      UConstRange ucrTop = UConstRange::top(bw);
-      SConstRange scrTop = SConstRange::top(bw);
 
       for (unsigned int j = 0; j < toEval[i].size(); ++j) {
         auto [lhs, rhs, best] = toEval[i][j];
@@ -469,23 +462,11 @@ public:
         UConstRange ucrSynth = ucrXfer(lhs.ucr, rhs.ucr);
         SConstRange scrSynth = scrXfer(lhs.scr, rhs.scr);
 
-        bool crTopExact = getCrExact({ucrTop, scrTop}, {ucrBest, scrBest});
-        unsigned long crTopDis =
-            getCrDist({ucrTop, scrTop}, {ucrBest, scrBest});
-
-        bool crSynthExact =
-            getCrExact({ucrSynth, scrSynth}, {ucrBest, scrBest});
-        unsigned long crSynthDis =
-            getCrDist({ucrSynth, scrSynth}, {ucrBest, scrBest});
-
-        const Product reduced = reduce({kbSynth, ucrSynth, scrSynth});
-        bool kbReducedSynExact = reduced.kb == kbBest;
-        unsigned long kbReducedSynDis = reduced.kb.distance(kbBest);
-
-        bool crRedSynExact =
-            getCrExact({reduced.ucr, reduced.scr}, {ucrBest, scrBest});
-        unsigned long crRedSynDis =
-            getCrDist({reduced.ucr, reduced.scr}, {ucrBest, scrBest});
+        const Product bestReduced = reduce({best.kb, best.ucr, best.scr});
+        const Product synthReduced = reduce({kbSynth, ucrSynth, scrSynth});
+        bool kbReducedSynExact = synthReduced.kb == bestReduced.kb;
+        unsigned long kbReducedSynDis =
+            synthReduced.kb.distance(bestReduced.kb);
 
         bool kbLlvmExact = false;
         unsigned long kbLlvmDis = 0;
@@ -493,7 +474,10 @@ public:
         unsigned long kbMeetDis = 0;
         bool kbMeetRedExact = false;
         unsigned long kbMeetRedDis = 0;
+        bool kbRedLlvmExact = false;
+        unsigned long kbRedLlvmDis = 0;
         if (llvmKbXfer) {
+
           KnownBits llvmKbRes =
               kbXferWrapper(lhs.kb, rhs.kb, llvmKbXfer.value());
           kbLlvmExact = llvmKbRes == kbBest;
@@ -503,38 +487,12 @@ public:
           kbMeetExact = kbMeet == kbBest;
           kbMeetDis = kbMeet.distance(kbBest);
 
-          KnownBits kbMeetReduced = llvmKbRes.meet(reduced.kb);
-          kbMeetRedExact = kbMeetReduced == kbBest;
-          kbMeetRedDis = kbMeetReduced.distance(kbBest);
-        }
+          KnownBits kbMeetReduced = llvmKbRes.meet(synthReduced.kb);
+          kbMeetRedExact = kbMeetReduced == bestReduced.kb;
+          kbMeetRedDis = kbMeetReduced.distance(bestReduced.kb);
 
-        bool crLlvmExact = false;
-        unsigned long crLlvmDis = 0;
-        bool crLlvmMeetExact = false;
-        unsigned long crLlvmMeetDis = 0;
-        bool crLlvmMRedExact = false;
-        unsigned long crLlvmMRedDis = 0;
-        if (llvmCrXfer) {
-          auto [llvmUcrRes, llvmScrRes] = cr_xfer_wrapper(
-              {lhs.ucr, lhs.scr}, {rhs.ucr, rhs.scr}, llvmCrXfer.value());
-
-          crLlvmExact =
-              getCrExact({llvmUcrRes, llvmScrRes}, {ucrBest, scrBest});
-          crLlvmDis = getCrDist({llvmUcrRes, llvmScrRes}, {ucrBest, scrBest});
-
-          UConstRange ucrMeet = llvmUcrRes.meet(ucrSynth);
-          SConstRange scrMeet = llvmScrRes.meet(scrSynth);
-
-          crLlvmMeetExact = getCrExact({ucrMeet, scrMeet}, {ucrBest, scrBest});
-          crLlvmMeetDis = getCrDist({ucrMeet, scrMeet}, {ucrBest, scrBest});
-
-          UConstRange ucrMeetRed = llvmUcrRes.meet(reduced.ucr);
-          SConstRange scrMeetRed = llvmScrRes.meet(reduced.scr);
-
-          crLlvmMRedExact =
-              getCrExact({ucrMeetRed, scrMeetRed}, {ucrBest, scrBest});
-          crLlvmMRedDis =
-              getCrDist({ucrMeetRed, scrMeetRed}, {ucrBest, scrBest});
+          kbRedLlvmExact = llvmKbRes == bestReduced.kb;
+          kbRedLlvmDis = llvmKbRes.distance(bestReduced.kb);
         }
 
         r[i].incResult(Result(0, kbTopDis, kbTopExact, 0, 0), 0);
@@ -543,12 +501,7 @@ public:
         r[i].incResult(Result(0, kbMeetDis, kbMeetExact, 0, 0), 3);
         r[i].incResult(Result(0, kbReducedSynDis, kbReducedSynExact, 0, 0), 4);
         r[i].incResult(Result(0, kbMeetRedDis, kbMeetRedExact, 0, 0), 5);
-        r[i].incResult(Result(0, crTopDis, crTopExact, 0, 0), 6);
-        r[i].incResult(Result(0, crSynthDis, crSynthExact, 0, 0), 7);
-        r[i].incResult(Result(0, crLlvmExact, crLlvmDis, 0, 0), 8);
-        r[i].incResult(Result(0, crLlvmMeetExact, crLlvmMeetDis, 0, 0), 9);
-        r[i].incResult(Result(0, crRedSynDis, crRedSynExact, 0, 0), 10);
-        r[i].incResult(Result(0, crLlvmMRedExact, crLlvmMRedDis, 0, 0), 11);
+        r[i].incResult(Result(0, kbRedLlvmExact, kbRedLlvmDis, 0, 0), 6);
         r[i].incCases(0, 0);
       }
     }
@@ -566,32 +519,102 @@ public:
   }
 
   const std::vector<std::vector<std::tuple<Product, Product, Product>>>
-  genMids(const std::vector<std::pair<unsigned int, unsigned int>> &bws,
-          std::mt19937 &rng) const {
-
-    std::vector<std::vector<std::tuple<Product, Product, Product>>> r;
-    std::transform(bws.begin(), bws.end(), std::back_inserter(r),
-                   [this, &rng](std::pair<unsigned int, unsigned int> bw) {
-                     return sampleLattice(bw.first, bw.second, rng, -1);
-                   });
-
-    return r;
-  }
-
-  const std::vector<std::vector<std::tuple<Product, Product, Product>>>
   genHighs(
       const std::vector<std::tuple<unsigned int, unsigned int, unsigned int>>
           &bws,
       std::mt19937 &rng) const {
 
-    std::vector<std::vector<std::tuple<Product, Product, Product>>> r;
-    std::transform(
-        bws.begin(), bws.end(), std::back_inserter(r),
-        [this, &rng](std::tuple<unsigned int, unsigned int, unsigned int> bw) {
-          return sampleLattice(std::get<0>(bw), std::get<1>(bw), rng,
-                               static_cast<int>(std::get<2>(bw)));
-        });
+    const unsigned int cncSamplesForLat = 15;
 
+    std::vector<std::vector<std::tuple<Product, Product, Product>>> r;
+    for (auto tup : bws) {
+      std::vector<std::tuple<Product, Product, Product>> bwLat;
+      unsigned int bw = std::get<0>(tup);
+      unsigned int latticeSamples = std::get<1>(tup);
+      unsigned int numConcSamples = std::get<2>(tup);
+      std::uniform_int_distribution<unsigned long> dist(
+          0, A::APInt::getMaxValue(bw).getZExtValue());
+
+      for (unsigned int j = 0; j < latticeSamples; ++j) {
+        KnownBits lhsKb = KnownBits::bottom(bw);
+        UConstRange lhsUcr = UConstRange::bottom(bw);
+        SConstRange lhsScr = SConstRange::bottom(bw);
+        for (unsigned int i = 0; i < cncSamplesForLat; ++i) {
+          const A::APInt x = A::APInt(bw, dist(rng));
+          if (i < 2)
+            lhsKb = lhsKb.join(KnownBits::fromConcrete(x));
+          lhsUcr = lhsUcr.join(UConstRange::fromConcrete(x));
+          lhsScr = lhsScr.join(SConstRange::fromConcrete(x));
+        }
+
+        KnownBits rhsKb = KnownBits::bottom(bw);
+        UConstRange rhsUcr = UConstRange::bottom(bw);
+        SConstRange rhsScr = SConstRange::bottom(bw);
+        for (unsigned int i = 0; i < cncSamplesForLat; ++i) {
+          const A::APInt x = A::APInt(bw, dist(rng));
+          if (i < 2)
+            rhsKb = rhsKb.join(KnownBits::fromConcrete(x));
+          rhsUcr = rhsUcr.join(UConstRange::fromConcrete(x));
+          rhsScr = rhsScr.join(SConstRange::fromConcrete(x));
+        }
+
+        KnownBits resKb = KnownBits::bottom(bw);
+        for (unsigned int i = 0; i < numConcSamples; ++i) {
+          const A::APInt lhsConc = lhsKb.getRandConcrete(rng);
+          const A::APInt rhsConc = rhsKb.getRandConcrete(rng);
+          if (!kbEvalAbstOp.opCon ||
+              kbEvalAbstOp.opCon.value()(lhsConc, rhsConc))
+            resKb = resKb.join(
+                KnownBits::fromConcrete(kbEvalAbstOp.concOp(lhsConc, rhsConc)));
+        }
+
+        UConstRange resUcr = UConstRange::bottom(bw);
+        for (unsigned int i = 0; i < numConcSamples; ++i) {
+          const A::APInt lhsConc = lhsUcr.getRandConcrete(rng);
+          const A::APInt rhsConc = rhsUcr.getRandConcrete(rng);
+          if (!ucrEvalAbstOp.opCon ||
+              ucrEvalAbstOp.opCon.value()(lhsConc, rhsConc))
+            resUcr = resUcr.join(UConstRange::fromConcrete(
+                ucrEvalAbstOp.concOp(lhsConc, rhsConc)));
+        }
+
+        SConstRange resScr = SConstRange::bottom(bw);
+        for (unsigned int i = 0; i < numConcSamples; ++i) {
+          const A::APInt lhsConc = lhsScr.getRandConcrete(rng);
+          const A::APInt rhsConc = rhsScr.getRandConcrete(rng);
+          if (!scrEvalAbstOp.opCon ||
+              scrEvalAbstOp.opCon.value()(lhsConc, rhsConc))
+            resScr = resScr.join(SConstRange::fromConcrete(
+                scrEvalAbstOp.concOp(lhsConc, rhsConc)));
+        }
+
+        if (reduce({lhsKb, lhsUcr, lhsScr}).kb.isBottom())
+          exit(1);
+        if (reduce({lhsKb, lhsUcr, lhsScr}).kb.isTop())
+          exit(2);
+
+        bwLat.push_back({
+            reduce({lhsKb, lhsUcr, lhsScr}),
+            reduce({rhsKb, rhsUcr, rhsScr}),
+            // reduce({KnownBits::bottom(bw), UConstRange::bottom(bw),
+            //         SConstRange::bottom(bw)})
+            // reduce({resKb, resUcr, resScr},
+            {resKb, resUcr, resScr},
+        });
+      }
+
+      r.push_back(bwLat);
+    }
+
+    // std::vector<std::vector<std::tuple<Product, Product, Product>>> r;
+    // std::transform(
+    //     bws.begin(), bws.end(), std::back_inserter(r),
+    //     [this, &rng](std::tuple<unsigned int, unsigned int, unsigned int> bw)
+    //     {
+    //       return sampleLattice(std::get<0>(bw), std::get<1>(bw), rng,
+    //                            static_cast<int>(std::get<2>(bw)));
+    //     });
+    //
     return r;
   }
 

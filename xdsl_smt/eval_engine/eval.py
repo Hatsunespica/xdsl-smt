@@ -230,9 +230,8 @@ def rp_final(
     kb_xfer_name: str,
     ucr_xfer_name: str,
     scr_xfer_name: str,
-    xfer_src: str,
     op_name: str,
-    helper_srcs: list[str],
+    src_code: str
 ) -> list[EvalResult]:
     engine_path = Path("xdsl_smt").joinpath("eval_engine", "build", "rp_enum")
     if not engine_path.exists():
@@ -246,7 +245,7 @@ def rp_final(
     engine_params += f"{op_name}\n"
     engine_params += f"{[kb_xfer_name, ucr_xfer_name, scr_xfer_name]}\n"
     engine_params += "using A::APInt;\n"
-    engine_params += "\n".join(helper_srcs + [xfer_src])
+    engine_params += f"{src_code}\n"
 
     eval_output = run(
         [engine_path],
