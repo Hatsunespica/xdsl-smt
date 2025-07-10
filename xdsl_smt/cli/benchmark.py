@@ -60,6 +60,59 @@ all_test_names = [
     "Xor.mlir",
 ]
 
+
+ucr_test_names = [
+    # "Abds.mlir",
+    "Abdu.mlir",
+    "Add.mlir",
+    # "AddNsw.mlir",
+    "AddNswNuw.mlir",
+    "AddNuw.mlir",
+    "And.mlir",
+    # "AshrExact.mlir",
+    # "Ashr.mlir",
+    # "AvgCeilS.mlir",
+    "AvgCeilU.mlir",
+    # "AvgFloorS.mlir",
+    "AvgFloorU.mlir",
+    "LshrExact.mlir",
+    "Lshr.mlir",
+    # "Mods.mlir",
+    "Modu.mlir",
+    "Mul.mlir",
+    # "MulNsw.mlir",
+    "MulNswNuw.mlir",
+    "MulNuw.mlir",
+    "Or.mlir",
+    # "SaddSat.mlir",
+    # "SdivExact.mlir",
+    # "Sdiv.mlir",
+    "Shl.mlir",
+    # "ShlNsw.mlir",
+    "ShlNswNuw.mlir",
+    "ShlNuw.mlir",
+    # "Smax.mlir",
+    # "Smin.mlir",
+    # "SmulSat.mlir",
+    # "SshlSat.mlir",
+    # "SsubSat.mlir",
+    "Sub.mlir",
+    # "SubNsw.mlir",
+    "SubNswNuw.mlir",
+    "SubNuw.mlir",
+    "UaddSat.mlir",
+    "UdivExact.mlir",
+    "Udiv.mlir",
+    "Umax.mlir",
+    "Umin.mlir",
+    "UmulSat.mlir",
+    "UshlSat.mlir",
+    "UsubSat.mlir",
+    "Xor.mlir",
+]
+
+scr_test_names = [name for name in all_test_names if name not in ucr_test_names]
+
 kb_representative_test_names = [
     "Add.mlir",
     "AddNsw.mlir",
@@ -74,23 +127,6 @@ kb_representative_test_names = [
     "Umax.mlir",
 ]
 
-cr_representative_test_names = [
-    "Add.mlir",
-    # "AddNuw.mlir",
-    "And.mlir",
-    # "Shl.mlir",
-    # "Mul.mlir",
-    # "Udiv.mlir",
-    "Umax.mlir",
-]
-
-kb_rerun = [
-    # "SaddSat.mlir",
-    # "SshlSat.mlir",
-    # "SmulSat.mlir",
-    # "AvgCeilU.mlir",
-    "Sub.mlir",
-]
 
 kb_not_best_test_names = [
     "Mul.mlir",
@@ -197,16 +233,21 @@ def main() -> None:
 
     kb_inputs = [
         (x.split(".")[0], AbstractDomain.KnownBits, start_dir.joinpath(x), args)
-        for x in ["Modu.mlir"]
+        for x in all_test_names
     ]
 
-    cr_inputs = [
+    ucr_inputs = [
         (x.split(".")[0], AbstractDomain.UConstRange, start_dir.joinpath(x), args)
-        for x in cr_representative_test_names
+        for x in ucr_test_names
+    ]
+
+    scr_inputs = [
+        (x.split(".")[0], AbstractDomain.SConstRange, start_dir.joinpath(x), args)
+        for x in scr_test_names
     ]
 
     with Pool() as p:
-        data = p.map(synth_run, kb_inputs)
+        data = p.map(synth_run, ucr_inputs + scr_inputs)
 
     with open(args.outputs_folder.joinpath("data.json"), "w") as f:
         dump(data, f, indent=2)
