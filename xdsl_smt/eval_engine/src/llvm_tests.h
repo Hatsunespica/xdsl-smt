@@ -22,13 +22,14 @@ inline llvm::ConstantRange make_llvm_ucr(const UConstRange &x) {
                              llvm::APInt(x.bw(), x.v[1].getZExtValue()) + 1);
 }
 
-inline const UConstRange
+inline std::optional<UConstRange>
 ucr_xfer_wrapper(const UConstRange &lhs, const UConstRange &rhs,
                  const XferFn<llvm::ConstantRange> &fn) {
   llvm::ConstantRange x = fn(make_llvm_ucr(lhs), make_llvm_ucr(rhs));
 
   if (x.isWrappedSet())
-    return UConstRange::top(lhs.bw());
+    // return UConstRange::top(lhs.bw());
+    return std::nullopt;
   if (x.isFullSet())
     return UConstRange::top(lhs.bw());
   if (x.isEmptySet())
@@ -41,47 +42,50 @@ ucr_xfer_wrapper(const UConstRange &lhs, const UConstRange &rhs,
 #define UCR_OP(e)                                                              \
   [](const llvm::ConstantRange &l, const llvm::ConstantRange &r) { return e; }
 
+#define SCR_OP(e)                                                              \
+  [](const llvm::ConstantRange &l, const llvm::ConstantRange &r) { return e; }
+
 const std::vector<
     std::tuple<std::string, std::optional<XferFn<llvm::ConstantRange>>>>
     UCR_TESTS{
-        {"Abds", std::nullopt},
+        // {"Abds", std::nullopt},
         {"Abdu", std::nullopt},
         {"Add", UCR_OP(l.add(r))},
-        {"AddNsw", UCR_OP(l.addWithNoWrap(r, 2))},
+        // {"AddNsw", UCR_OP(l.addWithNoWrap(r, 2))},
         {"AddNswNuw", UCR_OP(l.addWithNoWrap(r, 3))},
         {"AddNuw", UCR_OP(l.addWithNoWrap(r, 1))},
         {"And", UCR_OP(l.binaryAnd(r))},
-        {"Ashr", UCR_OP(l.ashr(r))},
-        {"AshrExact", std::nullopt},
-        {"AvgCeilS", std::nullopt},
+        // {"Ashr", UCR_OP(l.ashr(r))},
+        // {"AshrExact", std::nullopt},
+        // {"AvgCeilS", std::nullopt},
         {"AvgCeilU", std::nullopt},
-        {"AvgFloorS", std::nullopt},
+        // {"AvgFloorS", std::nullopt},
         {"AvgFloorU", std::nullopt},
         {"Lshr", UCR_OP(l.lshr(r))},
         {"LshrExact", std::nullopt},
-        {"Mods", UCR_OP(l.srem(r))},
+        // {"Mods", UCR_OP(l.srem(r))},
         {"Modu", UCR_OP(l.urem(r))},
         {"Mul", UCR_OP(l.multiply(r))},
-        {"MulNsw", UCR_OP(l.multiplyWithNoWrap(r, 2))},
+        // {"MulNsw", UCR_OP(l.multiplyWithNoWrap(r, 2))},
         {"MulNswNuw", UCR_OP(l.multiplyWithNoWrap(r, 3))},
         {"MulNuw", UCR_OP(l.multiplyWithNoWrap(r, 1))},
-        {"Mulhs", std::nullopt},
+        // {"Mulhs", std::nullopt},
         {"Mulhu", std::nullopt},
         {"Or", UCR_OP(l.binaryOr(r))},
-        {"SaddSat", UCR_OP(l.sadd_sat(r))},
-        {"Sdiv", UCR_OP(l.sdiv(r))},
-        {"SdivExact", std::nullopt},
+        // {"SaddSat", UCR_OP(l.sadd_sat(r))},
+        // {"Sdiv", UCR_OP(l.sdiv(r))},
+        // {"SdivExact", std::nullopt},
         {"Shl", UCR_OP(l.shl(r))},
-        {"ShlNsw", UCR_OP(l.shlWithNoWrap(r, 2))},
+        // {"ShlNsw", UCR_OP(l.shlWithNoWrap(r, 2))},
         {"ShlNswNuw", UCR_OP(l.shlWithNoWrap(r, 3))},
         {"ShlNuw", UCR_OP(l.shlWithNoWrap(r, 1))},
-        {"Smax", UCR_OP(l.smax(r))},
-        {"Smin", UCR_OP(l.smin(r))},
-        {"SmulSat", UCR_OP(l.smul_sat(r))},
-        {"SshlSat", UCR_OP(l.sshl_sat(r))},
-        {"SsubSat", UCR_OP(l.ssub_sat(r))},
+        // {"Smax", UCR_OP(l.smax(r))},
+        // {"Smin", UCR_OP(l.smin(r))},
+        // {"SmulSat", UCR_OP(l.smul_sat(r))},
+        // {"SshlSat", UCR_OP(l.sshl_sat(r))},
+        // {"SsubSat", UCR_OP(l.ssub_sat(r))},
         {"Sub", UCR_OP(l.sub(r))},
-        {"SubNsw", UCR_OP(l.subWithNoWrap(r, 2))},
+        // {"SubNsw", UCR_OP(l.subWithNoWrap(r, 2))},
         {"SubNswNuw", UCR_OP(l.subWithNoWrap(r, 3))},
         {"SubNuw", UCR_OP(l.subWithNoWrap(r, 1))},
         {"UaddSat", UCR_OP(l.uadd_sat(r))},
@@ -95,6 +99,60 @@ const std::vector<
         {"Xor", UCR_OP(l.binaryXor(r))},
     };
 
+const std::vector<
+    std::tuple<std::string, std::optional<XferFn<llvm::ConstantRange>>>>
+    SCR_TESTS{
+        {"Abds", std::nullopt},
+        // {"Abdu", std::nullopt},
+        // {"Add", SCR_OP(l.add(r))},
+        {"AddNsw", SCR_OP(l.addWithNoWrap(r, 2))},
+        // {"AddNswNuw", SCR_OP(l.addWithNoWrap(r, 3))},
+        // {"AddNuw", SCR_OP(l.addWithNoWrap(r, 1))},
+        // {"And", SCR_OP(l.binaryAnd(r))},
+        {"Ashr", SCR_OP(l.ashr(r))},
+        {"AshrExact", std::nullopt},
+        {"AvgCeilS", std::nullopt},
+        // {"AvgCeilU", std::nullopt},
+        {"AvgFloorS", std::nullopt},
+        // {"AvgFloorU", std::nullopt},
+        // {"Lshr", SCR_OP(l.lshr(r))},
+        // {"LshrExact", std::nullopt},
+        {"Mods", SCR_OP(l.srem(r))},
+        // {"Modu", SCR_OP(l.urem(r))},
+        // {"Mul", SCR_OP(l.multiply(r))},
+        {"MulNsw", SCR_OP(l.multiplyWithNoWrap(r, 2))},
+        // {"MulNswNuw", SCR_OP(l.multiplyWithNoWrap(r, 3))},
+        // {"MulNuw", SCR_OP(l.multiplyWithNoWrap(r, 1))},
+        {"Mulhs", std::nullopt},
+        // {"Mulhu", std::nullopt},
+        // {"Or", SCR_OP(l.binaryOr(r))},
+        {"SaddSat", SCR_OP(l.sadd_sat(r))},
+        {"Sdiv", SCR_OP(l.sdiv(r))},
+        {"SdivExact", std::nullopt},
+        // {"Shl", SCR_OP(l.shl(r))},
+        {"ShlNsw", SCR_OP(l.shlWithNoWrap(r, 2))},
+        // {"ShlNswNuw", SCR_OP(l.shlWithNoWrap(r, 3))},
+        // {"ShlNuw", SCR_OP(l.shlWithNoWrap(r, 1))},
+        {"Smax", SCR_OP(l.smax(r))},
+        {"Smin", SCR_OP(l.smin(r))},
+        {"SmulSat", SCR_OP(l.smul_sat(r))},
+        {"SshlSat", SCR_OP(l.sshl_sat(r))},
+        {"SsubSat", SCR_OP(l.ssub_sat(r))},
+        // {"Sub", SCR_OP(l.sub(r))},
+        {"SubNsw", SCR_OP(l.subWithNoWrap(r, 2))},
+        // {"SubNswNuw", SCR_OP(l.subWithNoWrap(r, 3))},
+        // {"SubNuw", SCR_OP(l.subWithNoWrap(r, 1))},
+        // {"UaddSat", SCR_OP(l.uadd_sat(r))},
+        // {"Udiv", SCR_OP(l.udiv(r))},
+        // {"UdivExact", std::nullopt},
+        // {"Umax", SCR_OP(l.umax(r))},
+        // {"Umin", SCR_OP(l.umin(r))},
+        // {"UmulSat", SCR_OP(l.umul_sat(r))},
+        // {"UshlSat", SCR_OP(l.ushl_sat(r))},
+        // {"UsubSat", SCR_OP(l.usub_sat(r))},
+        // {"Xor", SCR_OP(l.binaryXor(r))},
+    };
+
 inline llvm::KnownBits make_llvm_kb(const KnownBits &x) {
   llvm::KnownBits llvm = llvm::KnownBits(x.bw());
   llvm.Zero = x.v[0].getZExtValue();
@@ -102,9 +160,9 @@ inline llvm::KnownBits make_llvm_kb(const KnownBits &x) {
   return llvm;
 }
 
-inline const KnownBits kb_xfer_wrapper(const KnownBits &lhs,
-                                       const KnownBits &rhs,
-                                       const XferFn<llvm::KnownBits> &fn) {
+inline const std::optional<KnownBits>
+kb_xfer_wrapper(const KnownBits &lhs, const KnownBits &rhs,
+                const XferFn<llvm::KnownBits> &fn) {
   llvm::KnownBits x = fn(make_llvm_kb(lhs), make_llvm_kb(rhs));
   return KnownBits({A::APInt(lhs.bw(), x.Zero.getZExtValue()),
                     A::APInt(lhs.bw(), x.One.getZExtValue())});
@@ -167,11 +225,33 @@ const std::vector<
         {"Xor", KB_OP(l ^ r)},
     };
 
-inline const SConstRange scr_xfer_wrapper(const SConstRange &lhs,
-                                          const SConstRange &_,
-                                          const XferFn<std::nullopt_t> &fn) {
-  (void)fn;
-  return SConstRange::bottom(lhs.bw());
+inline llvm::ConstantRange make_llvm_scr(const SConstRange &x) {
+  if (x.isTop())
+    return llvm::ConstantRange::getFull(x.bw());
+  if (x.isBottom())
+    return llvm::ConstantRange::getEmpty(x.bw());
+
+  return llvm::ConstantRange(llvm::APInt(x.bw(), x.v[0].getZExtValue()),
+                             llvm::APInt(x.bw(), x.v[1].getZExtValue()) + 1);
+}
+
+inline std::optional<SConstRange>
+scr_xfer_wrapper(const SConstRange &lhs, const SConstRange &rhs,
+                 const XferFn<llvm::ConstantRange> &fn) {
+  // (void)fn;
+  // return SConstRange::bottom(lhs.bw());
+  llvm::ConstantRange x = fn(make_llvm_scr(lhs), make_llvm_scr(rhs));
+
+  if (x.isSignWrappedSet())
+    // return SConstRange::top(lhs.bw());
+    return std::nullopt;
+  if (x.isFullSet())
+    return SConstRange::top(lhs.bw());
+  if (x.isEmptySet())
+    return SConstRange::bottom(lhs.bw());
+
+  return SConstRange({A::APInt(lhs.bw(), x.getLower().getZExtValue()),
+                      A::APInt(lhs.bw(), x.getUpper().getZExtValue()) - 1});
 }
 
 inline const IntegerModulo<6>
