@@ -76,7 +76,7 @@ int main() {
                                                    ucr_xfer_wrapper);
   } else if (domain == "SConstRange") {
     handleDomain<SConstRange, llvm::ConstantRange>(fname, synNames, bFnNames,
-                                                   fnSrcCode, opName, UCR_TESTS,
+                                                   fnSrcCode, opName, SCR_TESTS,
                                                    scr_xfer_wrapper);
   } else if (domain == "IntegerModulo") {
     handleDomain<IntegerModulo<6>, std::nullopt_t>(
