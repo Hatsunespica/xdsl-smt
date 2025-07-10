@@ -168,11 +168,33 @@ const std::vector<
         {"Xor", KB_OP(l ^ r)},
     };
 
+inline llvm::ConstantRange make_llvm_scr(const SConstRange &x) {
+  if (x.isTop())
+    return llvm::ConstantRange::getFull(x.bw());
+  if (x.isBottom())
+    return llvm::ConstantRange::getEmpty(x.bw());
+
+  return llvm::ConstantRange(llvm::APInt(x.bw(), x.v[0].getZExtValue()),
+                             llvm::APInt(x.bw(), x.v[1].getZExtValue()) + 1);
+}
+
 inline std::optional<SConstRange>
-scr_xfer_wrapper(const SConstRange &lhs, const SConstRange &_,
-                 const XferFn<std::nullopt_t> &fn) {
-  (void)fn;
-  return SConstRange::bottom(lhs.bw());
+scr_xfer_wrapper(const SConstRange &lhs, const SConstRange &rhs,
+                 const XferFn<llvm::ConstantRange> &fn) {
+  // (void)fn;
+  // return SConstRange::bottom(lhs.bw());
+  llvm::ConstantRange x = fn(make_llvm_scr(lhs), make_llvm_scr(rhs));
+
+  if (x.isSignWrappedSet())
+    // return SConstRange::top(lhs.bw());
+    return std::nullopt;
+  if (x.isFullSet())
+    return SConstRange::top(lhs.bw());
+  if (x.isEmptySet())
+    return SConstRange::bottom(lhs.bw());
+
+  return SConstRange({A::APInt(lhs.bw(), x.getLower().getZExtValue()),
+                      A::APInt(lhs.bw(), x.getUpper().getZExtValue()) - 1});
 }
 
 inline const IntegerModulo<6>
