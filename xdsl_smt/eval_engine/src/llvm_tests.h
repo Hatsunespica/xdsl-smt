@@ -22,13 +22,14 @@ inline llvm::ConstantRange make_llvm_ucr(const UConstRange &x) {
                              llvm::APInt(x.bw(), x.v[1].getZExtValue()) + 1);
 }
 
-inline const UConstRange
+inline std::optional<UConstRange>
 ucr_xfer_wrapper(const UConstRange &lhs, const UConstRange &rhs,
                  const XferFn<llvm::ConstantRange> &fn) {
   llvm::ConstantRange x = fn(make_llvm_ucr(lhs), make_llvm_ucr(rhs));
 
   if (x.isWrappedSet())
-    return UConstRange::top(lhs.bw());
+    // return UConstRange::top(lhs.bw());
+    return std::nullopt;
   if (x.isFullSet())
     return UConstRange::top(lhs.bw());
   if (x.isEmptySet())
@@ -102,9 +103,9 @@ inline llvm::KnownBits make_llvm_kb(const KnownBits &x) {
   return llvm;
 }
 
-inline const KnownBits kb_xfer_wrapper(const KnownBits &lhs,
-                                       const KnownBits &rhs,
-                                       const XferFn<llvm::KnownBits> &fn) {
+inline const std::optional<KnownBits>
+kb_xfer_wrapper(const KnownBits &lhs, const KnownBits &rhs,
+                const XferFn<llvm::KnownBits> &fn) {
   llvm::KnownBits x = fn(make_llvm_kb(lhs), make_llvm_kb(rhs));
   return KnownBits({A::APInt(lhs.bw(), x.Zero.getZExtValue()),
                     A::APInt(lhs.bw(), x.One.getZExtValue())});
@@ -167,9 +168,9 @@ const std::vector<
         {"Xor", KB_OP(l ^ r)},
     };
 
-inline const SConstRange scr_xfer_wrapper(const SConstRange &lhs,
-                                          const SConstRange &_,
-                                          const XferFn<std::nullopt_t> &fn) {
+inline std::optional<SConstRange>
+scr_xfer_wrapper(const SConstRange &lhs, const SConstRange &_,
+                 const XferFn<std::nullopt_t> &fn) {
   (void)fn;
   return SConstRange::bottom(lhs.bw());
 }

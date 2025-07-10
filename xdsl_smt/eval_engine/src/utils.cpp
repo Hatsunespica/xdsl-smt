@@ -21,8 +21,8 @@ template <typename D>
 using LLVMXferFn = std::function<const D(const D &, const D &)>;
 
 template <AbstractDomain D, typename LLVM_D>
-using XferWrap = const std::function<const D(const D &, const D &,
-                                             const LLVMXferFn<LLVM_D> &)>;
+using XferWrap = const std::function<std::optional<D>(
+    const D &, const D &, const LLVMXferFn<LLVM_D> &)>;
 
 template <typename D>
 using XferFn = std::function<const D(const D &, const D &)>;

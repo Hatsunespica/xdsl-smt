@@ -170,13 +170,18 @@ public:
         bool meetExact = false;
         unsigned long meetDis = 0;
         if (llvmXfer) {
-          D xferRes = llvmXferWrapper(lhs, rhs, llvmXfer.value());
-          llvmExact = xferRes == best;
-          llvmDis = xferRes.distance(best);
+          std::optional<D> optionalXferRes =
+              llvmXferWrapper(lhs, rhs, llvmXfer.value());
+          if (optionalXferRes) {
+            D xferRes = *optionalXferRes;
+            llvmExact = xferRes == best;
+            llvmDis = xferRes.distance(best);
 
-          D meet = xferRes.meet(synth);
-          meetExact = meet == best;
-          meetDis = meet.distance(best);
+            D meet = xferRes.meet(synth);
+            meetExact = meet == best;
+            meetDis = meet.distance(best);
+          } else
+            continue; // skip if llvm return a wrapped interval
         }
 
         r[i].incResult(Result(0, topDis, topExact, 0, 0), 0);
