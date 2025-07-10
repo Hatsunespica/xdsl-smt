@@ -76,16 +76,27 @@ kb_representative_test_names = [
 
 cr_representative_test_names = [
     "Add.mlir",
-    "AddNuw.mlir",
+    # "AddNuw.mlir",
     "And.mlir",
-    "Shl.mlir",
-    "Mul.mlir",
-    "Udiv.mlir",
+    # "Shl.mlir",
+    # "Mul.mlir",
+    # "Udiv.mlir",
     "Umax.mlir",
+]
+
+kb_rerun = [
+    # "SaddSat.mlir",
+    # "SshlSat.mlir",
+    # "SmulSat.mlir",
+    # "AvgCeilU.mlir",
+    "Sub.mlir",
 ]
 
 kb_not_best_test_names = [
     "Mul.mlir",
+    "MulNsw.mlir",
+    "MulNswNuw.mlir",
+    "MulNuw.mlir",
     "Udiv.mlir",
     "Sdiv.mlir",
     "Modu.mlir",
@@ -186,16 +197,16 @@ def main() -> None:
 
     kb_inputs = [
         (x.split(".")[0], AbstractDomain.KnownBits, start_dir.joinpath(x), args)
-        for x in kb_not_best_test_names
+        for x in ["Modu.mlir"]
     ]
 
     cr_inputs = [
         (x.split(".")[0], AbstractDomain.UConstRange, start_dir.joinpath(x), args)
-        for x in cr_not_best_test_names
+        for x in cr_representative_test_names
     ]
 
     with Pool() as p:
-        data = p.map(synth_run, kb_inputs + cr_inputs)
+        data = p.map(synth_run, kb_inputs)
 
     with open(args.outputs_folder.joinpath("data.json"), "w") as f:
         dump(data, f, indent=2)
