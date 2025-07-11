@@ -247,7 +247,7 @@ def main() -> None:
     ]
 
     with Pool() as p:
-        data = p.map(synth_run, ucr_inputs + scr_inputs)
+        data = p.map(synth_run, kb_inputs + ucr_inputs + scr_inputs)
 
     with open(args.outputs_folder.joinpath("data.json"), "w") as f:
         dump(data, f, indent=2)
