@@ -69,11 +69,15 @@ int main() {
   const std::vector<std::vector<std::tuple<Product, Product, Product>>> lows =
       e.genLows(lbws);
 
+  const std::vector<std::vector<std::tuple<Product, Product, Product>>> mids =
+      e.genMids(mbws, rng);
+
   const std::vector<std::vector<std::tuple<Product, Product, Product>>> highs =
       e.genHighs(hbws, rng);
 
   std::vector<std::vector<std::tuple<Product, Product, Product>>> toEval;
   toEval.insert(toEval.end(), lows.begin(), lows.end());
+  toEval.insert(toEval.end(), mids.begin(), mids.end());
   toEval.insert(toEval.end(), highs.begin(), highs.end());
 
   std::optional<XferFn<llvm::KnownBits>> llvmKbXfer =

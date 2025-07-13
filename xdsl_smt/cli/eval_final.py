@@ -1,7 +1,7 @@
 from argparse import ArgumentParser, Namespace, ArgumentDefaultsHelpFormatter
 from pathlib import Path
 
-# from multiprocessing import Pool
+from multiprocessing import Pool
 from itertools import zip_longest
 
 
@@ -12,39 +12,6 @@ from xdsl_smt.utils.synthesizer_utils.random import Random
 from xdsl_smt.cli.synth_transfer import print_to_cpp, get_helper_funcs, parse_file
 from xdsl_smt.cli.arg_parser import int_triple, int_tuple
 from xdsl.dialects.builtin import ModuleOp
-
-# tmp_src = """
-# extern "C" APInt concrete_op(APInt a, APInt b) { return a+b; }
-#
-# extern "C" Vec<2> kb_add(const Vec<2> arg0, const Vec<2> arg1) {
-#   APInt res_0 = A::APInt(arg0[0].getBitWidth(), 0);
-#   return {res_0, res_0};
-# }
-#
-#
-# extern "C" Vec<2> ucr_add(const Vec<2> arg0, const Vec<2> arg1) {
-#   bool res0_ov;
-#   bool res1_ov;
-#   APInt res0 = arg0[0].uadd_ov(arg1[0], res0_ov);
-#   APInt res1 = arg0[1].uadd_ov(arg1[1], res1_ov);
-#   if (res0.ugt(res1) || (res0_ov ^ res1_ov))
-#     return {APInt::getMinValue(arg0[0].getBitWidth()),
-#             APInt::getMaxValue(arg0[0].getBitWidth())};
-#   return {res0, res1};
-# }
-#
-#
-# extern "C" Vec<2> scr_add(const Vec<2> arg0, const Vec<2> arg1) {
-#   bool res0_ov;
-#   bool res1_ov;
-#   APInt res0 = arg0[0].sadd_ov(arg1[0], res0_ov);
-#   APInt res1 = arg0[1].sadd_ov(arg1[1], res1_ov);
-#   if (res0.sgt(res1) || (res0_ov ^ res1_ov))
-#     return {APInt::getSignedMinValue(arg0[0].getBitWidth()),
-#             APInt::getSignedMaxValue(arg0[0].getBitWidth())};
-#   return {res0, res1};
-# }
-# """
 
 
 def register_all_arguments() -> Namespace:
@@ -60,7 +27,7 @@ def register_all_arguments() -> Namespace:
         "-lbw",
         nargs="*",
         type=int,
-        default=[1, 2, 3],
+        default=[],
         help="Bitwidths to evaluate exhaustively",
     )
     ap.add_argument(
@@ -96,7 +63,12 @@ def get_solution(mod: ModuleOp) -> tuple[list[FuncOp], FuncOp]:
     return solution_helpers, solution
 
 
-def replacer(x: str, dom: str) -> str:
+def replacer(x: str | list[str] | None, dom: str) -> str:
+    if isinstance(x, list):
+        x = "\n".join(x)
+    if not x:
+        return ""
+
     d = [
         "getTop",
         "getInstanceConstraint",
@@ -117,11 +89,10 @@ def run(
     mbws: list[tuple[int, int]],
     hbws: list[tuple[int, int, int]],
     input_path: Path,
-    solution_paths: tuple[Path, Path, Path],
+    solution_paths: tuple[Path, Path | None, Path | None],
     random_seed: int | None,
     op_name: str,
 ) -> tuple[
-    EvalResult,
     EvalResult,
     EvalResult,
     EvalResult,
@@ -135,22 +106,44 @@ def run(
     _, ucr_helpers = get_helper_funcs(input_path, AbstractDomain.UConstRange)
     _, scr_helpers = get_helper_funcs(input_path, AbstractDomain.SConstRange)
     kb_sol_module = parse_file(kb_sol_path)
-    ucr_sol_module = parse_file(ucr_sol_path)
-    scr_sol_module = parse_file(scr_sol_path)
+    ucr_sol_module = parse_file(ucr_sol_path) if ucr_sol_path else None
+    scr_sol_module = parse_file(scr_sol_path) if scr_sol_path else None
 
     random = Random(random_seed)
     random_seed = random.randint(0, 1_000_000) if random_seed is None else random_seed
 
     kb_sol_help, kb_solution = get_solution(kb_sol_module)
-    ucr_sol_help, ucr_solution = get_solution(ucr_sol_module)
-    scr_sol_help, scr_solution = get_solution(scr_sol_module)
+    ucr_sol_help, ucr_solution = (
+        get_solution(ucr_sol_module) if ucr_sol_module else (None, None)
+    )
+    scr_sol_help, scr_solution = (
+        get_solution(scr_sol_module) if scr_sol_module else (None, None)
+    )
 
     kb_solution_cpp = print_to_cpp(kb_solution).replace("solution", "kb_solution")
-    ucr_solution_cpp = print_to_cpp(ucr_solution).replace("solution", "ucr_solution")
-    scr_solution_cpp = print_to_cpp(scr_solution).replace("solution", "scr_solution")
-    kb_help_cpp = [print_to_cpp(x).replace("partial", "partial_kb") for x in kb_sol_help]
-    ucr_help_cpp = [print_to_cpp(x).replace("partial", "partial_ucr") for x in ucr_sol_help]
-    scr_help_cpp = [print_to_cpp(x).replace("partial", "partial_scr") for x in scr_sol_help]
+    ucr_solution_cpp = (
+        print_to_cpp(ucr_solution).replace("solution", "ucr_solution")
+        if ucr_solution
+        else None
+    )
+    scr_solution_cpp = (
+        print_to_cpp(scr_solution).replace("solution", "scr_solution")
+        if scr_solution
+        else None
+    )
+    kb_help_cpp = [
+        print_to_cpp(x).replace("partial", "partial_kb") for x in kb_sol_help
+    ]
+    ucr_help_cpp = (
+        [print_to_cpp(x).replace("partial", "partial_ucr") for x in ucr_sol_help]
+        if ucr_sol_help
+        else None
+    )
+    scr_help_cpp = (
+        [print_to_cpp(x).replace("partial", "partial_scr") for x in scr_sol_help]
+        if scr_sol_help
+        else None
+    )
     kb_domain_cpp = [replacer(x, "kb") for x in kb_helpers.to_cpp_no_cnc()]
     ucr_domain_cpp = [replacer(x, "ucr") for x in ucr_helpers.to_cpp_no_cnc()]
     scr_domain_cpp = [replacer(x, "scr") for x in scr_helpers.to_cpp_no_cnc()]
@@ -161,9 +154,9 @@ def run(
         "\n".join(kb_domain_cpp),
         "\n".join(ucr_domain_cpp),
         "\n".join(scr_domain_cpp),
-        replacer("\n".join(kb_help_cpp), "kb"),
-        replacer("\n".join(ucr_help_cpp), "ucr"),
-        replacer("\n".join(scr_help_cpp), "scr"),
+        replacer(kb_help_cpp, "kb"),
+        replacer(ucr_help_cpp, "ucr"),
+        replacer(scr_help_cpp, "scr"),
         replacer(kb_solution_cpp, "kb"),
         replacer(ucr_solution_cpp, "ucr"),
         replacer(scr_solution_cpp, "scr"),
@@ -175,13 +168,13 @@ def run(
         hbws,
         random_seed,
         "kb_solution",
-        "ucr_solution",
-        "scr_solution",
+        "ucr_solution" if ucr_sol_path else "ucr_getTop",
+        "scr_solution" if scr_sol_path else "scr_getTop",
         op_name,
         "\n".join(all_src),
     )
 
-    assert len(res) == 7
+    assert len(res) == 6
 
     return (
         res[0],
@@ -190,7 +183,6 @@ def run(
         res[3],
         res[4],
         res[5],
-        res[6],
     )
 
 
@@ -211,37 +203,20 @@ def run_wrapper(
 def _get_dist_table(
     top: EvalResult,
     synth: EvalResult,
-    llvm: EvalResult,
-    meet: EvalResult,
     red: EvalResult,
-    red_meet: EvalResult,
-    llvm_red: EvalResult,
     mbs: list[int],
     hbs: list[int],
-) -> str:
+) -> str | None:
     s = ""
-    use_llvm = sum(x.exacts for x in llvm.per_bit_res) != 0
 
-    s += "           ######  Dists  ######                                                   \n"
-    s += "bw  | Cases   | Top     | Synth   | LLVM    | Meet    | Reduced | Red Meet|LLVM Red\n"
-    s += "----|---------|---------|---------|---------|---------|---------|---------|--------\n"
-    for t_pb, s_pb, l_pb, m_pb, red_pb, rm_pb, lr_pb in zip(
-        top.per_bit_res,
-        synth.per_bit_res,
-        llvm.per_bit_res,
-        meet.per_bit_res,
-        red.per_bit_res,
-        red_meet.per_bit_res,
-        llvm_red.per_bit_res,
-    ):
+    s += "           ######  Dists  ######            \n"
+    s += "bw  | Cases   | Top     | Synth   | Reduced \n"
+    s += "----|---------|---------|---------|---------\n"
+    for t_pb, s_pb, red_pb in zip(top.per_bit_res, synth.per_bit_res, red.per_bit_res):
         p = "+" if t_pb.bitwidth in mbs else ""
         a = "*" if t_pb.bitwidth in hbs else ""
         bw = f"{t_pb.bitwidth}" + a + p
-        llvm_dist = l_pb.dist if use_llvm else "N/A"
-        meet_dist = m_pb.dist if use_llvm else "N/A"
-        red_meet_dist = rm_pb.dist if use_llvm else "N/A"
-        llvm_red_dist = lr_pb.dist if use_llvm else "N/A"
-        s += f"{bw:<4}| {t_pb.all_cases:<7} | {t_pb.dist:<7} | {s_pb.dist:<7} | {llvm_dist:<7} | {meet_dist:<7} | {red_pb.dist:<7} | {red_meet_dist:<7} | {llvm_red_dist:<7}\n"
+        s += f"{bw:<4}| {t_pb.all_cases:<7} | {t_pb.dist:<7} | {s_pb.dist:<7} | {red_pb.dist:<7} \n"
 
     return s
 
@@ -249,11 +224,7 @@ def _get_dist_table(
 def _get_exact_table(
     top: EvalResult,
     synth: EvalResult,
-    llvm: EvalResult,
-    meet: EvalResult,
     red: EvalResult,
-    red_meet: EvalResult,
-    llvm_red: EvalResult,
     mbs: list[int],
     hbs: list[int],
 ) -> str:
@@ -262,30 +233,21 @@ def _get_exact_table(
         return f"{p*100:05.2f}%" if p < 1 else f"{p*100:05.1f}%"
 
     s = ""
-    use_llvm = sum(x.exacts for x in llvm.per_bit_res) != 0
 
-    s += "        ######  Exacts  ######                                         \n"
-    s += "bw  | Top    | Synth  | LLVM   | Meet   | Reduced|Red Meet| LLVM Red \n"
-    s += "----|--------|--------|--------|--------|--------|--------|----------\n"
-    for t_pb, s_pb, l_pb, m_pb, red_pb, rm_pb, lr_pb in zip(
+    s += "     ######  Exacts  #####     \n"
+    s += "bw  | Top    | Synth  | Reduced\n"
+    s += "----|--------|--------|--------\n"
+    for t_pb, s_pb, red_pb in zip(
         top.per_bit_res,
         synth.per_bit_res,
-        llvm.per_bit_res,
-        meet.per_bit_res,
         red.per_bit_res,
-        red_meet.per_bit_res,
-        llvm_red.per_bit_res,
     ):
         if t_pb.bitwidth in hbs:
             continue
         p = "+" if t_pb.bitwidth in mbs else ""
         bw = f"{t_pb.bitwidth}" + p
-        llvm_exact = fmt(l_pb) if use_llvm else "N/A"
-        meet_exact = fmt(m_pb) if use_llvm else "N/A"
-        red_meet_exact = fmt(rm_pb) if use_llvm else "N/A"
-        llvm_red_exact = fmt(lr_pb) if use_llvm else "N/A"
 
-        s += f"{bw:<4}| {fmt(t_pb)} | {fmt(s_pb)} | {llvm_exact:<6} | {meet_exact:<6} | {fmt(red_pb):<6} | {red_meet_exact:<6} | {llvm_red_exact:<6}\n"
+        s += f"{bw:<4}| {fmt(t_pb)} | {fmt(s_pb)} | {fmt(red_pb):<6}\n"
 
     return s
 
@@ -300,7 +262,9 @@ def main() -> None:
     else:
         solution_files = [args.solution_path]
 
-    inputs: list[tuple[Namespace, Path, tuple[Path, Path, Path], str]] = []
+    inputs: list[
+        tuple[Namespace, Path, tuple[Path, Path | None, Path | None], str]
+    ] = []
     for solution_dir in solution_files:
         if "UConstRange" in str(solution_dir) or "SConstRange" in str(solution_dir):
             continue
@@ -322,12 +286,10 @@ def main() -> None:
             continue
 
         if not ucr_solution_path.exists():
-            print(f"No solution file for: ucr {op}")
-            continue
+            ucr_solution_path = None
 
-        if not ucr_solution_path.exists():
-            print(f"No solution file for: scr {op}")
-            continue
+        if not scr_solution_path.exists():
+            scr_solution_path = None
 
         input_path = args.transfer_functions.joinpath(f"{op}.mlir")
         assert input_path.exists()
@@ -344,9 +306,9 @@ def main() -> None:
     inputs = sorted(inputs, key=lambda x: x[3])
 
     # tODO
-    # with Pool() as p:
-    #     data = p.map(run_wrapper, inputs)
-    data = list(map(run_wrapper, inputs))
+    with Pool() as p:
+        data = p.map(run_wrapper, inputs)
+    # data = list(map(run_wrapper, inputs))
 
     mbs = [x[0] for x in args.mbw]
     hbs = [x[0] for x in args.hbw]
@@ -354,37 +316,30 @@ def main() -> None:
     for (_, _, _, op), (
         kb_top,
         kb_syn,
-        kb_llvm,
-        kb_meet,
+        _kb_llvm,
+        _kb_meet,
         kb_red_syn,
-        kb_red_meet,
-        kb_llvm_red,
+        _kb_red_meet,
     ) in zip(inputs, data):
-        print()
-        print(
-            f"#################################   KnownBits {op}   ############################"
-        )
         dists = _get_dist_table(
             kb_top,
             kb_syn,
-            kb_llvm,
-            kb_meet,
             kb_red_syn,
-            kb_red_meet,
-            kb_llvm_red,
             mbs,
             hbs,
         )
         exacts = _get_exact_table(
             kb_top,
             kb_syn,
-            kb_llvm,
-            kb_meet,
             kb_red_syn,
-            kb_red_meet,
-            kb_llvm_red,
             mbs,
             hbs,
+        )
+        if not dists:
+            continue
+        print()
+        print(
+            f"#################################   KnownBits {op}   ############################"
         )
         zipped_tables = zip_longest(dists.split("\n"), exacts.split("\n"), fillvalue="")
 
