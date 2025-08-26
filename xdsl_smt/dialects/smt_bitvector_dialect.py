@@ -9,6 +9,7 @@ from xdsl.ir import (
     Dialect,
     OpResult,
     SSAValue,
+    StringIO,
     VerifyException,
 )
 from xdsl.irdl import (
@@ -49,12 +50,10 @@ class ConstantOp(IRDLOperation, Pure, SMTLibOp):
         return self.result
 
     @overload
-    def __init__(self, value: int | IntAttr, width: int | IntAttr) -> None:
-        ...
+    def __init__(self, value: int | IntAttr, width: int | IntAttr) -> None: ...
 
     @overload
-    def __init__(self, value: IntegerAttr[IntegerType] | BitVectorAttr) -> None:
-        ...
+    def __init__(self, value: IntegerAttr[IntegerType] | BitVectorAttr) -> None: ...
 
     def __init__(
         self,
@@ -309,6 +308,38 @@ class UDivOp(BinaryBVOp, SimpleSMTLibOp):
 
     def op_name(self) -> str:
         return "bvudiv"
+
+
+@irdl_op_definition
+class FPAddOp(BinaryBVOp, SMTLibOp):
+    name = "smt.bv.fpadd"
+
+    def print_expr_to_smtlib(self, stream: IO[str], ctx: SMTConversionCtx) -> None:
+        """Print the operation to an SMTLib representation."""
+        assert isinstance(self.res.type, BitVectorType)
+        assert isinstance(self.lhs.type, BitVectorType)
+        assert isinstance(self.rhs.type, BitVectorType)
+
+        lhs_s = StringIO()
+        ctx.print_expr_to_smtlib(self.lhs, lhs_s)
+        lhs_expr = lhs_s.getvalue()
+
+        rhs_s = StringIO()
+        ctx.print_expr_to_smtlib(self.rhs, rhs_s)
+        rhs_expr = rhs_s.getvalue()
+
+        # "((_ sign_extend 16) abc)"
+        s = f"""
+        (_ sum_bv16 () (_ BitVec 16)
+          ((_ fp.to_ieee_bv 16)
+            (fp.add RNE
+              ((_ to_fp 5 11) {lhs_expr})
+              ((_ to_fp 5 11) {rhs_expr})
+            )
+          )
+        )
+        """
+        print(s, file=stream, end="")
 
 
 ################################################################################
@@ -859,6 +890,7 @@ SMTBitVectorDialect = Dialect(
         AShrOp,
         UDivOp,
         SDivOp,
+        FPAddOp,
         # Bitwise
         NotOp,
         OrOp,

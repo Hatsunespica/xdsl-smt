@@ -211,6 +211,10 @@ class PredicateOp(IRDLOperation, InferResultTypeInterface, ABC):
 class AddOp(BinOp):
     name = "transfer.add"
 
+@irdl_op_definition
+class FPAddOp(BinOp):
+    name = "transfer.fpadd"
+
 
 @irdl_op_definition
 class SubOp(BinOp):
@@ -799,6 +803,7 @@ Transfer = Dialect(
         OrOp,
         XorOp,
         AddOp,
+        FPAddOp,
         SubOp,
         GetOp,
         MakeOp,

@@ -12,36 +12,39 @@ from ..dialects.smt_dialect import (
     AndOp,
     BoolType,
 )
-from ..dialects.smt_bitvector_dialect import (
-    ConstantOp,
-    BitVectorType,
-)
+from ..dialects.smt_bitvector_dialect import ConstantOp, BitVectorType
 from ..dialects.smt_utils_dialect import FirstOp, PairType, SecondOp, AnyPairType
 from xdsl.dialects.func import FuncOp
 from ..dialects.transfer import AbstractValueType
 from xdsl.ir import Operation, SSAValue, Attribute, Block
-from xdsl.dialects.builtin import (
-    FunctionType,
-)
+from xdsl.dialects.builtin import FunctionType
 from xdsl.rewriter import Rewriter
 
 
 def call_function(func: DefineFunOp, args: list[SSAValue]) -> CallOp:
-    """
-    Given a function in smt dialect and its args, return CallOp(func, args) with type checking
-    """
+    "Given a function in smt dialect and its args, return CallOp(func, args) with type checking"
+
     func_args = func.body.block.args
     if len(func_args) != len(args):
         raise ValueError(f"Arguments of the call to function {func.fun_name} mismatch")
+
     for f_arg, arg in zip(func_args, args):
         if f_arg.type != arg.type:
+            print("$$$$$$$$$$$$$$$$")
+            [print(x) for x in func_args]
+            print("$$$$$$$$$$$$$$$$")
+            [print(x) for x in args]
+            print("$$$$$$$$$$$$$$$$")
+            print("$$$$$$$$$$$$$$$$")
             print(func_args)
             print(args)
+            print(f_arg.type)
+            print(arg.type)
             raise ValueError(
                 f"Argument of the call to function {func.fun_name} has different type"
             )
-    callOp = CallOp.get(func.results[0], args)
-    return callOp
+
+    return CallOp.get(func.results[0], args)
 
 
 def call_function_with_effect(
@@ -53,6 +56,7 @@ def call_function_with_effect(
     This function is a shortcut for calling a DefineFunOp with adding the effect to arguments,
     and removing the effect from the returned value.
     """
+
     new_args = args + [effect]
     callOp = call_function(func, new_args)
     assert len(callOp.res) == 1

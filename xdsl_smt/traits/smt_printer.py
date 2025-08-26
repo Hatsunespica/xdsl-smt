@@ -250,4 +250,3 @@ def print_to_smtlib(module: ModuleOp, stream: IO[str]) -> None:
     for op in module.ops:
         if isinstance(op, SMTLibScriptOp):
             op.print_expr_to_smtlib(stream, ctx)
-            continue

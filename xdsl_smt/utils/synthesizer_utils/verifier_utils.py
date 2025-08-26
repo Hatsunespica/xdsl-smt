@@ -87,13 +87,7 @@ def verify_pattern(ctx: Context, op: ModuleOp, timeout: int) -> bool | None:
     return "unsat" in res.stdout
 
 
-def get_concrete_function(
-    concrete_op_name: str, width: int, extra: int | None
-) -> FuncOp:
-    """
-    Given a name of one concrete operation, return a function with only that operation
-    """
-
+def get_concrete_function(concrete_op_name: str, width: int, extra: int | None) -> FuncOp:
     # iterate all semantics and find corresponding comb operation
     result = None
     for k in comb_semantics.keys():
@@ -102,6 +96,8 @@ def get_concrete_function(
             # for now, we only handle binary operations and mux
             intTy = IntegerType(width)
             func_name = concrete_op_name.replace(".", "_")
+            # transIntTy = TransIntegerType()
+            # func_name = "concrete_op"
 
             if concrete_op_name == "comb.mux":
                 funcTy = FunctionType.from_lists([i1, intTy, intTy], [intTy])
@@ -133,6 +129,7 @@ def get_concrete_function(
     assert result is not None and (
         "Cannot find the concrete function for" + concrete_op_name
     )
+
     return result
 
 
@@ -483,6 +480,11 @@ def verify_transfer_function(
             smt_transfer_function,
             smt_concrete_func,
         )
+
+        # print(func_name)
+        # print(concrete_func_name)
+        # print(smt_concrete_func)
+        # exit(1)
 
         result = verify_smt_transfer_function(
             smt_transfer_function_obj,

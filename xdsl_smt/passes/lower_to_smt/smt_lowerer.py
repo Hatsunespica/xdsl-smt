@@ -45,9 +45,7 @@ class SMTLowerer:
         region: Region, effect_state: SSAValue | None
     ) -> tuple[tuple[SSAValue, ...], SSAValue | None]:
         if len(region.blocks) != 1:
-            raise Exception(
-                f"SMT Lowering can only lower regions with exactly one block"
-            )
+            raise Exception("Can only lower regions with exactly one block")
 
         # Lower the block arguments
         # Do not modify effect states, as they are still referenced by effect_state.

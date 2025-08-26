@@ -253,6 +253,27 @@ def smt_bool_to_bv1(bool_val: SSAValue) -> tuple[SSAValue, list[Operation]]:
     return ite_op.res, [b1, b0, ite_op]
 
 
+# class FPAddOpSeantics(OperationSemantics):
+#     def get_semantics(
+#         self,
+#         operands: Sequence[SSAValue],
+#         results: Sequence[Attribute],
+#         attributes: Mapping[str, Attribute | SSAValue],
+#         effect_state: SSAValue | None,
+#         rewriter: PatternRewriter,
+#     ) -> tuple[Sequence[SSAValue], SSAValue | None]:
+#         lhs = operands[0]
+#         rhs = operands[1]
+#         umul_overflow = smt_bv.UmulOverflowOp(operands[0], operands[1])
+#         bv_res, ops = smt_bool_to_bv1(umul_overflow.res)
+#
+#         poison_op = smt.ConstantBoolOp.from_bool(False)
+#         res = PairOp(bv_res, poison_op.res)
+#         rewriter.insert_op_before_matched_op([umul_overflow] + ops + [poison_op, res])
+#
+#         return ((res.res,), effect_state)
+
+
 class UMulOverflowOpSemantics(OperationSemantics):
     def get_semantics(
         self,
@@ -1008,6 +1029,7 @@ class ReverseBitsOpSemantics(OperationSemantics):
 
 transfer_semantics: dict[type[Operation], OperationSemantics] = {
     transfer.Constant: ConstantOpSemantics(),
+    transfer.FPAddOp: TrivialOpSemantics(transfer.FPAddOp, smt_bv.FPAddOp),
     transfer.AddOp: TrivialOpSemantics(transfer.AddOp, smt_bv.AddOp),
     transfer.MulOp: TrivialOpSemantics(transfer.MulOp, smt_bv.MulOp),
     transfer.OrOp: TrivialOpSemantics(transfer.OrOp, smt_bv.OrOp),

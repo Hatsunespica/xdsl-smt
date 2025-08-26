@@ -1,13 +1,9 @@
 from xdsl.ir import Operation, SSAValue
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-)
+from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.dialects import func
 
 from xdsl_smt.dialects.effects.effect import StateType
-from xdsl_smt.passes.lower_to_smt.smt_lowerer import (
-    SMTLowerer,
-)
+from xdsl_smt.passes.lower_to_smt.smt_lowerer import SMTLowerer
 from xdsl_smt.passes.lower_to_smt.smt_rewrite_patterns import SMTLoweringRewritePattern
 from xdsl_smt.dialects.smt_dialect import DefineFunOp, ReturnOp
 

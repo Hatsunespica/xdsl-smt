@@ -217,6 +217,19 @@ def forward_soundness_check(
     )
     call_crt_first_op = FirstOp(call_crt_func_first_op.res)
 
+    # print(result_width)
+    # print(constant_bv_0)
+    # print(concrete_func)
+    # exit(1)
+    # print(call_abs_func_first_op.res)
+    # print("!%%%%%%%%%%%%%%%%%%%%%%%%")
+    # print(concrete_func)
+    # exit(1)
+    # print(call_crt_first_op.res)
+    # print("!%%%%%%%%%%%%%%%%%%%%%%%%")
+    # exit(1)
+
+    # result_width = 16
     abs_result_not_include_crt_result_ops = call_function_and_assert_result_with_effect(
         instance_constraint.getFunctionByWidth(result_width),
         [call_abs_func_first_op.res, call_crt_first_op.res],

@@ -86,7 +86,7 @@ def register_arguments(prog: str) -> Namespace:
         "-lbw",
         nargs="*",
         type=int,
-        default=[1, 2, 3, 4],
+        default=[],
         help="Bitwidths to evaluate exhaustively",
     )
     ap.add_argument(

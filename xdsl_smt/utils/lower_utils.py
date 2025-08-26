@@ -61,6 +61,7 @@ operNameToCpp = {
     "transfer.and": "&",
     "arith.andi": "&",
     "transfer.add": "+",
+    "transfer.fpadd": ".fp_add",
     "arith.constant": "APInt",
     "arith.addi": "+",
     "transfer.or": "|",

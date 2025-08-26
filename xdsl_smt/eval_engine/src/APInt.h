@@ -5,6 +5,16 @@ namespace A {
 class APInt;
 inline APInt operator-(APInt);
 
+struct fp16Converter {
+  union Float16Union {
+    _Float16 f;
+    unsigned short u;
+  };
+
+  static const APInt to_bits(_Float16);
+  static _Float16 from_bits(const APInt);
+};
+
 class [[nodiscard]] APInt {
 private:
   static unsigned rotateModulo(unsigned BitWidth, const APInt &rotateAmt) {
@@ -890,7 +900,28 @@ private:
     long rhsSext = SignExtend64(RHS.VAL, BitWidth);
     return lhsSext < rhsSext ? -1 : lhsSext > rhsSext;
   }
+
+  // FP ops
+public:
+  APInt fp_add(const APInt &rhs) const {
+    // lhs and rhs must be exactly 16 bits wide
+    _Float16 lhs_fp = fp16Converter::from_bits(*this);
+    _Float16 rhs_fp = fp16Converter::from_bits(rhs);
+    _Float16 res = lhs_fp + rhs_fp;
+
+    return fp16Converter::to_bits(res);
+  }
 };
+
+inline const APInt fp16Converter::to_bits(_Float16 val) {
+  Float16Union u = {.f = val};
+  return APInt(16, static_cast<unsigned long>(u.u));
+}
+
+inline _Float16 fp16Converter::from_bits(const APInt x) {
+  Float16Union u = {.u = static_cast<unsigned short>(x.getZExtValue())};
+  return u.f;
+}
 
 inline bool operator==(unsigned long V1, const APInt &V2) { return V2 == V1; }
 inline bool operator!=(unsigned long V1, const APInt &V2) { return V2 != V1; }

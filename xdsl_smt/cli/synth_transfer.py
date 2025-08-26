@@ -453,7 +453,6 @@ def run(
     lbws: list[int],
     mbws: list[tuple[int, int]],
     hbws: list[tuple[int, int, int]],
-    solution_size: int,
     num_iters: int,
     condition_length: int,
     num_abd_procs: int,
@@ -518,11 +517,8 @@ def run(
     )
 
     current_prog_len = program_length
-    # current_prog_len = min(4, current_prog_len) # enable this for increasing program length
     current_total_rounds = total_rounds
-    # current_total_rounds = min(500, total_rounds) # enable this for increasing total rounds
     current_num_abd_procs = num_abd_procs
-    # current_num_abd_procs = min(0, num_abd_procs) # enable this for increasing number of abd procs
     for ith_iter in range(num_iters):
         # gradually increase the program length
         current_prog_len += (program_length - current_prog_len) // (
@@ -537,7 +533,6 @@ def run(
         print(f"Iteration {ith_iter} starts...")
         if weighted_dsl:
             assert isinstance(solution_set, UnsizedSolutionSet)
-            # if solution_set.solutions_size > 0:
             context_weighted.weighted = True
             solution_set.learn_weights(context_weighted)
         solution_set = synthesize_one_iteration(
@@ -557,7 +552,6 @@ def run(
             condition_length,
             current_num_abd_procs,
             current_total_rounds,
-            solution_size,
             inv_temp,
             num_unsound_candidates,
         )
@@ -582,7 +576,9 @@ def run(
         )
 
         print(
-            f"Iteration {ith_iter} finished. Exact: {final_cmp_res[0].get_exact_prop() * 100:.4f}%, Size of the solution set: {solution_set.solutions_size}"
+            f"Iteration {ith_iter} finished. "
+            + f"Exact: {final_cmp_res[0].get_exact_prop() * 100:.4f}%, "
+            + f"Size of the solution set: {solution_set.solutions_size}"
         )
 
         if solution_set.is_perfect:
@@ -600,7 +596,7 @@ def run(
         raise Exception("Found no solutions")
     solution_module, solution_str = solution_set.generate_solution_and_cpp()
     save_solution(solution_module, solution_str, outputs_folder)
-    cmp_results = eval_transfer_func(
+    solution_result = eval_transfer_func(
         data_dir,
         ["solution"],
         [solution_str],
@@ -608,9 +604,8 @@ def run(
         [],
         helper_funcs_cpp,
         domain,
-    )
+    )[0]
 
-    solution_result = cmp_results[0]
     print(
         f"last_solution\t{solution_result.get_sound_prop() * 100:.2f}%\t{solution_result.get_exact_prop() * 100:.2f}%"
     )
@@ -637,7 +632,6 @@ def main() -> None:
         lbws=args.lbw,
         mbws=args.mbw,
         hbws=args.hbw,
-        solution_size=args.solution_size,
         num_iters=args.num_iters,
         condition_length=args.condition_length,
         num_abd_procs=args.num_abd_procs,

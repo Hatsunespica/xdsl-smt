@@ -63,8 +63,6 @@ def mcmc_setup(
     For example, mcmc samplers with index in sp_range should use "sound&precise"
     """
 
-    # p_size = num_abd_proc // 2
-    # c_size = num_abd_proc // 2
     p_size = 0
     c_size = num_abd_proc
     sp_size = num_programs - p_size - c_size
@@ -112,7 +110,6 @@ def synthesize_one_iteration(
     cond_length: int,
     num_abd_procs: int,
     total_rounds: int,
-    solution_size: int,
     inv_temp: int,
     num_unsound_candidates: int,
 ) -> SolutionSet:
@@ -252,9 +249,6 @@ def synthesize_one_iteration(
             logger.debug("Transformers with most unsolved exact outputs:")
             for i in range(num_programs):
                 logger.debug(f"{i}_{most_improve_tfs[i][2]}\n{most_improve_tfs[i][1]}")
-            # logger.debug("Transformers with lowest cost:")
-            # for i in range(num_programs):
-            #     logger.debug(f"{i}_{lowest_cost_tfs[i][2]}\n{lowest_cost_tfs[i][1]}")
 
     candidates_sp: list[FunctionWithCondition] = []
     candidates_p: list[FuncOp] = []
@@ -282,29 +276,7 @@ def synthesize_one_iteration(
                 )
             )
 
-    # loaded_spls = mcmc_samplers
-    # neighbor_tfs : list[list[tuple[float, float, float]]] =[[] for _ in loaded_spls]
-    # for _ in range(300):
-    #     transfers = [spl.sample_next().get_current() for spl in loaded_spls]
-    #     func_with_cond_lst = build_eval_list(
-    #         transfers, sp_range, p_range, c_range, prec_set_after_distribute
-    #     )
-    #     cmp_results = solution_set.eval_improve(func_with_cond_lst)
-    #     cost_data = [[spl.compute_current_cost()] for spl in loaded_spls]
-    #     for i, (spl, res) in enumerate(zip(loaded_spls, cmp_results)):
-    #         proposed_cost = spl.compute_cost(res)
-    #         current_cost = spl.compute_current_cost()
-    #         neighbor_tfs[i].append((res.get_sound_prop(), res.get_unsolved_exact_prop(), proposed_cost - current_cost))
-    #         spl.reject_proposed()
-
-    # for i in range(num_programs):
-    #     cur_res = loaded_spls[i].current_cmp
-    #     logger.debug(f"Sampler {i}: {cur_res.get_sound_prop() * 100:.2f}% {cur_res.get_unsolved_exact_prop() * 100:.2f}%")
-    #     sorted_ls= sorted(neighbor_tfs[i], key=lambda x: x[2])
-    #     for t in sorted_ls:
-    #         logger.debug(f"{t[0]* 100:.3f}% {t[1]* 100:.3f}% {t[2]:.6f}")
-
-    new_solution_set: SolutionSet = solution_set.construct_new_solution_set(
+    return solution_set.construct_new_solution_set(
         candidates_sp,
         candidates_p,
         candidates_c,
@@ -313,5 +285,3 @@ def synthesize_one_iteration(
         num_unsound_candidates,
         ctx,
     )
-
-    return new_solution_set
