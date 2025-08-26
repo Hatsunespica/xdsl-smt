@@ -1,0 +1,18 @@
+ Place this code at line 95 in jit.h
+  ///////////////////////////////////////
+  extern "C" int add(int a, int b) { return a + b; }
+  //////////////////////////////////////
+  auto &JD = (*jit).getMainJITDylib();
+
+  // TODO fix old style cast
+  llvm::orc::ExecutorSymbolDef SymbolDef(
+      llvm::orc::ExecutorAddr::fromPtr((void *)&add),
+      llvm::JITSymbolFlags::Exported);
+
+  auto &ES = (*jit).getExecutionSession();
+  auto SymPtr = ES.intern("add");
+  if (auto Err = JD.define(llvm::orc::absoluteSymbols({{SymPtr, SymbolDef}}))) {
+    logAllUnhandledErrors(std::move(Err), llvm::errs(),
+                          "Failed to register function: ");
+  }
+  //////////////////////////////////////

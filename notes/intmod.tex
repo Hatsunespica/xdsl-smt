@@ -1,0 +1,85 @@
+\documentclass[12pt]{article}
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{amsmath}
+
+\newcommand{\Mod}[1]{\ (\mathrm{mod}\ #1)}
+
+\title{Integer Modulo on Bitvectors is Weird}
+\author{Dominic Kennedy}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+There is an obvious construction for the lattices of the known bits and constant range domains which is based on the size of the concrete bitvectors being abstracted over.
+The known bits lattice is a ternary bitvector with the same width as the concrete bitvectors.
+E.g. if the concrete bitvectors are 4 bits wide, then there are $2^4 = 16$ possible concrete values, and the known bits lattice has $3^{bw} = 3^4 = 81$ elements.
+Similarly, a constant range domains lattice will always have $\frac{2^{bw}(2^{bw}+1)}{2}$ lattice values.
+
+The integer modulo domain is a congruence relation between the bitvector and the first $n$-primes.
+Unlike known bits and constant range,
+in integer modulo $n$ may be selected to be as small as 0, or large enough such that the $n^{th}$-prime in the set is still representable by the bitvector
+(i.e. smaller than $2^{bw}$).
+
+\section{Main Content}
+
+This selection of $n$ affects whether or not the lattice is well behaved.
+With $2^{bw}$ being the distinct number of concrete values, and $P$ being the product of the first $n$-primes.
+Either, $2^{bw} < P$, or $2^{bw} \geq P$.
+
+\subsection{If $2^{bw} < P$}
+
+There are two types of bad lattice values that arise when $2^{bw} < P$.
+I have no proof that these are the only problems that show up, but after testing with various values for $bw$ and $P$ only these problems show up.
+
+\subsubsection{Lattice Values Representing $\bot$}
+
+Consider an integer modulo domain on the first three primes (2, 3, and 5) so $P = 30$ and $bw = 4$ so there are 16 distinct concrete values.
+I'll show abstract values like this: $[1, 2, 1]$ which represents any integer $x$ such that
+$x < 2^{bw}$, $x \equiv 1 \mod 2$, $x \equiv 2 \mod 3$, $x \equiv 1 \mod 5$, in this case $\gamma([1, 2, 1])=\{11\}$.
+Abstract values written like this: $[1, \top, 1]$, mean that there is no congruence relation on mod 3, so in this case $\gamma([1, \top, 1])=\{1, 11\}$.
+
+Now, consider the abstract value $[1, 1, 0]$, the first integer to satisfy the congruence relations is 25, but that's larger than our bitvectors represent.
+So this abstract value represens $\bot$, in fact there are exactly $P - 2^{bw} = 14$ ways to representation $\bot$.
+This is a problem since we want all lattice representations to be unique.
+
+\subsubsection{Multiple Lattice Representations for singleton values}
+Consider, $\gamma([0, 1, 4]) = \{4\}$.
+But, $\gamma([\top, 1, 4]) = \{4\}$ as well, which once again means that there are multiple non-unique lattice values.
+These duplicate values only occur when the concrete set is a single value (again I have no proof of this, other than testing with large $P$).
+
+\subsubsection{Solutions}
+I belive these to be the only two types of duplicate lattice values, that occur.
+There's likely some cool number theory tom-foolery which would prove this, but I just checked with a wack ton of primes.
+
+It's easy(-ish) to ``skip'' these problamatic lattice values in the \texttt{enumVals} function,
+however its common for these ``bad'' lattice values to show up as the output of a transfer function.
+Any transfer function which used these ``bad'' lattice values could still be technically 100\% precise,
+but would certainly not be scored that way by the eval engine.
+Further, if a transfer function produced these lattice values it could lead to lower precision when combined with other transfer functions.
+
+The best solution, barring some number theory voodoo, is to call $\gamma$ every time an abstract value is created to test if it's in a ``bad'' state.
+Then fix it if it does happen to be in such a state.
+The problem with this solution is that it would make the eval engine (and any compiler which would use our synthesised transfer functions) too slow.
+
+\subsection{If $2^{bw} \geq P$}
+
+If big $P$ makes the lattice unreliable, then just reduce $P$.
+As far as I know there are no problems with the lattice misbahving in this case.
+It's just that the smaller lattice reduces abstract interpretation precision.
+
+\subsubsection{some notes on lattice size vs powerset size}
+As the width of a bitvector increases the number of concrete values it can represent grows at $\mathcal{O}(2^n)$.
+The complete lattice of the bitvector grows at $\mathcal{O}(2^{2^n})$,
+The known bits lattice grows at $\mathcal{O}(3^n)$.
+the constant range lattice grows at $\mathcal{O}(4^n)$,
+but integer modulo must be constructed such that $2^{bw} \geq P$
+and the size of the lattice is only $\prod_{\forall p \in P} p+1$,
+which means that it only grows at $\mathcal{O}(2^n)$ (the same rate as the number of possible concrete values themselves!!).
+This makes it worse for precise abstract representations (I think).
+
+\end{document}
