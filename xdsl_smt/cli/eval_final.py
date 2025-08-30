@@ -1,5 +1,4 @@
 from argparse import ArgumentParser, Namespace, ArgumentDefaultsHelpFormatter
-from dataclasses import dataclass
 from pathlib import Path
 from multiprocessing import Pool
 from itertools import zip_longest
