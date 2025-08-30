@@ -1,46 +1,52 @@
+from dataclasses import dataclass
 from xdsl_smt.eval_engine.eval import AbstractDomain
 
 
+@dataclass
+class CodeData:
+    num_xfer: int
+    num_cond_xfer: int
+    total_instructions: int
+
+
 def gen_table(
-    bw_8_res: dict[
-        tuple[AbstractDomain, str], tuple[int, int, int, int | None, int | None]
-    ],
-    bw_64_res: dict[
-        tuple[AbstractDomain, str], tuple[int, float, float, float | None, float | None]
+    results: dict[
+        tuple[AbstractDomain, str],
+        tuple[
+            tuple[int, int, int, int | None, int | None],  # 8-bit data
+            tuple[int, float, float, float | None, float | None],  # 64-bit data
+            CodeData,
+        ],
     ],
 ) -> str:
     """Generate a LaTeX table with 8-bit and 64-bit evaluation results."""
-
-    # Assert that both dictionaries have the same key set
-    assert (
-        bw_8_res.keys() == bw_64_res.keys()
-    ), "bw_8_res and bw_64_res must have identical key sets"
 
     # Start building the LaTeX table
     latex: list[str] = []
 
     # Table header
     latex.append("\\begin{tabular}{@{}|l")
-    latex.append("                r")
+    latex.append("                rrr")
+    latex.append("                |r")
     latex.append("                rrrr")
     latex.append("                |r")
     latex.append("                rrrr@{}}")
     latex.append("\\toprule")
     latex.append(
-        "\\multirow{2}{*}{\\textbf{Concrete Op}} & \\multirow{2}{*}{\\textbf{Tests}} & \\multicolumn{4}{c}{\\textbf{8-bit exact (\\%)}} & \\multirow{2}{*}{\\textbf{Tests}} & \\multicolumn{4}{c}{\\textbf{64-bit precision (distance)}} \\\\"
+        "\\multirow{2}{*}{\\textbf{ConcreteOp}} & \\multicolumn{3}{c}{} & \\multirow{2}{*}{\\textbf{Tests}} & \\multicolumn{4}{c}{\\textbf{8-bit exact (\\%)}} & \\multirow{2}{*}{\\textbf{Tests}} & \\multicolumn{4}{c}{\\textbf{64-bit precision (distance)}} \\\\"
     )
-    latex.append("\\cmidrule(lr){3-6} \\cmidrule(lr){8-11}")
+    latex.append("\\cmidrule(lr){2-4} \\cmidrule(lr){6-9} \\cmidrule(lr){11-14}")
     latex.append(
-        " & & $\\top$ & synth & llvm & meet & & $\\top$ & synth & llvm & meet \\\\"
+        " & \\#$\\tf$ & \\#$c$ & \\#inst & & $\\top$ & synth & llvm & meet & & $\\top$ & synth & llvm & meet \\\\"
     )
     latex.append("\\midrule")
 
     # Sort keys by operation name for consistent ordering
-    sorted_keys = sorted(bw_8_res.keys(), key=lambda x: x[1])
+    sorted_keys = sorted(results.keys(), key=lambda x: x[1])
 
     # Generate rows for each operation
-    for (domain, op), bw_8_entry in [(key, bw_8_res[key]) for key in sorted_keys]:
-        bw_64_entry = bw_64_res[(domain, op)]
+    for domain, op in sorted_keys:
+        bw_8_entry, bw_64_entry, code_data = results[(domain, op)]
 
         # Add asterisk for SConstRange domain
         op_display = f"{op}*" if domain == AbstractDomain.SConstRange else op
@@ -91,7 +97,7 @@ def gen_table(
 
             dist_part = f"{top_dist_64:.2f} & {synth_dist_64:.2f} & {llvm_dist_str} & {meet_dist_str}"
 
-        row = f"{op_display} & {cases_8} & {top_pct_8:.2f} & {synth_pct_8:.2f} & {llvm_pct_str} & {meet_pct_str} & {cases_64} & {dist_part} \\\\"
+        row = f"{op_display} & {code_data.num_xfer} & {code_data.num_cond_xfer} & {code_data.total_instructions} & {cases_8} & {top_pct_8:.2f} & {synth_pct_8:.2f} & {llvm_pct_str} & {meet_pct_str} & {cases_64} & {dist_part} \\\\"
         latex.append(row)
 
     # Close the table

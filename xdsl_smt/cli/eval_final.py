@@ -1,10 +1,11 @@
 from argparse import ArgumentParser, Namespace, ArgumentDefaultsHelpFormatter
+from dataclasses import dataclass
 from pathlib import Path
 from multiprocessing import Pool
 from itertools import zip_longest
 
 
-from xdsl_smt.utils.gen_table import gen_table
+from xdsl_smt.utils.gen_table import CodeData, gen_table
 from xdsl_smt.utils.synthesizer_utils.compare_result import EvalResult, PerBitRes
 from xdsl_smt.eval_engine.eval import AbstractDomain, setup_eval, eval_final
 from xdsl.dialects.func import FuncOp
@@ -61,7 +62,7 @@ def run(
     solution_path: Path,
     random_seed: int | None,
     op_name: str,
-) -> tuple[EvalResult, EvalResult, EvalResult, EvalResult]:
+) -> tuple[EvalResult, EvalResult, EvalResult, EvalResult, CodeData]:
     assert min(lbws, default=4) >= 4 or domain != AbstractDomain.IntegerModulo
 
     _, helpers = get_helper_funcs(input_path, domain)
@@ -70,6 +71,10 @@ def run(
     random = Random(random_seed)
     random_seed = random.randint(0, 1_000_000) if random_seed is None else random_seed
 
+    num_xfer = 0
+    num_cond_xfer = 0
+    total_instructions = 0
+
     solution_helpers: list[FuncOp] = []
     solution: FuncOp | None = None
     for func in sol_module.ops:
@@ -77,6 +82,13 @@ def run(
             if func.sym_name.data == "solution":
                 solution = func
             else:
+                if func.sym_name.data.endswith("_body"):
+                    num_xfer += 1
+                    total_instructions += len(func.body.blocks[0].ops)
+                if func.sym_name.data.endswith("_cond"):
+                    num_cond_xfer += 1
+                    total_instructions += len(func.body.blocks[0].ops)
+
                 solution_helpers.append(func)
 
     assert solution is not None, "No solution function found in solution file"
@@ -100,7 +112,13 @@ def run(
 
     assert len(res) == 4
 
-    return res[0], res[1], res[2], res[3]
+    return (
+        res[0],
+        res[1],
+        res[2],
+        res[3],
+        CodeData(num_xfer, num_cond_xfer, total_instructions),
+    )
 
 
 def run_wrapper(x: tuple[Namespace, AbstractDomain, Path, Path, str]):
@@ -219,14 +237,18 @@ def main() -> None:
     mbs = [x[0] for x in args.mbw]
     hbs = [x[0] for x in args.hbw]
 
-    bw_8_res: dict[
-        tuple[AbstractDomain, str], tuple[int, int, int, int | None, int | None]
-    ] = dict()
-    bw_64_res: dict[
-        tuple[AbstractDomain, str], tuple[int, float, float, float | None, float | None]
+    results: dict[
+        tuple[AbstractDomain, str],
+        tuple[
+            tuple[int, int, int, int | None, int | None],  # 8-bit data
+            tuple[int, float, float, float | None, float | None],  # 64-bit data
+            CodeData,
+        ],
     ] = dict()
 
-    for (_, domain, _, _, op), (top_r, synth_r, llvm_r, meet_r) in zip(inputs, data):
+    for (_, domain, _, _, op), (top_r, synth_r, llvm_r, meet_r, code_data) in zip(
+        inputs, data
+    ):
         use_llvm = all(x.sound_dist == 0 for x in llvm_r.per_bit_res)
 
         if args.latex_table:
@@ -240,20 +262,22 @@ def main() -> None:
             synth_r_64 = get_result_from_bw(synth_r, 64)
             llvm_r_64 = get_result_from_bw(llvm_r, 64)
             meet_r_64 = get_result_from_bw(meet_r, 64)
-            bw_8_res[(domain, op)] = (
+
+            bw_8_entry = (
                 top_r_8.all_cases,
                 top_r_8.exacts,
                 synth_r_8.exacts,
                 llvm_r_8.exacts if use_llvm else None,
                 meet_r_8.exacts if use_llvm else None,
             )
-            bw_64_res[(domain, op)] = (
+            bw_64_entry = (
                 top_r_64.all_cases,
                 top_r_64.dist,
                 synth_r_64.dist,
                 llvm_r_64.dist if use_llvm else None,
                 meet_r_64.dist if use_llvm else None,
             )
+            results[(domain, op)] = (bw_8_entry, bw_64_entry, code_data)
             continue
 
         print()
@@ -268,7 +292,7 @@ def main() -> None:
         print(s)
 
     if args.latex_table:
-        table = gen_table(bw_8_res, bw_64_res)
+        table = gen_table(results)
         print(table)
 
 
