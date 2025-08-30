@@ -4,6 +4,7 @@ from multiprocessing import Pool
 from itertools import zip_longest
 
 
+from xdsl_smt.utils.gen_table import gen_table
 from xdsl_smt.utils.synthesizer_utils.compare_result import EvalResult, PerBitRes
 from xdsl_smt.eval_engine.eval import AbstractDomain, setup_eval, eval_final
 from xdsl.dialects.func import FuncOp
@@ -41,6 +42,11 @@ def register_all_arguments() -> Namespace:
         type=int_triple,
         default=[],
         help="Bitwidths to sample the lattice and abstract values with",
+    )
+    ap.add_argument(
+        "-latex-table",
+        action="store_true",
+        help="Generate a latex table instead of printing to stdout",
     )
 
     return ap.parse_args()
@@ -117,9 +123,9 @@ def _get_dist_table(
     meet: EvalResult,
     mbs: list[int],
     hbs: list[int],
+    use_llvm: bool = True,
 ) -> str:
     s = ""
-    use_llvm = sum(x.exacts for x in llvm.per_bit_res) != 0
 
     s += "           ######  Dists  ######                     \n"
     s += "bw  | Cases   | Top     | Synth   | LLVM    | Meet   \n"
@@ -144,13 +150,13 @@ def _get_exact_table(
     meet: EvalResult,
     mbs: list[int],
     hbs: list[int],
+    use_llvm: bool,
 ) -> str:
     def fmt(x: PerBitRes) -> str:
         p = x.get_exact_prop()
         return f"{p*100:05.2f}%" if p < 1 else f"{p*100:05.1f}%"
 
     s = ""
-    use_llvm = sum(x.exacts for x in llvm.per_bit_res) != 0
 
     s += "        ######  Exacts  ######         \n"
     s += "bw | Top    | Synth  | LLVM   | Meet   \n"
@@ -168,6 +174,13 @@ def _get_exact_table(
         s += f"{bw:<4}| {fmt(t_pb)} | {fmt(s_pb)} | {llvm_exact:<6} | {meet_exact:<6}\n"
 
     return s
+
+
+def get_result_from_bw(res: EvalResult, bw: int) -> PerBitRes:
+    for pb_res in res.per_bit_res:
+        if pb_res.bitwidth == bw:
+            return pb_res
+    assert False, f"Bitwidth {bw} not found in EvalResult"
 
 
 def main() -> None:
@@ -206,17 +219,57 @@ def main() -> None:
     mbs = [x[0] for x in args.mbw]
     hbs = [x[0] for x in args.hbw]
 
+    bw_8_res: dict[
+        tuple[AbstractDomain, str], tuple[int, int, int, int | None, int | None]
+    ] = dict()
+    bw_64_res: dict[
+        tuple[AbstractDomain, str], tuple[int, float, float, float | None, float | None]
+    ] = dict()
+
     for (_, domain, _, _, op), (top_r, synth_r, llvm_r, meet_r) in zip(inputs, data):
+        use_llvm = all(x.sound_dist == 0 for x in llvm_r.per_bit_res)
+
+        if args.latex_table:
+            assert 8 in mbs, "Expected 8-bitwidths in mbw"
+            assert 64 in hbs, "Expected 64-bitwidths in hbw"
+            top_r_8 = get_result_from_bw(top_r, 8)
+            synth_r_8 = get_result_from_bw(synth_r, 8)
+            llvm_r_8 = get_result_from_bw(llvm_r, 8)
+            meet_r_8 = get_result_from_bw(meet_r, 8)
+            top_r_64 = get_result_from_bw(top_r, 64)
+            synth_r_64 = get_result_from_bw(synth_r, 64)
+            llvm_r_64 = get_result_from_bw(llvm_r, 64)
+            meet_r_64 = get_result_from_bw(meet_r, 64)
+            bw_8_res[(domain, op)] = (
+                top_r_8.all_cases,
+                top_r_8.exacts,
+                synth_r_8.exacts,
+                llvm_r_8.exacts if use_llvm else None,
+                meet_r_8.exacts if use_llvm else None,
+            )
+            bw_64_res[(domain, op)] = (
+                top_r_64.all_cases,
+                top_r_64.dist,
+                synth_r_64.dist,
+                llvm_r_64.dist if use_llvm else None,
+                meet_r_64.dist if use_llvm else None,
+            )
+            continue
+
         print()
         print(
             f"#################################   {domain} {op}   ############################"
         )
-        dists = _get_dist_table(top_r, synth_r, llvm_r, meet_r, mbs, hbs)
-        exacts = _get_exact_table(top_r, synth_r, llvm_r, meet_r, mbs, hbs)
+        dists = _get_dist_table(top_r, synth_r, llvm_r, meet_r, mbs, hbs, use_llvm)
+        exacts = _get_exact_table(top_r, synth_r, llvm_r, meet_r, mbs, hbs, use_llvm)
         zipped_tables = zip_longest(dists.split("\n"), exacts.split("\n"), fillvalue="")
 
         s = "\n".join([f"{d}   ||   {e}" for d, e in zipped_tables][:-1])
         print(s)
+
+    if args.latex_table:
+        table = gen_table(bw_8_res, bw_64_res)
+        print(table)
 
 
 if __name__ == "__main__":

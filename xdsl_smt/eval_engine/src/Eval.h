@@ -167,9 +167,11 @@ public:
 
         bool llvmExact = false;
         unsigned long llvmDis = 0;
+        unsigned long usellvm = 1;
         bool meetExact = false;
         unsigned long meetDis = 0;
         if (llvmXfer) {
+          usellvm = 0;
           std::optional<D> optionalXferRes =
               llvmXferWrapper(lhs, rhs, llvmXfer.value());
           if (optionalXferRes) {
@@ -186,7 +188,7 @@ public:
 
         r[i].incResult(Result(0, topDis, topExact, 0, 0), 0);
         r[i].incResult(Result(0, synthDis, synthExact, 0, 0), 1);
-        r[i].incResult(Result(0, llvmDis, llvmExact, 0, 0), 2);
+        r[i].incResult(Result(0, llvmDis, llvmExact, 0, usellvm), 2);
         r[i].incResult(Result(0, meetDis, meetExact, 0, 0), 3);
         r[i].incCases(0, 0);
       }

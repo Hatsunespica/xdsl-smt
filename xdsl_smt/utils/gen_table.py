@@ -1,0 +1,101 @@
+from xdsl_smt.eval_engine.eval import AbstractDomain
+
+
+def gen_table(
+    bw_8_res: dict[
+        tuple[AbstractDomain, str], tuple[int, int, int, int | None, int | None]
+    ],
+    bw_64_res: dict[
+        tuple[AbstractDomain, str], tuple[int, float, float, float | None, float | None]
+    ],
+) -> str:
+    """Generate a LaTeX table with 8-bit and 64-bit evaluation results."""
+
+    # Assert that both dictionaries have the same key set
+    assert (
+        bw_8_res.keys() == bw_64_res.keys()
+    ), "bw_8_res and bw_64_res must have identical key sets"
+
+    # Start building the LaTeX table
+    latex: list[str] = []
+
+    # Table header
+    latex.append("\\begin{tabular}{@{}|l")
+    latex.append("                r")
+    latex.append("                rrrr")
+    latex.append("                |r")
+    latex.append("                rrrr@{}}")
+    latex.append("\\toprule")
+    latex.append(
+        "\\multirow{2}{*}{\\textbf{Concrete Op}} & \\multirow{2}{*}{\\textbf{Tests}} & \\multicolumn{4}{c}{\\textbf{8-bit exact (\\%)}} & \\multirow{2}{*}{\\textbf{Tests}} & \\multicolumn{4}{c}{\\textbf{64-bit precision (distance)}} \\\\"
+    )
+    latex.append("\\cmidrule(lr){3-6} \\cmidrule(lr){8-11}")
+    latex.append(
+        " & & $\\top$ & synth & llvm & meet & & $\\top$ & synth & llvm & meet \\\\"
+    )
+    latex.append("\\midrule")
+
+    # Sort keys by operation name for consistent ordering
+    sorted_keys = sorted(bw_8_res.keys(), key=lambda x: x[1])
+
+    # Generate rows for each operation
+    for (domain, op), bw_8_entry in [(key, bw_8_res[key]) for key in sorted_keys]:
+        bw_64_entry = bw_64_res[(domain, op)]
+
+        # Add asterisk for SConstRange domain
+        op_display = f"{op}*" if domain == AbstractDomain.SConstRange else op
+
+        # Extract 8-bit data: (cases, top_exacts, synth_exacts, llvm_exacts, meet_exacts)
+        cases_8, top_exacts_8, synth_exacts_8, llvm_exacts_8, meet_exacts_8 = bw_8_entry
+
+        # Extract 64-bit data: (cases, top_dist, synth_dist, llvm_dist, meet_dist)
+        cases_64, top_dist_64, synth_dist_64, llvm_dist_64, meet_dist_64 = bw_64_entry
+
+        if llvm_exacts_8 is None:
+            meet_exacts_8 = synth_exacts_8
+        if llvm_dist_64 is None:
+            meet_dist_64 = synth_dist_64
+
+        # Calculate percentages for 8-bit exact results
+        top_pct_8 = (top_exacts_8 / cases_8) * 100
+        synth_pct_8 = (synth_exacts_8 / cases_8) * 100
+        llvm_pct_8 = (
+            (llvm_exacts_8 / cases_8) * 100 if llvm_exacts_8 is not None else None
+        )
+        meet_pct_8 = (
+            (meet_exacts_8 / cases_8) * 100 if meet_exacts_8 is not None else None
+        )
+
+        # Format 8-bit data
+        llvm_pct_str = f"{llvm_pct_8:.2f}" if llvm_pct_8 is not None else "N/A"
+        meet_pct_str = f"{meet_pct_8:.2f}" if meet_pct_8 is not None else "N/A"
+
+        # Bold meet values if they are better than llvm or if llvm is None
+        if meet_exacts_8 is not None and (
+            llvm_exacts_8 is None or meet_exacts_8 > llvm_exacts_8
+        ):
+            meet_pct_str = f"\\textbf{{{meet_pct_8:.2f}}}"
+
+        # Handle 64-bit data based on cases_64
+        if cases_64 == 0:
+            dist_part = "- & - & - & -"
+        else:
+            llvm_dist_str = f"{llvm_dist_64:.2f}" if llvm_dist_64 is not None else "N/A"
+            meet_dist_str = f"{meet_dist_64:.2f}" if meet_dist_64 is not None else "N/A"
+
+            # Bold meet distance if it's better than llvm or if llvm is None
+            if meet_dist_64 is not None and (
+                llvm_dist_64 is None or meet_dist_64 < llvm_dist_64
+            ):
+                meet_dist_str = f"\\textbf{{{meet_dist_64:.2f}}}"
+
+            dist_part = f"{top_dist_64:.2f} & {synth_dist_64:.2f} & {llvm_dist_str} & {meet_dist_str}"
+
+        row = f"{op_display} & {cases_8} & {top_pct_8:.2f} & {synth_pct_8:.2f} & {llvm_pct_str} & {meet_pct_str} & {cases_64} & {dist_part} \\\\"
+        latex.append(row)
+
+    # Close the table
+    latex.append("\\bottomrule")
+    latex.append("\\end{tabular}")
+
+    return "\n".join(latex)
