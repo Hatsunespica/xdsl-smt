@@ -16,20 +16,11 @@ import shutil
 from pathlib import Path
 
 
-def run_executable_with_header(executable, cpp_file, subfolder_path, header_parts, create_dir=False):
+def run_executable_with_header(executable, cpp_file, subfolder_path, header_parts, abstract_domain, create_dir=False):
     """Run an executable with a formatted header and C++ code."""
     try:
         # Create the input with required header
         enum_result_dir = str(subfolder_path) + "/enum_data/"
-        
-        # Determine abstract domain based on folder name
-        folder_name = os.path.basename(str(subfolder_path))
-        if "_unsigned" in folder_name:
-            abstract_domains = "UConstRange"
-        elif "_signed" in folder_name:
-            abstract_domains = "SConstRange"
-        else:
-            raise ValueError(f"Cannot determine abstract domain from folder name: {folder_name}")
         
         # Create directory if needed
         if create_dir:
@@ -39,7 +30,7 @@ def run_executable_with_header(executable, cpp_file, subfolder_path, header_part
             enum_dir_path.mkdir(parents=True, exist_ok=True)
         
         # Build header with common parts and specific parts
-        header_lines = [enum_result_dir, abstract_domains] + header_parts
+        header_lines = [enum_result_dir, abstract_domain] + header_parts
         header = "\n".join(header_lines) + "\n\n"
         
         # Read the C++ code
@@ -81,59 +72,98 @@ def run_executable_with_header(executable, cpp_file, subfolder_path, header_part
         return False
 
 
-def run_xfer_enum(executable, cpp_file, script_dir, subfolder_path):
+def run_xfer_enum(executable, cpp_file, script_dir, subfolder_path, abstract_domain):
     """Run xfer_enum with the proper header format and C++ code."""
     bitwidth_configs = "[4]\n[(8, 1000)]\n[(64, 1000, 100)]"
     random_seed = "123777"
     header_parts = [bitwidth_configs, random_seed]
-    return run_executable_with_header(executable, cpp_file, subfolder_path, header_parts, create_dir=True)
+    return run_executable_with_header(executable, cpp_file, subfolder_path, header_parts, abstract_domain, create_dir=True)
 
 
-def run_eval_engine(executable, cpp_file, script_dir, subfolder_path):
+def run_eval_engine(executable, cpp_file, script_dir, subfolder_path, abstract_domain):
     """Run eval_engine with the proper header format and C++ code."""
     empty_list = "[]"
     amurth_tf_list = "['amurth_tf']"
     header_parts = ["", amurth_tf_list, empty_list]
-    return run_executable_with_header(executable, cpp_file, subfolder_path, header_parts, create_dir=False)
+    return run_executable_with_header(executable, cpp_file, subfolder_path, header_parts, abstract_domain, create_dir=False)
 
 
-def run_command(executable, input_file):
-    """Run a command with the given input file and return the result."""
-    try:
-        print(f"Running: {executable} < {input_file}")
-        result = subprocess.run(
-            [executable],
-            stdin=open(input_file, 'r'),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            timeout=30  # 30 second timeout
-        )
+def process_single_benchmark(benchmark_path, xfer_enum, eval_engine, script_dir, abstract_domain):
+    """Process a single benchmark directory."""
+    folder_name = benchmark_path.name
+    print(f"Processing single benchmark: {folder_name}")
+    
+    # Look for the expected files (no suffix needed anymore)
+    conc_file = benchmark_path / f"{folder_name}_conc.cpp"
+    abs_file = benchmark_path / f"{folder_name}_abs.cpp"
+    
+    found_files = False
+    
+    # Process _conc.cpp file with xfer_enum
+    if conc_file.exists():
+        found_files = True
+        print(f"  Found: {conc_file.name}")
+        run_xfer_enum(str(xfer_enum), str(conc_file), script_dir, benchmark_path, abstract_domain)
+    
+    # Process _abs.cpp file with eval_engine
+    if abs_file.exists():
+        found_files = True
+        print(f"  Found: {abs_file.name}")
+        run_eval_engine(str(eval_engine), str(abs_file), script_dir, benchmark_path, abstract_domain)
+    
+    if not found_files:
+        print(f"  Skipping: No {folder_name}_conc.cpp or {folder_name}_abs.cpp found")
+        return False
+    
+    return True
+
+
+def process_category_directory(category_path, xfer_enum, eval_engine, script_dir, abstract_domain):
+    """Process all benchmarks in a category directory (signed/unsigned)."""
+    category_name = category_path.name
+    print(f"Processing {category_name} operations:")
+    
+    processed_count = 0
+    skipped_count = 0
+    
+    for subfolder in sorted(category_path.iterdir()):
+        if not subfolder.is_dir():
+            continue
+            
+        folder_name = subfolder.name
+        print(f"  Processing subfolder: {folder_name}")
         
-        if result.returncode == 0:
-            print(f"✓ Success: {executable} processed {input_file}")
-            if result.stdout.strip():
-                print(f"  Output: {result.stdout.strip()}")
+        # Look for the expected files (no suffix needed anymore)
+        conc_file = subfolder / f"{folder_name}_conc.cpp"
+        abs_file = subfolder / f"{folder_name}_abs.cpp"
+        
+        found_files = False
+        
+        # Process _conc.cpp file with xfer_enum
+        if conc_file.exists():
+            found_files = True
+            print(f"    Found: {conc_file.name}")
+            run_xfer_enum(str(xfer_enum), str(conc_file), script_dir, subfolder, abstract_domain)
+        
+        # Process _abs.cpp file with eval_engine
+        if abs_file.exists():
+            found_files = True
+            print(f"    Found: {abs_file.name}")
+            run_eval_engine(str(eval_engine), str(abs_file), script_dir, subfolder, abstract_domain)
+        
+        if found_files:
+            processed_count += 1
         else:
-            print(f"✗ Error: {executable} failed on {input_file}")
-            if result.stderr.strip():
-                print(f"  Error: {result.stderr.strip()}")
+            print(f"    Skipping: No {folder_name}_conc.cpp or {folder_name}_abs.cpp found")
+            skipped_count += 1
         
-        return result.returncode == 0
-        
-    except subprocess.TimeoutExpired:
-        print(f"✗ Timeout: {executable} timed out on {input_file}")
-        return False
-    except FileNotFoundError:
-        print(f"✗ Error: Executable {executable} not found")
-        return False
-    except Exception as e:
-        print(f"✗ Error: {e}")
-        return False
+        print()
+    
+    return processed_count, skipped_count
 
 
-def process_directory(input_dir, benchmark=None):
-    """Process all subdirectories in the input directory."""
+def process_directory(input_dir, abstract_domain, single_benchmark=False):
+    """Process directories - either a single benchmark or a set of benchmarks."""
     input_path = Path(input_dir).resolve()
     
     if not input_path.exists() or not input_path.is_dir():
@@ -155,65 +185,26 @@ def process_directory(input_dir, benchmark=None):
         return False
     
     print(f"Processing directory: {input_path}")
-    if benchmark:
-        print(f"Running single benchmark: {benchmark}")
+    print(f"Using abstract domain: {abstract_domain}")
     print(f"Using executables:")
     print(f"  xfer_enum: {xfer_enum}")
     print(f"  eval_engine: {eval_engine}")
     print()
     
-    processed_transformers = 0
-    skipped_transformers = 0
-    
-    # Iterate through all subdirectories
-    for subfolder in sorted(input_path.iterdir()):
-        if not subfolder.is_dir():
-            continue
-            
-        folder_name = subfolder.name
-        
-        # If a specific benchmark is requested, skip others
-        if benchmark and folder_name != benchmark:
-            continue
-            
-        print(f"Processing subfolder: {folder_name}")
-        
-        # Look for the expected files
-        conc_file = subfolder / f"{folder_name}_conc.cpp"
-        abs_file = subfolder / f"{folder_name}_abs.cpp"
-        
-        found_files = False
-        
-        # Process _conc.cpp file with xfer_enum
-        if conc_file.exists():
-            found_files = True
-            print(f"  Found: {conc_file.name}")
-            run_xfer_enum(str(xfer_enum), str(conc_file), script_dir, subfolder)
-        
-        # Process _abs.cpp file with eval_engine
-        if abs_file.exists():
-            found_files = True
-            print(f"  Found: {abs_file.name}")
-            run_eval_engine(str(eval_engine), str(abs_file), script_dir, subfolder)
-        
-        if found_files:
-            processed_transformers += 1
-        else:
-            print(f"  Skipping: No {folder_name}_conc.cpp or {folder_name}_abs.cpp found")
-            skipped_transformers += 1
-        
-        print()
-    
-    # Check if specific benchmark was requested but not found
-    if benchmark and processed_transformers == 0:
-        print(f"Error: Benchmark '{benchmark}' not found in {input_path}")
-        return False
-    
-    print(f"Summary:")
-    print(f"  Processed transformers: {processed_transformers}")
-    print(f"  Skipped transformers: {skipped_transformers}")
-    
-    return True
+    if single_benchmark:
+        # Single benchmark mode
+        success = process_single_benchmark(input_path, xfer_enum, eval_engine, script_dir, abstract_domain)
+        print(f"Summary:")
+        print(f"  Processed transformers: {1 if success else 0}")
+        print(f"  Skipped transformers: {0 if success else 1}")
+        return success
+    else:
+        # Set of benchmarks mode
+        processed_count, skipped_count = process_category_directory(input_path, xfer_enum, eval_engine, script_dir, abstract_domain)
+        print(f"Summary:")
+        print(f"  Processed transformers: {processed_count}")
+        print(f"  Skipped transformers: {skipped_count}")
+        return processed_count > 0
 
 
 def main():
@@ -222,26 +213,40 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python eval_amurth.py /path/to/input/dir
-  python eval_amurth.py amurth-result
-  python eval_amurth.py amurth-result --benchmark ashr_signed
+  # Process all benchmarks in signed category
+  python eval_amurth.py signed --domain SConstRange
+  
+  # Process all benchmarks in unsigned category  
+  python eval_amurth.py unsigned --domain UConstRange
+  
+  # Process a single benchmark
+  python eval_amurth.py signed/plus --domain SConstRange --single
+  python eval_amurth.py unsigned/minus --domain UConstRange --single
         """
     )
     
     parser.add_argument(
         "input_dir",
-        help="Input directory containing subfolders to process"
+        help="Input directory path"
     )
     
     parser.add_argument(
-        "--benchmark", "-b",
-        help="Run only the specified benchmark (subfolder name)"
+        "--domain", "-d",
+        required=True,
+        choices=["SConstRange", "UConstRange"],
+        help="Abstract domain: SConstRange for signed, UConstRange for unsigned"
+    )
+    
+    parser.add_argument(
+        "--single", 
+        action="store_true",
+        help="Process as a single benchmark directory instead of a set of benchmarks"
     )
     
     args = parser.parse_args()
     
     try:
-        success = process_directory(args.input_dir, args.benchmark)
+        success = process_directory(args.input_dir, args.domain, args.single)
         sys.exit(0 if success else 1)
     except KeyboardInterrupt:
         print("\nInterrupted by user")

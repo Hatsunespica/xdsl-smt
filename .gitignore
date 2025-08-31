@@ -132,6 +132,11 @@ dmypy.json
 # Debug outputs
 outputs/
 tmp/
+paper_data/
+
+# Enumerated Data
+*.bin
+enum_data/
 
 # ignore synthed output
 tmp.cpp
