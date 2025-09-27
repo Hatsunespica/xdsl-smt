@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# pyright: ignore-file
 """
 Program to process directories and run specified executables on C++ files.
 
@@ -8,7 +9,6 @@ For each subfolder 'a' in the input directory:
 - Skip subfolders that don't have the required files
 """
 
-import os
 import sys
 import subprocess
 import argparse
