@@ -1,11 +1,11 @@
 //#include "/root/amurth/aux_function/aux_function.c"
- int  absleft_c ( int l1, int r1, int l2, int r2 ) 
+ int  absleft_c ( int l1, int r1, int l2, int r2 )
 {
   int _out1;
   _out1 = (l1 - 1) - r2;
   return _out1;
 }
- int  absright_c ( int l1, int r1, int l2, int r2 ) 
+ int  absright_c ( int l1, int r1, int l2, int r2 )
 {
   int _out1;
   int out_s56 = 0;

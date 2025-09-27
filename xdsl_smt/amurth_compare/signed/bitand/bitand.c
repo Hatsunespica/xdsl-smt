@@ -26,7 +26,7 @@ void bitWiseTemplateWrapped_c (int a, int b, int c, int d, int bnd, ref int[2] r
     }
   }
 }
- int  absleft_c ( int l1, int r1, int l2, int r2 ) 
+ int  absleft_c ( int l1, int r1, int l2, int r2 )
 {
   int _out1;
   int[2] _out = {0,0};
@@ -34,7 +34,7 @@ void bitWiseTemplateWrapped_c (int a, int b, int c, int d, int bnd, ref int[2] r
   _out1 = _out[0];
   return _out1;
 }
- int  absright_c ( int l1, int r1, int l2, int r2 ) 
+ int  absright_c ( int l1, int r1, int l2, int r2 )
 {
   int _out1;
   int[2] _out = {0,0};
