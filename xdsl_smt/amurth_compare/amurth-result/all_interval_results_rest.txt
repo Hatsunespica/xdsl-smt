@@ -1,0 +1,744 @@
+starting for SIGNED
+bitxor4.json
+Soundness Check started
+Soundness Check ended with counter-example
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 1
+    [0;31m[1755541626.6990 - ERROR] [SKETCH] Sketch Not Resolved Error: The sketch could not be resolved.[0m
+Precision check starts
+precision check ends 0
+Soundness Check started
+Soundness Check ended with counter-example
+Precision check starts
+precision check ends 1
+    [0;31m[1755541847.5950 - ERROR] [SKETCH] Sketch Not Resolved Error: The sketch could not be resolved.[0m
+Precision check starts
+precision check ends 0
+Soundness Check started
+Soundness Check ended with counter-example
+Precision check starts
+precision check ends 1
+    [0;31m[1755542144.4170 - ERROR] [SKETCH] Sketch Not Resolved Error: The sketch could not be resolved.[0m
+Precision check starts
+precision check ends 0
+Soundness Check started
+Soundness Check ended with counter-example
+Precision check starts
+precision check ends 1
+    [0;31m[1755542409.4170 - ERROR] [SKETCH] Sketch Not Resolved Error: The sketch could not be resolved.[0m
+Precision check starts
+precision check ends 0
+Soundness Check started
+Soundness Check ended with timeout
+~~~~~~~~~~ Iteration no. 1 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 2 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 3 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 1 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 1 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 1 ~~~~~~~~~~~~~
+
+Soundness check timeout
+EXITING
+Synthesized transformer is as follows
+//#include "/root/amurth/aux_function/aux_function.c"
+void bitWiseTemplateWrapped_c (int a, int b, int c, int d, int bnd, ref int[2] result)
+{
+  int[4] s1_s34 = {0,0,0,0};
+  s1_s34 = intervalSSplit(a,  b);
+  int[4] s2_s36 = {0,0,0,0};
+  s2_s36 = intervalSSplit(c,  d);
+  result = {s1_s34[0],s1_s34[1]};
+  for(int i = 0; i < 2; i = i + 1)
+  {
+    for(int j = 0; j < 2; j = j + 1)
+    {
+      int a_0 = s1_s34[i * 2];
+      int b_0 = s1_s34[(i * 2) + 1];
+      int c_0 = s2_s36[j * 2];
+      int d_0 = s2_s36[(j * 2) + 1];
+      int _out1_s86 = 0;
+  _out1_s86 = bvNot(b_0);
+      int _out1_s88 = 0;
+  _out1_s88 = bvNot(a_0);
+      int _out1_s90 = 0;
+  _out1_s90 = minAND(_out1_s86,  _out1_s88,  c_0,  d_0);
+      int _out1_s92 = 0;
+  _out1_s92 = bvNot(d_0);
+      int _out1_s94 = 0;
+  _out1_s94 = bvNot(c_0);
+      int _out1_s96 = 0;
+  _out1_s96 = minAND(a_0,  b_0,  _out1_s92,  _out1_s94);
+      int _out1_s108 = 0;
+  _out1_s108 = maxOr(0,  _out1_s90,  0,  _out1_s96);
+      int a_1 = s1_s34[i * 2];
+      int b_1 = s1_s34[(i * 2) + 1];
+      int c_1 = s2_s36[j * 2];
+      int d_1 = s2_s36[(j * 2) + 1];
+      int _out1_s80 = 0;
+  _out1_s80 = bvNot(b_1);
+      int _out1_s82 = 0;
+  _out1_s82 = bvNot(a_1);
+      int _out1_s84 = 0;
+  _out1_s84 = maxAND(_out1_s80,  _out1_s82,  c_1,  d_1);
+      int _out1_s74 = 0;
+  _out1_s74 = bvNot(d_1);
+      int _out1_s76 = 0;
+  _out1_s76 = bvNot(c_1);
+      int _out1_s78 = 0;
+  _out1_s78 = maxAND(a_1,  b_1,  _out1_s74,  _out1_s76);
+      int _out1_s108_0 = 0;
+  _out1_s108_0 = maxOr(0,  _out1_s84,  0,  _out1_s78);
+      Join(_out1_s108, _out1_s108_0, result[0], result[1], result);
+    }
+  }
+}
+ int  absleft_c ( int l1, int r1, int l2, int r2 )
+{
+  int _out1;
+  int[2] _out = {0,0};
+  bitWiseTemplateWrapped_c(l1, r1, l2, r2, 2, _out);
+  _out1 = _out[0];
+  return _out1;
+}
+ int  absright_c ( int l1, int r1, int l2, int r2 )
+{
+  int _out1;
+  int[2] _out = {0,0};
+  bitWiseTemplateWrapped_c(l1, r1, l2, r2, 2, _out);
+  _out1 = _out[1];
+  return _out1;
+}
+
+soundnessCount , precisionCount, posexCount, negexCount, bootPosex, bootNegex, maxSatCount, droppedCount, soundnessTotalTime, precisionTotalTime, totalTime, soundnessTime, precisionTime
+(5, 10, 12, 2, 8, 0, 0, 0, 820.8207421302795, 1287.532338874, 2113.008666038513, [2.5893261432647705, 3.0493040084838867, 3.1131670475006104, 3.287001132965088, 808.7819437980652], [92.41340021, 39.317450657, 275.58706492, 41.975205464, 175.082268206, 67.633782128, 225.368400299, 38.495642795, 222.472203033, 109.186921162])
+lshl.json
+Soundness Check started
+Soundness Check ended with counter-example
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 1
+    [0;31m[1755543343.1450 - ERROR] [SKETCH] Sketch Not Resolved Error: The sketch could not be resolved.[0m
+Precision check starts
+precision check ends 0
+Soundness Check started
+Soundness Check ended with timeout
+~~~~~~~~~~ Iteration no. 1 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 2 ~~~~~~~~~~~~~
+
+Soundness check timeout
+EXITING
+Synthesized transformer is as follows
+//#include "/root/amurth/aux_function/aux_function.c"
+ int  absleft_c ( int l1, int r1, int l2, int r2 )
+{
+  int _out1;
+  bit[8] zero = ((bit[8]){0});
+  int _out1_s17 = 0;
+  _out1_s17 = bitToInt(zero);
+  bit[8] x_s21 = {0,0,0,0,0,0,0,0};
+  x_s21 = intToBit(_out1_s17);
+  bit[8] y_s25 = {0,0,0,0,0,0,0,0};
+  y_s25 = intToBit(l1);
+  bit[8] _out_s35 = {0,0,0,0,0,0,0,0};
+  _out_s35 = bvlshiftN(y_s25,  l2);
+  int _out1_s37 = 0;
+  _out1_s37 = bitToInt(_out_s35);
+  _out1 = _out1_s37;
+  return _out1;
+}
+ int  absright_c ( int l1, int r1, int l2, int r2 )
+{
+  int _out1;
+  bit[8] zero = ((bit[8]){0});
+  int _out1_s17 = 0;
+  _out1_s17 = bitToInt(zero);
+  bit[8] x_s21 = {0,0,0,0,0,0,0,0};
+  x_s21 = intToBit(_out1_s17);
+  bit[8] y_s25 = {0,0,0,0,0,0,0,0};
+  y_s25 = intToBit(r1);
+  bit[8] _out_s35 = {0,0,0,0,0,0,0,0};
+  _out_s35 = bvlshiftN(y_s25,  l2);
+  int _out1_s37 = 0;
+  _out1_s37 = bitToInt(_out_s35);
+  _out1 = _out1_s37;
+  return _out1;
+}
+
+soundnessCount , precisionCount, posexCount, negexCount, bootPosex, bootNegex, maxSatCount, droppedCount, soundnessTotalTime, precisionTotalTime, totalTime, soundnessTime, precisionTime
+(2, 3, 2, 2, 1, 1, 0, 0, 5.720722913742065, 8.449964504, 15.695088863372803, [2.535054922103882, 3.1856679916381836], [2.389898959, 3.882277002, 2.177788543])
+lshr.json
+Soundness Check started
+Soundness Check ended with counter-example
+Precision check starts
+precision check ends 1
+    [0;31m[1755543360.3900 - ERROR] [SKETCH] Sketch Not Resolved Error: The sketch could not be resolved.[0m
+Precision check starts
+precision check ends 0
+Soundness Check started
+Soundness Check ended with counter-example
+Precision check starts
+precision check ends 1
+    [0;31m[1755543368.6620 - ERROR] [SKETCH] Sketch Not Resolved Error: The sketch could not be resolved.[0m
+Precision check starts
+precision check ends 0
+Soundness Check started
+Soundness Check ended with timeout
+~~~~~~~~~~ Iteration no. 1 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 1 ~~~~~~~~~~~~~
+
+Soundness check timeout
+EXITING
+Synthesized transformer is as follows
+//#include "/root/amurth/aux_function/aux_function.c"
+ int  absleft_c ( int l1, int r1, int l2, int r2 )
+{
+  int _out1;
+  bit[8] zero = ((bit[8]){0});
+  int _out1_s23 = 0;
+  _out1_s23 = bitToInt(zero);
+  bit[8] x_s27 = {0,0,0,0,0,0,0,0};
+  x_s27 = intToBit(_out1_s23);
+  bit[8] y_s31 = {0,0,0,0,0,0,0,0};
+  y_s31 = intToBit(l1);
+  bit[8] _out_s45 = {0,0,0,0,0,0,0,0};
+  _out_s45 = bvrshiftN(y_s31,  l2);
+  int _out1_s47 = 0;
+  _out1_s47 = bitToInt(_out_s45);
+  _out1 = _out1_s47;
+  return _out1;
+}
+ int  absright_c ( int l1, int r1, int l2, int r2 )
+{
+  int _out1;
+  bit[8] x_s27 = {0,0,0,0,0,0,0,0};
+  x_s27 = intToBit(l1);
+  bit[8] y_s31 = {0,0,0,0,0,0,0,0};
+  y_s31 = intToBit(r1);
+  bit[8] _out_s45 = {0,0,0,0,0,0,0,0};
+  _out_s45 = bvrshiftN(y_s31,  l2);
+  int _out1_s47 = 0;
+  _out1_s47 = bitToInt(_out_s45);
+  _out1 = _out1_s47;
+  return _out1;
+}
+
+soundnessCount , precisionCount, posexCount, negexCount, bootPosex, bootNegex, maxSatCount, droppedCount, soundnessTotalTime, precisionTotalTime, totalTime, soundnessTime, precisionTime
+(3, 4, 4, 3, 2, 3, 0, 0, 8.223963260650635, 10.852266379, 20.816972970962524, [2.5332531929016113, 2.5376360416412354, 3.153074026107788], [2.920375543, 2.246545376, 2.925315084, 2.760030376])
+minus.json
+Soundness Check started
+Soundness Check ended with counter-example
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 1
+    [0;31m[1755544157.8510 - ERROR] [SKETCH] Sketch Not Resolved Error: The sketch could not be resolved.[0m
+Precision check starts
+precision check ends 0
+Soundness Check started
+Soundness Check ended with timeout
+~~~~~~~~~~ Iteration no. 1 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 2 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 3 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 4 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 5 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 6 ~~~~~~~~~~~~~
+
+Soundness check timeout
+EXITING
+Synthesized transformer is as follows
+//#include "/root/amurth/aux_function/aux_function.c"
+ int  absleft_c ( int l1, int r1, int l2, int r2 )
+{
+  int _out1;
+  _out1 = (l1 - 1) - r2;
+  return _out1;
+}
+ int  absright_c ( int l1, int r1, int l2, int r2 )
+{
+  int _out1;
+  int out_s56 = 0;
+  out_s56 = max(r1 - l2,  r1 - r2);
+  _out1 = out_s56;
+  return _out1;
+}
+
+soundnessCount , precisionCount, posexCount, negexCount, bootPosex, bootNegex, maxSatCount, droppedCount, soundnessTotalTime, precisionTotalTime, totalTime, soundnessTime, precisionTime
+(2, 7, 6, 15, 5, 10, 0, 0, 9.215656757354736, 774.668033705, 786.7539069652557, [2.331354856491089, 6.8843019008636475], [3.947662112, 5.110928211, 9.354833046, 69.362439296, 83.393797955, 601.601603126, 1.896769959])
+mul.json
+Soundness Check started
+Soundness Check ended with counter-example
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 1
+Error: This is a corpse. It's living gargabe name_22__TIMES id =-22
+    [0;31m[1755544188.9300 - ERROR] [SKETCH] Sketch Not Resolved Error: The sketch could not be resolved.[0m
+Precision check starts
+precision check ends 0
+Soundness Check started
+Soundness Check ended with counter-example
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 1
+    [0;31m[1755548268.7570 - ERROR] [SKETCH] Sketch Not Resolved Error: The sketch could not be resolved.[0m
+Precision check starts
+precision check ends 0
+Soundness Check started
+Soundness Check ended with counter-example
+Precision check starts
+precision check ends 1
+    [0;31m[1755548923.7290 - ERROR] [SKETCH] Sketch Not Resolved Error: The sketch could not be resolved.[0m
+Precision check starts
+precision check ends 0
+Soundness Check started
+Soundness Check ended with counter-example
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 1
+    [0;31m[1755550009.4980 - ERROR] [SKETCH] Sketch Not Resolved Error: The sketch could not be resolved.[0m
+Precision check starts
+precision check ends 0
+Soundness Check started
+Soundness Check ended with counter-example
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 1
+    [0;31m[1755551709.6590 - ERROR] [SKETCH] Sketch Not Resolved Error: The sketch could not be resolved.[0m
+Precision check starts
+precision check ends 0
+Soundness Check started
+Soundness Check ended with timeout
+~~~~~~~~~~ Iteration no. 1 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 2 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 3 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 1 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 2 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 3 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 4 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 5 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 6 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 7 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 8 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 9 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 10 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 11 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 12 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 13 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 14 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 15 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 16 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 17 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 18 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 19 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 20 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 21 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 22 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 23 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 24 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 25 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 26 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 27 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 28 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 29 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 1 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 1 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 2 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 1 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 2 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 3 ~~~~~~~~~~~~~
+
+Soundness check timeout
+EXITING
+Synthesized transformer is as follows
+//#include "/root/amurth/aux_function/aux_function.c"
+ int  absleft_c ( int l1, int r1, int l2, int r2 )
+{
+  int _out1;
+  int out_s98 = 0;
+  out_s98 = min(l2 * l1,  r1 * r2);
+  int out_s98_0 = 0;
+  out_s98_0 = min(l2 * r1,  r2 * l1);
+  int out_s98_1 = 0;
+  out_s98_1 = min(out_s98,  out_s98_0);
+  _out1 = out_s98_1;
+  return _out1;
+}
+ int  absright_c ( int l1, int r1, int l2, int r2 )
+{
+  int _out1;
+  int out_s100 = 0;
+  out_s100 = max(r2 * r1,  l2 * l1);
+  int out_s100_0 = 0;
+  out_s100_0 = max(l2,  l1);
+  int out_s98 = 0;
+  out_s98 = min(r2,  r1);
+  int out_s100_1 = 0;
+  out_s100_1 = max(out_s100,  out_s100_0 * out_s98);
+  _out1 = out_s100_1;
+  return _out1;
+}
+
+soundnessCount , precisionCount, posexCount, negexCount, bootPosex, bootNegex, maxSatCount, droppedCount, soundnessTotalTime, precisionTotalTime, totalTime, soundnessTime, precisionTime
+(6, 43, 10, 33, 5, 0, 0, 0, 512.8379731178284, 7712.388546415, 8242.253222227097, [2.2439470291137695, 2.8415019512176514, 3.573913097381592, 8.181622982025146, 5.143681049346924, 490.8533070087433], [7.186156003, 2.566148668, 3.050201418, 2.021190834, 6.852593795, 11.961644756, 14.327836535, 6.226810545, 15.676877257, 3.630085071, 8.191058004, 20.019672037, 8.947572838, 19.978976176, 10.052065213, 65.662748711, 52.884799997, 12.412254839, 24.456500289, 191.743531411, 259.896603845, 21.095505079, 51.838139413, 42.759202839, 144.005243664, 160.974732616, 161.961975839, 108.700763036, 99.470521463, 309.129214046, 191.260168531, 79.767477843, 1959.386984458, 48.678140328, 602.070147, 72.925405798, 401.442274213, 601.952273042, 125.112894836, 385.905716804, 580.785100907, 601.795650542, 213.625685876])
+plus.json
+Soundness Check started
+Soundness Check ended with counter-example
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 1
+    [0;31m[1755553177.3890 - ERROR] [SKETCH] Sketch Not Resolved Error: The sketch could not be resolved.[0m
+Precision check starts
+precision check ends 0
+Soundness Check started
+Soundness Check ended with timeout
+~~~~~~~~~~ Iteration no. 1 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 2 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 3 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 4 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 5 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 6 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 7 ~~~~~~~~~~~~~
+
+Soundness check timeout
+EXITING
+Synthesized transformer is as follows
+//#include "/root/amurth/aux_function/aux_function.c"
+ int  absleft_c ( int l1, int r1, int l2, int r2 )
+{
+  int _out0;
+  _out0 = l1 + l2;
+  return _out0;
+}
+ int  absright_c ( int l1, int r1, int l2, int r2 )
+{
+  int _out0;
+  _out0 = r2 + r1;
+  return _out0;
+}
+
+soundnessCount , precisionCount, posexCount, negexCount, bootPosex, bootNegex, maxSatCount, droppedCount, soundnessTotalTime, precisionTotalTime, totalTime, soundnessTime, precisionTime
+(2, 8, 6, 16, 5, 10, 0, 0, 15.381702184677124, 754.382657836, 773.139769077301, [2.513996124267578, 12.867706060409546], [4.63978946, 2.089824626, 24.421058664, 91.655222001, 21.767597844, 5.798742697, 601.578099959, 2.432322585])
+Soundness Check started
+Soundness Check ended with counter-example
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 0
+    [0;31m[1755553228.1480 - ERROR] [SKETCH] Sketch Not Resolved Error: The sketch could not be resolved.[0m
+Precision check starts
+precision check ends 0
+Soundness Check started
+Soundness Check ended with counter-example
+Precision check starts
+precision check ends 0
+    [0;31m[1755553242.7140 - ERROR] [SKETCH] Sketch Not Resolved Error: The sketch could not be resolved.[0m
+Precision check starts
+precision check ends 0
+Soundness Check started
+Soundness Check ended with counter-example
+Precision check starts
+precision check ends 0
+    [0;31m[1755553261.2920 - ERROR] [SKETCH] Sketch Not Resolved Error: The sketch could not be resolved.[0m
+Precision check starts
+precision check ends 0
+Soundness Check started
+Soundness Check ended with timeout
+~~~~~~~~~~ Iteration no. 1 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 2 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 3 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 4 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 5 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 1 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 1 ~~~~~~~~~~~~~
+
+Soundness check timeout
+EXITING
+Synthesized transformer is as follows
+//#include "/root/amurth/aux_function/aux_function.c"
+void bitWiseTemplateWrapped_c (int a, int b, int c, int d, int bnd, ref int[2] result)
+{
+  int[4] s1_s36 = {0,0,0,0};
+  s1_s36 = wrappedNSplit(a,  b);
+  int[4] s2_s38 = {0,0,0,0};
+  s2_s38 = wrappedNSplit(c,  d);
+  result = {s1_s36[0],s1_s36[1]};
+  for(int i = 0; i < 2; i = i + 1)
+  {
+    for(int j = 0; j < 2; j = j + 1)
+    {
+      int b_0 = s1_s36[(i * 2) + 1];
+      int d_0 = s2_s38[(j * 2) + 1];
+      Join(0, d_0 * b_0, result[0], result[1], result);
+    }
+  }
+}
+ int  absleft_c ( int l1, int r1, int l2, int r2 )
+{
+  int _out0;
+  int[2] res = ((int[2]){0});
+  bitWiseTemplateWrapped_c(l1, r1, l2, r2, 2, res);
+  _out0 = res[0];
+  return _out0;
+}
+ int  absright_c ( int l1, int r1, int l2, int r2 )
+{
+  int _out0;
+  int[2] res = ((int[2]){0});
+  bitWiseTemplateWrapped_c(l1, r1, l2, r2, 2, res);
+  _out0 = res[1];
+  return _out0;
+}
+
+soundnessCount , precisionCount, posexCount, negexCount, bootPosex, bootNegex, maxSatCount, droppedCount, soundnessTotalTime, precisionTotalTime, totalTime, soundnessTime, precisionTime
+(4, 10, 3, 4, 0, 0, 0, 0, 18.41508674621582, 46.459984204, 70.13362979888916, [7.439962863922119, 3.0676028728485107, 4.578977108001709, 3.3285439014434814], [2.935673377, 3.303413794, 3.173142668, 4.467542585, 5.65414167, 3.116839029, 7.564912796, 3.224477543, 9.772843824, 3.246996918])
+Soundness Check started
+Soundness Check ended with counter-example
+Precision check starts
+precision check ends 0
+Precision check starts
+precision check ends 0
+    [0;31m[1755553288.8470 - ERROR] [SKETCH] Sketch Not Resolved Error: The sketch could not be resolved.[0m
+Precision check starts
+precision check ends 0
+Soundness Check started
+Soundness Check ended with timeout
+~~~~~~~~~~ Iteration no. 1 ~~~~~~~~~~~~~
+
+~~~~~~~~~~ Iteration no. 2 ~~~~~~~~~~~~~
+
+Soundness check timeout
+EXITING
+Synthesized transformer is as follows
+//#include "/root/amurth/aux_function/aux_function.c"
+void bitWiseTemplateWrapped_c (int a, int b, int c, int d, int bnd, ref int[2] result)
+{
+  int[4] s1_s30 = {0,0,0,0};
+  s1_s30 = wrappedSSplit(a,  b);
+  int[4] s2_s32 = {0,0,0,0};
+  s2_s32 = wrappedSSplit(c,  d);
+  result = {-99,99};
+  for(int i = 0; i < 2; i = i + 1)
+  {
+    for(int j = 0; j < 2; j = j + 1)
+    {
+      int a_0 = s1_s30[i * 2];
+      int b_0 = s1_s30[(i * 2) + 1];
+      int c_0 = s2_s32[j * 2];
+      int d_0 = s2_s32[(j * 2) + 1];
+      int[2] l = {0,0};
+      if((((a_0 >= 0) && (b_0 >= 0)) && (c_0 >= 0)) && (d_0 >= 0))
+      {
+        int[2] l_s36 = {a * c,b * d};
+        l = l_s36;
+      }
+      else
+      {
+        int a_1 = s1_s30[i * 2];
+        int b_1 = s1_s30[(i * 2) + 1];
+        int c_1 = s2_s32[j * 2];
+        int d_1 = s2_s32[(j * 2) + 1];
+        if((((c_1 < 0) && (d_1 < 0)) && (a_1 >= 0)) && (b_1 >= 0))
+        {
+          int[2] l_s40 = {b * c,a * d};
+          l = l_s40;
+        }
+        else
+        {
+          int a_2 = s1_s30[i * 2];
+          int b_2 = s1_s30[(i * 2) + 1];
+          int c_2 = s2_s32[j * 2];
+          int d_2 = s2_s32[(j * 2) + 1];
+          if((((a_2 < 0) && (b_2 < 0)) && (c_2 < 0)) && (d_2 < 0))
+          {
+            int[2] l_s44 = {b * d,a * c};
+            l = l_s44;
+          }
+          else
+          {
+            int a_3 = s1_s30[i * 2];
+            int b_3 = s1_s30[(i * 2) + 1];
+            int c_3 = s2_s32[j * 2];
+            int d_3 = s2_s32[(j * 2) + 1];
+            if((((a_3 < 0) && (b_3 < 0)) && (c_3 >= 0)) && (d_3 >= 0))
+            {
+              int[2] l_s48 = {a * d,b * c};
+              l = l_s48;
+            }
+          }
+        }
+      }
+      Join(l[0], l[1], result[0], result[1], result);
+    }
+  }
+}
+ int  absleft_c ( int l1, int r1, int l2, int r2 )
+{
+  int _out1;
+  int[2] res = ((int[2]){0});
+  bitWiseTemplateWrapped_c(l1, r1, l2, r2, 2, res);
+  _out1 = res[0];
+  return _out1;
+}
+ int  absright_c ( int l1, int r1, int l2, int r2 )
+{
+  int _out1;
+  int[2] res = ((int[2]){0});
+  bitWiseTemplateWrapped_c(l1, r1, l2, r2, 2, res);
+  _out1 = res[1];
+  return _out1;
+}
+
+soundnessCount , precisionCount, posexCount, negexCount, bootPosex, bootNegex, maxSatCount, droppedCount, soundnessTotalTime, precisionTotalTime, totalTime, soundnessTime, precisionTime
+(2, 3, 5, 1, 4, 0, 0, 0, 5.911885976791382, 19.330872078, 27.133023977279663, [2.623724937438965, 3.288161039352417], [3.447335168, 12.741756756, 3.141780154])
