@@ -6,12 +6,12 @@ The URL to the artifact repository:
 The commit hash of the artifact:
 **TODO**
 
-This document provides instructions for evaluating the artifact associated with the paper "Nice to Meet You: Synthesizing Practical Abstract Transformers for MLIR".
+This document provides instructions for evaluating the artifact associated with the paper #814 "Nice to Meet You: Synthesizing Practical Abstract Transformers for MLIR".
 The artifact consists of NiceToMeetYou, the transformer synthesizer, the transformers which were synthesized for the paper, and scripts to evaluate these transformers.
 
 **TODO** Add a note for which arches this artifact will run on
 
-## Overview of Claims
+## List of claims
 
 ### Claims Supported by the Artifact
 
@@ -33,17 +33,17 @@ The artifact does not support our meta-theory in
 Section 3 (An Ideal Algorithm for the Transformer Synthesis Problem),
 and Section 4 (Randomly Searching for Abstract Transformers using MCMC)
 
-## Getting Started Guide
+## Download, installation, and sanity-testing
 
 ### Set Up the Environment
 
-**TODO** add instructions for getting the docker image
+**TODO** add instructions for getting the docker if anything should be built/venv etc.
+**TODO** from Ben:
+> Say what to expect inside the artifact: what files & directories, at a high level.
+> For example, synthesized-transformers/ should be explained right away.
+> But it doesn't need to explain everything in detail.
 
-### Running the Benchmark
-
-**TODO** just add basic docker stuff, like where in the fs it should drop you
-
-#### Synthesizing Transformers
+### Synthesizing Transformers
 
 First make a directory for our new transformers, run:
 
@@ -112,7 +112,7 @@ last_solution	100.00%	63.36%
 
 Also expect similar files as described above in `new-transformers/UConstRange_AddNsw`
 
----
+## Evaluation instructions
 
 To generate the exact transformers used in the evaluation section of the paper (tables 1, 2, and 3),
 (note that copies of these transformers may also be found in the `synthesized-transformers/` directory), run:
@@ -163,14 +163,14 @@ Here are a few notes to get started:
 * All concrete operations are stored in `tests/synth/Operations/`
 * See Section 5.1 for more information about the *outer loop* of synthesis, this maps to the `-num_iters` flag.
 * See Section 5.1 for more information about the *inner loop* of synthesis, this maps to the `-num_rounds` flag.
-* See Section 5.1.4: "**Test generation by bitwidth**" for further explination on the flags `-lbw`, `-mbw`, and `-hbw`.
+* See Section 5.1.4: "**Test generation by bitwidth**" for further explanation on the flags `-lbw`, `-mbw`, and `-hbw`.
 
 **N.B.** When running `synth-transfer` with low `-num_iters` or low `-num_rounds`,
 it is quite likely that NiceToMeetYou will fail to find any valid solutions during synthesis.
 
-#### Evaluating Transformers
+### Evaluating Transformers
 
-Now that we have synthesied some transformers, lets evaluate their precision and compare with LLVM's transformer.
+Now that we have synthesized some transformers, let's evaluate their precision and compare with LLVM's transformer.
 
 Run this command to evaluate the new transformers:
 
@@ -200,7 +200,18 @@ bw  | Cases   | Top     | Synth   | LLVM    | Meet      ||   bw | Top    | Synth
 64* | 979     | 883.516 | 882.547 | N/A     | N/A       ||
 ```
 
-For an explination of these results refer to Table 1, and Table 2 of the paper.
+Each table shows the concrete operation and domain being evaluated.
+Each table includes the number of abstract values uses for testing (cases),
+the measurment for a transformer which always returns top,
+the measurment for the synthesized transformer,
+the measurment for LLVM's transformer (marked N/A if LLVM doesn't have a transformer),
+and the meet between LLVM's transformer and the synthesized transformer.
+
+On the left side of the table the measurment is a sum of the "Dists" (or norm as its called in the paper).
+This is measured at all bitwidths.
+On the right side of the table the measurment is a sum of the "Exacts" (or number of times the transformer had a maximally precise output).
+This is only measured at bitwidths for which it is computationally tractable to enumerate all concrete values in an abstract value.
+For a deeper explanation of these results refer to Table 1, and Table 2 of the paper.
 
 **N.B.** `eval-final` relies on the name of the directory to determine the domain and operation to use,
 so misnamed directories will result in errors.
@@ -250,27 +261,78 @@ This command takes about 3 minutes to run on an Apple M1 MacBook Pro.
 See the appendix for the exact output expected from this command,
 and verify that the results match with those found in Table 3 of the paper.
 
-## Reusability
+## Additional artifact description
 
 ### Programibility
 
 #### Adding a new operation
 
-**TODO**
-1. Add MLIR code for the op
-2. Add SMT lowering for the op
-3. Add C++ lowering for the op
-4. Run?
+Let's transformer for a fused multiply add operation,
+let's assume that our operation does something like this:
+
+```python
+def fma(a: int, b: int) -> int:
+    mul = a * b
+    add = mul + a
+    return add
+```
+
+First we must define our concrete operation in mlir, so we make `tests/synth/Operations/fma.mlir`
+
+```mlir
+module {
+  // Definition of the concrete operation itself
+  func.func @concrete_op(%arg0: !transfer.integer, %arg1: !transfer.integer) -> !transfer.integer {
+    %0 = "transfer.mul"(%arg0, %arg1) : (!transfer.integer, !transfer.integer) -> !transfer.integer
+    %1 = "transfer.add"(%0, %arg0) : (!transfer.integer, !transfer.integer) -> !transfer.integer
+    return %1 : !transfer.integer
+  }
+
+  // Function signature of an abstract transformer of our concrete operation
+  func.func @FMAImpl(%arg0: !transfer.abs_value<[!transfer.integer,!transfer.integer]>, %arg1: !transfer.abs_value<[!transfer.integer,!transfer.integer]>) -> !transfer.abs_value<[!transfer.integer,!transfer.integer]> attributes {CPPCLASS = ["circt::comb::XXXOp"], applied_to = ["comb.xx"], is_forward = true} {
+    return %arg0 : !transfer.abs_value<[!transfer.integer,!transfer.integer]>
+  }
+}
+```
+
+Then synthesize a KnownBits transformer by running:
+
+```bash
+synth-transfer tests/synth/Operations/fma.mlir \
+               -domain KnownBits               \
+               -random_seed 50                 \
+               -num_iters 1                    \
+               -total_rounds 150
+```
+
+output (after 3 mins):
+
+```
+init_solution	100.0000%	24.9458%
+Iteration 0 starts...
+Iteration 0 finished. Exact: 49.8103%, Size of the solution set: 3
+last_solution	100.00%	49.81%
+```
+
+Thus showing the ease of adding new concrete operations and synthesizing transformers for them.
 
 #### Adding a new galios-connection abstract domain
 
-**TODO**
-1. Add C++ for the domain
-2. Add MLIR for the domain
-3. Add Python for the domain
-4. Run?
+This is a bit more involved.
 
-### Algorithms
+1. Add a new class in `xdsl_smt/eval_engine/src/AbstVal.h` which inherits from `AbstVal` and fufils the `AbstractDomain` concept requirment.
+2. Add calls to the new domain in `xdsl_smt/eval_engine/src/main.cpp` and `xdsl_smt/eval_engine/src/xfer_enum/xfer_enum.cpp`
+3. Rebuild the C++ project (instructions for this are in `README.md`)
+4. Add the domain to the `AbstractDomain` class in `xdsl_smt/eval_engine/eval.py`
+5. Create a new directory in `tests/synth/` with the name of the new domain
+6. In this directory make the files:
+    * `get_constraint.mlir`          : An mlir definition of a valid abstract value
+    * `get_instance_constraint.mlir` : An mlir definition of whether or not a given concrete value resides in a given abstract value
+    * `meet.mlir`                    : An mlir definition of the meet between two abstract values
+    * `top.mlir`                     : An mlir definition of the top element in your domain
+7. Finally synthesize transformers in your new domain, by running: `synth-transfer tests/synth/Operations/Add.mlir -domain YourNewDomain`
+
+### Algorithms from the paper
 
 **TODO** this list is very incomplete
 1. Algorithm 1. Can't really cite a specific line of code
