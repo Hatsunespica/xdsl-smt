@@ -24,11 +24,10 @@ typedef A::APInt (*ConcOpFn)(A::APInt, A::APInt);
 typedef bool (*OpConFn)(A::APInt, A::APInt);
 
 template <AbstractDomain D> class EvalAbstOp {
-private:
+public:
   ConcOpFn concOp;
   std::optional<OpConFn> opCon;
 
-public:
   EvalAbstOp(ConcOpFn _concOp, std::optional<OpConFn> _opCon)
       : concOp(_concOp), opCon(_opCon) {}
 

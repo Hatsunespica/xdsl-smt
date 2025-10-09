@@ -328,6 +328,23 @@ class HelperFuncs:
             print_to_cpp(x) for x in self.items_to_print()
         ]
 
+    def to_cpp_no_cnc(self) -> list[str]:
+        canditates = [
+            self.get_top_func,
+            self.instance_constraint_func,
+            self.domain_constraint_func,
+            self.meet_func,
+        ]
+
+        # return [print_to_cpp(x) for x in canditates if x is not None]
+        return [print_to_cpp(x) for x in canditates]
+
+    def conc_to_cpp(self) -> str:
+        cnc = print_concrete_function_to_cpp(self.crt_func)
+        con = print_to_cpp(self.op_constraint_func) if self.op_constraint_func else ""
+
+        return f"{cnc}\n{con}"
+
 
 def is_transfer_function(func: FuncOp) -> bool:
     return "applied_to" in func.attributes

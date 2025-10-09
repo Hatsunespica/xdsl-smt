@@ -15,7 +15,27 @@ message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 
 # Set LLVM and Clang components
-llvm_map_components_to_libnames(LLVM_LIBS core target x86TargetMCA x86Disassembler x86AsmParser x86CodeGen x86Desc x86Info)
+llvm_map_components_to_libnames(LLVM_LIBS 
+  core 
+  target 
+
+  x86TargetMCA 
+  x86Disassembler 
+  x86AsmParser 
+  x86CodeGen 
+  x86Desc 
+  x86Info
+ 
+  AArch64
+  AArch64Disassembler
+  AArch64AsmParser
+  AArch64Desc
+  AArch64Info
+  AArch64CodeGen
+
+  OrcJIT
+  Support
+)
 set(CLANG_LIBS clang-cpp)
 
 set(GENERATED_HEADER ${CMAKE_BINARY_DIR}/APInt_bin_string.h)
@@ -90,12 +110,39 @@ target_compile_options(xfer_enum PRIVATE
     -Wno-unused-command-line-argument
 )
 
+add_executable(rp_enum
+  src/reduced_prod/main.cpp
+)
+
+target_include_directories(rp_enum PRIVATE
+  ${CMAKE_BINARY_DIR}
+  ${LLVM_INCLUDE_DIRS}
+  ${CLANG_INCLUDE_DIRS}
+)
+
+target_compile_options(rp_enum PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Werror
+    -Wshadow
+    -Wconversion
+    -Wsign-conversion
+    -Wold-style-cast
+    -Wcast-qual
+    -Wformat=2
+    -O3
+    -march=native
+    -flto
+    -DNDEBUG
+    -fstrict-enums
+    -Wno-unused-command-line-argument
+)
+
 add_custom_target(generate_header DEPENDS ${GENERATED_HEADER})
 add_dependencies(eval_engine generate_header)
 
 # Link against LLVM and Clang
 target_link_libraries(xfer_enum PRIVATE ${LLVM_LIBS} ${CLANG_LIBS})
 target_link_libraries(eval_engine PRIVATE ${LLVM_LIBS} ${CLANG_LIBS})
-
-target_link_options(eval_engine PRIVATE -Wl,--copy-dt-needed-entries)
-target_link_options(xfer_enum PRIVATE -Wl,--copy-dt-needed-entries)
+target_link_libraries(rp_enum PRIVATE ${LLVM_LIBS} ${CLANG_LIBS})
