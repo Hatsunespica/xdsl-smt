@@ -1,15 +1,10 @@
 # Artifact Evaluation for "Nice to Meet You: Synthesizing Practical Abstract Transformers for MLIR"
 
 The URL to the artifact repository:
-**TODO**
-
-The commit hash of the artifact:
-**TODO**
+[https://github.com/Hatsunespica/xdsl-smt/tree/artifact](https://github.com/Hatsunespica/xdsl-smt/tree/artifact)
 
 This document provides instructions for evaluating the artifact associated with the paper #814 "Nice to Meet You: Synthesizing Practical Abstract Transformers for MLIR".
 The artifact consists of NiceToMeetYou, the transformer synthesizer, the transformers which were synthesized for the paper, and scripts to evaluate these transformers.
-
-**TODO** Add a note for which arches this artifact will run on
 
 ## List of claims
 
@@ -39,18 +34,23 @@ and Section 4 (Randomly Searching for Abstract Transformers using MCMC)
 
 ### Set Up the Environment
 
-Prerequisits: You must be on an **TODO** arm64 machine with Docker installed. 
+Prerequisits: You must be on an x86-64, or arm64 machine with a recent version of Docker installed. 
 
 1. Download the compressed artifact unzip it and load it into your Docker registry via:
 
 ```bash
 gunzip -c xdsl-smt-arm64.tar.gz | docker load
+# or
+gunzip -c xdsl-smt-amd64.tar.gz | docker load
+# depending on your machine architeture
 ```
 
 2. Run the Docker container interactivly via
 
 ```bash
 docker run -it --rm xdsl-smt:arm64
+# or
+docker run -it --rm xdsl-smt:amd64
 ```
 
 3. This should give you a bash shell in the container, once here ensure you're in the correct directory
@@ -59,13 +59,13 @@ docker run -it --rm xdsl-smt:arm64
 pwd
 ```
 
-should yeild: `/xdsl_smt`, and 
+should yield: `/xdsl_smt`, and 
 
 ```bash
 ls -lh
 ```
 
-should yeild:
+should yield:
 
 ```
 -rw-r--r--   1 root root 6.8K Oct 11 16:43 README.md
@@ -111,8 +111,8 @@ synth-transfer tests/synth/Operations/And.mlir                \
                -hbw 32,2000,1000 64,2000,1000
 ```
 
-This synthesizes an abstract bitwise and operation in the KnownBits domain
-(The runtime of this command was about 30 seconds on an Apple M1 Macbook Pro).
+This command takes about 30 seconds to run on an Apple M1 MacBook Pro.
+This command synthesizes an abstract bitwise and operation in the KnownBits domain
 We expect this exact output on `stdout`:
 
 ```
@@ -134,8 +134,8 @@ And there should be a new directory, `new-transformers/KnownBits_And/`, which ha
 Finally run this to make sure that the synthesized transformer matches exactly to the one we expect
 
 ```bash
-diff -y new-transformers/KnownBits_And/solution.mlir \
-        artifact-outputs/kb-and-synth.mlir
+diff new-transformers/KnownBits_And/solution.mlir \
+     artifact-outputs/kb-and-synth.mlir
 ```
 
 We expect no output from this command.
@@ -155,8 +155,8 @@ synth-transfer tests/synth/Operations/AddNsw.mlir                  \
                -hbw 16,2000,1500 32,2000,1500 64,2000,1500
 ```
 
-This synthesizes an abstract addition with no signed wrap in the UnsignedConstantRange domain
-(The runtime of this command was also 3 minutes on an Apple M1 Macbook Pro).
+This command takes about 3 minutes to run on an Apple M1 MacBook Pro.
+This command synthesizes an abstract addition with no signed wrap in the UnsignedConstantRange domain
 We expect this exact output on `stdout`:
 
 ```
@@ -171,8 +171,8 @@ Expect similar files as described above in, but now in the dir, `new-transformer
 Finally run this to make sure that the synthesized transformer matches exactly to the one we expect
 
 ```bash
-diff -y new-transformers/UConstRange_AddNsw/solution.mlir \
-        artifact-outputs/cr-add-synth.mlir
+diff new-transformers/UConstRange_AddNsw/solution.mlir \
+     artifact-outputs/cr-add-synth.mlir
 ```
 
 We expect no output from this command.
@@ -192,7 +192,8 @@ eval-final tests/synth/Operations/ \
            -hbw 64,5000,5000
 ```
 
-Which should result in the exact output on `stdout`:
+This command takes about 1 minutes to run on an Apple M1 MacBook Pro.
+And should result in the exact output on `stdout`:
 
 ```
 #################################   KnownBits And   ############################
@@ -247,18 +248,15 @@ You can run `cat table-1-2-results.txt` and verify that the results match with t
 Or run:
 
 ```bash
-diff -y table-1-2-results.txt \
+diff table-1-2-results.txt \
      artifact-outputs/eval-results.txt
 ```
 
 And expect no output.
 
-**N.B. 1:** When comparing results gathered to those in Table 2
+**N.B.:** When comparing results gathered to those in Table 2
 note that operations marked with an asterix in the paper use the SignedConstantRange domain (written as CR_S in the paper), while operations which are unmarked use the UnsignedConstantRange domain
 (See Section 6.1.1 of the paper for details on the comparison to LLVM's _ConstantRange_ domain).
-
-**N.B. 2:** The no solution found messages are expected, and represent a few operations for which we weren't able to synthesized transformers for
-(these are also listed in the paper).
 
 ---
 
@@ -283,7 +281,7 @@ You can run `cat table-3-results.txt` and verify that the results match with tho
 Or run:
 
 ```bash
-diff -y table-3-results.txt \
+diff table-3-results.txt \
      artifact-outputs/rp-results.txt
 ```
 
@@ -393,7 +391,7 @@ synth-transfer tests/synth/Operations/fma.mlir \
                -total_rounds 250
 ```
 
-output (after 5 mins) should be similar to the following:
+output (after about 5 mins) should be similar to the following:
 
 ```
 init_solution	100.0000%	24.9458%
