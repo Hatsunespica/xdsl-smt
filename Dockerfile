@@ -11,7 +11,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
 # System deps to build LLVM + CMake projects + Python wheels
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential cmake ninja-build git curl ca-certificates \
-    python3-dev pkg-config lld xxd vi vim \
+    python3-dev pkg-config lld xxd vi vim nano \
     zlib1g-dev libxml2-dev libedit-dev libffi-dev libncurses-dev \
     && rm -rf /var/lib/apt/lists/*
 
