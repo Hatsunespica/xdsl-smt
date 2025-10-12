@@ -11,7 +11,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
 # System deps to build LLVM + CMake projects + Python wheels
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential cmake ninja-build git curl ca-certificates \
-    python3-dev pkg-config lld xxd vi vim nano \
+    python3-dev pkg-config lld xxd vim-tiny vim nano \
     zlib1g-dev libxml2-dev libedit-dev libffi-dev libncurses-dev \
     && rm -rf /var/lib/apt/lists/*
 
@@ -68,10 +68,7 @@ ENV LLVM_CLANGXX=/opt/src/llvm-project/build/bin/clang++
 FROM llvm-build AS project-build
 WORKDIR /app
 
-# Clone your project (branch: artifact)
-ARG CACHE_BUST=1
-RUN echo "$CACHE_BUST" >/dev/null && \
-    git clone --branch artifact --single-branch https://github.com/Hatsunespica/xdsl-smt.git /app/xdsl_smt
+RUN git clone --branch artifact --single-branch https://github.com/Hatsunespica/xdsl-smt.git /app/xdsl_smt
 
 # Python builder bootstrap
 RUN python -m pip install --upgrade pip wheel setuptools

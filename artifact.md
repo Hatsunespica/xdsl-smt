@@ -390,10 +390,10 @@ synth-transfer tests/synth/Operations/fma.mlir \
                -domain KnownBits               \
                -random_seed 50                 \
                -num_iters 1                    \
-               -total_rounds 150
+               -total_rounds 250
 ```
 
-output (after 3 mins):
+output (after 5 mins) should be similar to the following:
 
 ```
 init_solution	100.0000%	24.9458%
@@ -420,10 +420,27 @@ This is a bit more involved, but still feasible for a determined researcher
     * `top.mlir`                     : An mlir definition of the top element in your domain
 7. Finally synthesize transformers in your new domain, by running: `synth-transfer tests/synth/Operations/Add.mlir -domain YourNewDomain`
 
-### Algorithms from the paper
+### Algorithms, Definitions, and Equations From the Paper
 
-**TODO** this list is very incomplete
-1. Algorithm 1. Can't really cite a specific line of code
-2. Algorithm 2. MCMC
-3. Soundness
-4. prec
+| Paper Sec. | Section Heading                 | Source File or Directory                             | Line Number(s)                            |
+|------------|---------------------------------|------------------------------------------------------|-------------------------------------------|
+| Sec. 2.1.1 | Concrete Transformers           | `tests/synth/Operations`                             | N/A                                       |
+| Sec. 2.1.2 | Abstract Domains                | `xdsl_smt/eval_engine/src/AbstVal.h`                 | 113-257(KB), 259-389(UCR), 391-521(SCR)   |
+| Sec. 2.1.3 | DSL Operations                  | `xdsl_smt/dialects/transfer.py`                      | 796-853                                   |
+| Def. 2.1   | Meet of Transformers            | `xdsl_smt/eval_engine/src/AbstVal.h`                 | 152-154(KB), 288-294(UCR), 420-426(SCR)   |
+| Def. 2.2   | Soundness of Transformers       | `xdsl_smt/eval_engine/src/Eval.h`                    | 104                                       |
+| Def. 2.3   | Transformer-synthesis Problem   | `xdsl_smt/eval_engine/src/Eval.h`                    | 97-113, 121-135                           |
+| Algo. 1    | IdealSynthesizeBestTransformers | `xdsl_smt/cli/synth_transfer.py`                     | 463-635                                   |
+| Equation 1 | Minimization of Norm            | `xdsl_smt/eval_engine/src/Eval.h`                    | 106                                       |
+| Algo. 2    | MCMCBestTransformer             | `xdsl_smt/cli/synth_one_iteration.py`                | 96-317                                    |
+| Equation 5 | Soundness(f)                    | `xdsl_smt/utils/synthesizer_utils/cost_model.py`     | 14-17                                     |
+| Equation 6 | Improvment(f, g)                | `xdsl_smt/utils/synthesizer_utils/cost_model.py`     | 14-17                                     |
+| Algo. 3    | initilize and mutate programs   | `xdsl_smt/utils/synthesizer_utils/mcmc_sampler.py`   | 141-247, 249-279                          |
+| Algo. 4    | initilize and mutate conditions | `xdsl_smt/utils/synthesizer_utils/mcmc_sampler.py`   | 141-247, 249-279                          |
+| Sec. 5.1.4 | Bitvector representation        | `xdsl_smt/eval_engine/src/APInt.h`                   | N/A                                       |
+| Sec. 5.1.4 | Test generation by bitwidth     | `xdsl_smt/eval_engine/src/xfer_enum/enum_domain.cpp` | 23-29(lo bw), 31-42(mid bw), 44-58(hi bw) |
+| Sec. 5.1.5 | Size Functions                  | `xdsl_smt/eval_engine/src/AbstVal.h`                 | 187-198(KB), 323-336(UCR), 455-468(SCR)   |
+| Sec. 5.1.7 | Verifier                        | `xdsl_smt/utils/synthesizer_utils/verifier_utils.py` | N/A                                       |
+| Sec. 5.2.2 | LLVM's LLJIT                    | `xdsl_smt/eval_engine/src/jit.h`                     | N/A                                       |
+| Sec. 6     | LLVM Domains                    | `xdsl_smt/eval_engine/src/llvm_tests.h`              | N/A                                       |
+| Sec. 6     | Reduced Product                 | `xdsl_smt/eval_engine/src/reduced_prod/RPEval.h`     | N/A                                       |
