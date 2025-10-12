@@ -135,5 +135,10 @@ def register_arguments(prog: str) -> Namespace:
         default=15,
     )
     ap.add_argument("-quiet", action="store_true")
+    ap.add_argument(
+        "-dsl_file",
+        type=Path,
+        help="Path to the dsl file. If not provided, use the full dsl",
+    )
 
     return ap.parse_args()

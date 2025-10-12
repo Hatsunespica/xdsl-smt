@@ -15,7 +15,12 @@ from xdsl_smt.utils.synthesizer_utils.synthesizer_context import (
     not_in_main_body,
     get_op_with_signature,
 )
-from xdsl_smt.utils.synthesizer_utils.dsl_operators import INT_T, BOOL_T, BINT_T
+from xdsl_smt.utils.synthesizer_utils.dsl_operators import (
+    INT_T,
+    BOOL_T,
+    BINT_T,
+    enable_bint,
+)
 from xdsl_smt.utils.synthesizer_utils.random import Random
 from xdsl_smt.dialects.transfer import (
     AbstractValueType,
@@ -198,7 +203,7 @@ class MCMCSampler:
                     block.add_op(nop_bool)
                 elif i % 4 == 1:
                     bint_nop = AddOp(tmp_int_ssavalue, tmp_int_ssavalue)
-                    set_ret_type(bint_nop, BINT_T)
+                    set_ret_type(bint_nop, BINT_T if enable_bint else INT_T)
                     block.add_op(bint_nop)
                 elif i % 4 == 2:
                     last_int_op = AndOp(tmp_int_ssavalue, tmp_int_ssavalue)

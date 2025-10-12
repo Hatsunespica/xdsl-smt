@@ -1,0 +1,20 @@
+{
+  "i1_ops": [
+    {"op_name": "CmpOp", "signature": ["int", "int"]},
+    {"op_name": "arith.AndIOp", "signature": ["bool", "bool"]},
+    {"op_name": "arith.OrIOp", "signature": ["bool", "bool"]},
+    {"op_name": "arith.XOrIOp", "signature": ["bool", "bool"]}
+  ],
+  "int_ops": [
+    {"op_name": "NegOp", "signature": ["int"]},
+    {"op_name": "AndOp", "signature": ["int", "int"]},
+    {"op_name": "OrOp", "signature": ["int", "int"]},
+    {"op_name": "XorOp", "signature": ["int", "int"]},
+    {"op_name": "AddOp", "signature": ["int", "int"]},
+    {"op_name": "SubOp", "signature": ["int", "int"]}
+  ],
+  "bint_ops": [
+    {"op_name": "AddOp", "signature": ["bint", "bint"]},
+    {"op_name": "SubOp", "signature": ["bint", "bint"]}
+  ]
+}

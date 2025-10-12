@@ -59,6 +59,7 @@ from xdsl_smt.utils.synthesizer_utils.solution_set import (
 )
 from xdsl_smt.utils.synthesizer_utils.synthesizer_context import SynthesizerContext
 from xdsl_smt.utils.synthesizer_utils.random import Random
+from xdsl_smt.utils.synthesizer_utils.dsl_operators import read_ops_from_file
 from xdsl_smt.cli.arg_parser import register_arguments
 
 # TODO this should be made local
@@ -435,11 +436,23 @@ def get_base_xfers(module: ModuleOp) -> list[FunctionWithCondition]:
     return base_transfers
 
 
-def setup_context(r: Random, use_full_i1_ops: bool) -> SynthesizerContext:
-    c = SynthesizerContext(r)
+def setup_context(
+    r: Random, use_full_i1_ops: bool, dsl_file: Path | None = None
+) -> SynthesizerContext:
+    # Load custom DSL operations from file if provided
+    if dsl_file is not None and dsl_file.exists():
+        try:
+            i1_ops, int_ops, bint_ops = read_ops_from_file(str(dsl_file))
+            c = SynthesizerContext(r, i1_ops, int_ops, bint_ops)
+        except Exception as e:
+            raise ValueError(f"Failed to load DSL file {dsl_file}: {e}")
+    else:
+        c = SynthesizerContext(r)
+
     c.set_cmp_flags([0, 6, 7])
     if not use_full_i1_ops:
         c.use_basic_i1_ops()
+
     return c
 
 
@@ -463,6 +476,7 @@ def run(
     weighted_dsl: bool,
     num_unsound_candidates: int,
     outputs_folder: Path,
+    dsl_file: Path | None = None,
 ) -> EvalResult:
     assert min(lbws, default=4) >= 4 or domain != AbstractDomain.IntegerModulo
     EvalResult.init_bw_settings(
@@ -476,9 +490,9 @@ def run(
     if random_number_file is not None:
         random.read_from_file(random_number_file)
 
-    context = setup_context(random, False)
-    context_weighted = setup_context(random, False)
-    context_cond = setup_context(random, True)
+    context = setup_context(random, False, dsl_file)
+    context_weighted = setup_context(random, False, dsl_file)
+    context_cond = setup_context(random, True, dsl_file)
 
     module, helper_funcs = get_helper_funcs(transfer_functions, domain)
     helper_funcs_cpp = helper_funcs.to_cpp()
@@ -647,6 +661,7 @@ def main() -> None:
         weighted_dsl=args.weighted_dsl,
         num_unsound_candidates=args.num_unsound_candidates,
         outputs_folder=args.outputs_folder,
+        dsl_file=args.dsl_file if args.dsl_file else None,
     )
 
 

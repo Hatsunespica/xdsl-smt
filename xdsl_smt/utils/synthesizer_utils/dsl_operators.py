@@ -1,3 +1,5 @@
+import json
+from typing import Any
 from xdsl.dialects import arith
 from xdsl.ir import Operation
 
@@ -45,10 +47,10 @@ from xdsl_smt.dialects.transfer import (
     # GetBitWidthOp,
 )
 
-enable_bint = True
+enable_bint = False
 INT_T = "int"
 BOOL_T = "bool"
-BINT_T = "bint" if enable_bint else "int"
+BINT_T = "bint"
 OpWithSignature = tuple[type[Operation], tuple[str, ...]]
 
 full_bint_ops: list[OpWithSignature] = [
@@ -70,62 +72,6 @@ basic_int_ops: list[OpWithSignature] = [
     (OrOp, (INT_T, INT_T)),
     (XorOp, (INT_T, INT_T)),
     (AddOp, (INT_T, INT_T)),
-]
-
-custom_int_ops1: list[OpWithSignature] = [
-    (NegOp, (INT_T,)),
-    (AndOp, (INT_T, INT_T)),
-    (OrOp, (INT_T, INT_T)),
-    (XorOp, (INT_T, INT_T)),
-    (AddOp, (INT_T, INT_T)),
-    (SubOp, (INT_T, INT_T)),
-    (SelectOp, (BOOL_T, INT_T, INT_T)),
-    (UMinOp, (INT_T, INT_T)),
-    (UMaxOp, (INT_T, INT_T)),
-    (MulOp, (INT_T, INT_T)),
-]
-
-custom_int_ops_w_mul: list[OpWithSignature] = [
-    (NegOp, (INT_T,)),
-    (AndOp, (INT_T, INT_T)),
-    (OrOp, (INT_T, INT_T)),
-    (XorOp, (INT_T, INT_T)),
-    (AddOp, (INT_T, INT_T)),
-    (SubOp, (INT_T, INT_T)),
-    (SelectOp, (BOOL_T, INT_T, INT_T)),
-    (LShrOp, (INT_T, BINT_T)),
-    (ShlOp, (INT_T, BINT_T)),
-    (UMinOp, (INT_T, INT_T)),
-    (UMaxOp, (INT_T, INT_T)),
-    (SMinOp, (INT_T, INT_T)),
-    (SMaxOp, (INT_T, INT_T)),
-    (UDivOp, (INT_T, INT_T)),
-    (SDivOp, (INT_T, INT_T)),
-    (URemOp, (INT_T, INT_T)),
-    (SRemOp, (INT_T, INT_T)),
-    (MulOp, (INT_T, INT_T)),
-]
-
-custom_int_ops_w_bit: list[OpWithSignature] = [
-    (NegOp, (INT_T,)),
-    (AndOp, (INT_T, INT_T)),
-    (OrOp, (INT_T, INT_T)),
-    (XorOp, (INT_T, INT_T)),
-    (AddOp, (INT_T, INT_T)),
-    (SubOp, (INT_T, INT_T)),
-    (SelectOp, (BOOL_T, INT_T, INT_T)),
-    (LShrOp, (INT_T, BINT_T)),
-    (ShlOp, (INT_T, BINT_T)),
-    (UMinOp, (INT_T, INT_T)),
-    (UMaxOp, (INT_T, INT_T)),
-    (SMinOp, (INT_T, INT_T)),
-    (SMaxOp, (INT_T, INT_T)),
-    (SetHighBitsOp, (INT_T, BINT_T)),
-    (SetLowBitsOp, (INT_T, BINT_T)),
-    (ClearHighBitsOp, (INT_T, BINT_T)),
-    (ClearLowBitsOp, (INT_T, BINT_T)),
-    (SetSignBitOp, (INT_T,)),
-    (ClearSignBitOp, (INT_T,)),
 ]
 
 full_int_ops: list[OpWithSignature] = [
@@ -155,12 +101,6 @@ full_int_ops: list[OpWithSignature] = [
     (SetSignBitOp, (INT_T,)),
     (ClearSignBitOp, (INT_T,)),
 ]
-
-if not enable_bint:
-    full_int_ops = list(set(full_int_ops + full_bint_ops))
-    custom_int_ops1 = list(set(custom_int_ops1 + full_bint_ops))
-    custom_int_ops_w_bit = list(set(custom_int_ops_w_bit + full_bint_ops))
-    custom_int_ops_w_mul = list(set(custom_int_ops_w_mul + full_bint_ops))
 
 
 full_i1_ops: list[OpWithSignature] = [
@@ -207,3 +147,108 @@ int_prior_bias: dict[OpWithSignature, int] = {
     (SetSignBitOp, (INT_T,)): 0,
     (ClearSignBitOp, (INT_T,)): 0,
 }
+
+
+def merge_int_and_bint_ops(
+    int_ops: list[OpWithSignature], bint_ops: list[OpWithSignature]
+) -> list[OpWithSignature]:
+    merged: list[OpWithSignature] = []
+    for op in int_ops + bint_ops:
+        # change the bint in signature into int, and then add it to the merged list
+        merged.append((op[0], tuple(INT_T if t == BINT_T else t for t in op[1])))
+    merged = list(set(merged))
+    return merged
+
+
+def read_ops_from_file(
+    file_path: str,
+) -> tuple[list[OpWithSignature], list[OpWithSignature], list[OpWithSignature]]:
+    """
+    Read i1_ops, int_ops, and bint_ops from a file.
+
+    Args:
+        file_path: Path to the file containing the operator definitions
+
+    Returns:
+        A tuple containing (i1_ops, int_ops, bint_ops) lists
+
+    The file format should be a JSON file with the following structure:
+    {
+        "i1_ops": [
+            {"op_name": "CmpOp", "signature": ["int", "int"]},
+            {"op_name": "arith.AndIOp", "signature": ["bool", "bool"]},
+            ...
+        ],
+        "int_ops": [
+            {"op_name": "AddOp", "signature": ["int", "int"]},
+            {"op_name": "NegOp", "signature": ["int"]},
+            ...
+        ],
+        "bint_ops": [
+            {"op_name": "AddOp", "signature": ["bint", "bint"]},
+            ...
+        ]
+    }
+    """
+    # Create a mapping from operation names to operation classes
+    op_name_to_class = {
+        # Transfer dialect operations
+        "NegOp": NegOp,
+        "CmpOp": CmpOp,
+        "AndOp": AndOp,
+        "OrOp": OrOp,
+        "XorOp": XorOp,
+        "AddOp": AddOp,
+        "SubOp": SubOp,
+        "CountLOneOp": CountLOneOp,
+        "CountLZeroOp": CountLZeroOp,
+        "CountROneOp": CountROneOp,
+        "CountRZeroOp": CountRZeroOp,
+        "UMinOp": UMinOp,
+        "UMaxOp": UMaxOp,
+        "ShlOp": ShlOp,
+        "LShrOp": LShrOp,
+        "SelectOp": SelectOp,
+        "MulOp": MulOp,
+        "SMinOp": SMinOp,
+        "SMaxOp": SMaxOp,
+        "SetHighBitsOp": SetHighBitsOp,
+        "SetLowBitsOp": SetLowBitsOp,
+        "ClearHighBitsOp": ClearHighBitsOp,
+        "ClearLowBitsOp": ClearLowBitsOp,
+        "SetSignBitOp": SetSignBitOp,
+        "ClearSignBitOp": ClearSignBitOp,
+        "UDivOp": UDivOp,
+        "SDivOp": SDivOp,
+        "URemOp": URemOp,
+        "SRemOp": SRemOp,
+        "AShrOp": AShrOp,
+        # Arith dialect operations
+        "arith.AndIOp": arith.AndIOp,
+        "arith.OrIOp": arith.OrIOp,
+        "arith.XOrIOp": arith.XOrIOp,
+    }
+
+    with open(file_path, "r") as f:
+        data = json.load(f)
+
+    def parse_op_list(op_data: list[dict[str, Any]]) -> list[OpWithSignature]:
+        """Parse a list of operation definitions into OpWithSignature tuples."""
+        ops: list[OpWithSignature] = []
+        for op_def in op_data:
+            op_name = op_def["op_name"]
+            signature = tuple(op_def["signature"])
+
+            if op_name not in op_name_to_class:
+                raise ValueError(f"Unknown operation: {op_name}")
+
+            op_class = op_name_to_class[op_name]
+            ops.append((op_class, signature))
+
+        return ops
+
+    i1_ops = parse_op_list(data.get("i1_ops", []))
+    int_ops = parse_op_list(data.get("int_ops", []))
+    bint_ops = parse_op_list(data.get("bint_ops", []))
+
+    return i1_ops, int_ops, bint_ops
