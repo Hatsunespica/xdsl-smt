@@ -1,196 +1,443 @@
-# synth-transfer
+# Artifact Evaluation for "Nice to Meet You: Synthesizing Practical Abstract Transformers for MLIR"
 
-This repository is based on xdsl-smt and contains a tool for synthesizing transfer functions in dataflow analysis.
+The URL to the artifact repository:
+[https://github.com/Hatsunespica/xdsl-smt/tree/artifact](https://github.com/Hatsunespica/xdsl-smt/tree/artifact)
 
-It currently contains the implementation of the synthesizer and several examples files on KnownBits domain.
+This document provides instructions for evaluating the artifact associated with the paper #814 "Nice to Meet You: Synthesizing Practical Abstract Transformers for MLIR".
+The artifact consists of NiceToMeetYou, the transformer synthesizer, the transformers which were synthesized for the paper, and scripts to evaluate these transformers.
 
-The diagram below shows the overview of this project.
+## List of claims
 
-![Project Overview](./synth.png)
+### Claims Supported by the Artifact
 
-## Installation
+This artifact contains our tool, NiceToMeetYou, and demonstrates how it can synthesize practical transformers for the KnownBits and ConstantRange domains.
 
-### Build the Eval Engine
+Relative to the paper, the artifact demonstrates how to:
 
-#### Set up LLVM
+1. **Synthesize new transformers** for concrete operations in the abstract domains of _KnownBits_, and _ConstantRange_
+(needed to fully reproduced results in tables 1, 2, and 3).
 
-This section tells you how to build LLVM required by the Eval Engine from the source code.
+2. **Evaluate the precision** of synthesized transformers compared with LLVM's hand-written transformers
+(needed to fully reproduced results in tables 1 and 2).
 
-The Eval Engine requires LLVM built with LLVMGold library, so first we need to download the library
+3. **Evaluate the precision gain** on transformers of the _KnownBits_ domain,
+compared to the reduced product of transformers in _KnownBits_ and transformers in _ConstantRange_
+(needed to fully reproduced results in table 3).
 
-`git clone --depth 1 git://sourceware.org/git/binutils-gdb.git binutils`
+### Claims Not Supported by the Artifact
 
-This line download `binutils` library and we need to use its include path later in LLVM configuration.
-(Reminder: No need to build it manually because LLVM would automatically build it since we specify its path)
+The artifact does not support our meta-theory in
+Section 3 (An Ideal Algorithm for the Transformer Synthesis Problem),
+and Section 4 (Randomly Searching for Abstract Transformers using MCMC)
 
-Suppose its path is `/home/username/GitRepo/binutils/`
+## Download, installation, and sanity-testing
 
-Next, clone llvm repo
-```bash
-git clone https://github.com/llvm/llvm-project.git
-cd llvm-project
-git checkout 87adafcd2e248fa69d1f776a9e60f95df03b885d
-mkdir build
-cd build
-```
-and build the LLVM with following configuration:
-```bash
-cmake -GNinja -DLLVM_ENABLE_RTTI=ON -DLLVM_ENABLE_EH=ON -DBUILD_SHARED_LIBS=ON \
--DLLVM_BINUTILS_INCDIR=/home/username/GitRepo/binutils/include/ \
--DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD=X86 -DLLVM_ENABLE_ASSERTIONS=ON \
--DLLVM_ENABLE_PROJECTS="llvm;clang;mlir"  ../llvm
-```
+### Set Up the Environment
 
-Please update the second line `-DLLVM_BINUTILS_INCDIR=` with your own path
-and don't forget to add `include/` at the end.
+Prerequisits: You must be on an x86-64, or arm64 machine with a recent version of Docker installed. 
 
-Lastly, we should run
-```bash
-ninja
-```
-To build LLVM
-
-
-#### Make the Eval Engine
+1. Download the compressed artifact unzip it and load it into your Docker registry via:
 
 ```bash
-cd xdsl_smt/eval_engine/
-mkdir build && cd build
-cmake .. -D  CMAKE_CXX_COMPILER=/home/username/GitRepo/llvm-project/build/bin/clang++ \
--D CMAKE_PREFIX_PATH=/home/username/GitRepo/llvm-project/build
-make
-cd ../../..
+gunzip -c xdsl-smt-arm64.tar.gz | docker load
+# or
+gunzip -c xdsl-smt-amd64.tar.gz | docker load
+# depending on your machine architeture
 ```
 
-### Virtual environment
-
-It is recommended to install the project in a virtual environment.
-To create a virtual environment, use the following commands:
+2. Run the Docker container interactivly via
 
 ```bash
-# Create a virtual environment
-python -m venv venv
-# Activate the virtual environment
-source venv/bin/activate
+docker run -it --rm xdsl-smt:arm64
+# or
+docker run -it --rm xdsl-smt:amd64
 ```
 
-### Installation
-
-To install the project, use the following commands:
+3. This should give you a bash shell in the container, once here ensure you're in the correct directory
 
 ```bash
-# Install the project
-pip install .
+pwd
 ```
 
-### Development installation
-
-To setup an environment for hacking on xdsl-smt, use the following commands:
+should yield: `/xdsl_smt`, and 
 
 ```bash
-# Install the project in editable mode with dev dependencies
-pip install -e '.[dev]'
+ls -lh
 ```
 
+should yield:
 
-## Tool usage
+```
+-rw-r--r--   1 root root 6.8K Oct 11 16:43 README.md
+drwxr-xr-x   4 root root 4.0K Oct 11 16:45 build
+drwxr-xr-x   2 root root 4.0K Oct 11 16:43 mlir-fuzz
+-rw-r--r--   1 root root 1.5K Oct 11 16:43 pyproject.toml
+drwxr-xr-x   3 root root 4.0K Oct 11 16:43 scripts
+-rw-r--r--   1 root root  32K Oct 11 16:43 synth.png
+drwxr-xr-x 116 root root 4.0K Oct 11 16:43 synthesized-transformers
+drwxr-xr-x   8 root root 4.0K Oct 11 16:43 tests
+drwxr-xr-x  12 root root 4.0K Oct 11 16:43 xdsl_smt
+drwxr-xr-x   1 root root 4.0K Oct 11 16:45 xdsl_smt.egg-info
+```
 
-If you installed this project successfully, now we can start with synthesizing a simple XOR transfer function
-on known bits domain.
+as a quick overview of the important files and dirs
+
+* `README.md`: The document you're reading now
+* `synthesized-transformers/`: MLIR code for transformers synthesized with NiceToMeetYou, and used in the paper
+* `tests/synth/Operations`: MLIR code for the concrete operations to be synthesized
+* `tests/synth/KnownBits`: MLIR code specifing the KnownBits abstract domain
+* `xdsl_smt/`: Python source code for NiceToMeetYou
+* `xdsl_smt/eval_engine/src/`: C++ source code for NiceToMeetYou's evaluation engine
+
+### Synthesizing Transformers
+
+First let's make a new directory for some new transformers, run:
+
 ```bash
-synth-transfer ./tests/synth/knownBitsXor.mlir -total_rounds 10  -num_programs 10
-```
-Our argument `-total_rounds` controls how many rounds we run and `-num_programs` specifies how many functions
-we synthesize at once in one round.
-
-If it runs successfully, we can observe some output like:
-```text
-Round	soundness%	precision%	cost
-0_0	9.05%	1.65%	2.824	0.415
-0_1	100.00%	0.00%	1.965	0.218
-0_2	0.11%	0.08%	3.898	0.544
-0_3	2.87%	0.27%	3.545	0.502
-0_4	43.07%	4.35%	2.283	0.317
-0_5	11.90%	5.07%	2.813	0.410
-0_6	31.37%	4.11%	2.474	0.351
-0_7	19.52%	2.11%	2.694	0.389
-0_8	22.22%	4.21%	2.474	0.361
-0_9	77.23%	2.11%	2.075	0.256
-Used Time: 2.79
-```
-In the example above, we set both arguments to `10` so for the input XOR specification, we it runs 10 rounds and
-samples 10 function in every round.
-
-After running out all rounds, it prints the evaluation of synthesized solution:
-```text
-last_solution	100.00%	9.53%	1.965	0.218
-```
-where says the solution is `100%` sound, `9.53%`  precise with the cost as `0.218`
-
-A `tmp.cpp` will be generated as the solution in C++ by combined all solutions in the solution set.
-Here is a possible solution function:
-```
-std::vector<APInt> solution(std::vector<APInt> autogen0,std::vector<APInt> autogen1){
-	std::vector<APInt> autogen2=part_solution_0(autogen0,autogen1);
-	std::vector<APInt> autogen3=part_solution_1(autogen0,autogen1);
-	std::vector<APInt> autogen4=part_solution_2(autogen0,autogen1);
-	std::vector<APInt> autogen5=part_solution_3(autogen0,autogen1);
-	std::vector<APInt> autogen6=part_solution_4(autogen0,autogen1);
-	std::vector<APInt> autogen7=meet(autogen2,autogen3);
-	std::vector<APInt> autogen8=meet(autogen7,autogen4);
-	std::vector<APInt> autogen9=meet(autogen8,autogen5);
-	std::vector<APInt> autogen10=meet(autogen9,autogen6);
-	return autogen10;
-}
-```
-We will discuss more information about input and output file in the next section.
-
-You can play with other input specification under `tests/synth`.
-
-## Extending the project with one new abstract domain
-
-To add a new abstract domain you add a new class to `AbstVal.h` which inherits from the `AbstVal` base class.
-The `AbstVal` base class is also parameterized on the number of `APInt`s required to store the abstract representation.
-Here's an example called `NewDomain`, which requires 2 `APInt`s:
-
-```cpp
-class NewDomain : public AbstVal<NewDomain, 2> {
-public:
-  explicit NewDomain(const Vec<2> &v_) : AbstVal<NewDomain, 2>(v_) {}
-
-  const std::string display() const;
-  const NewDomain meet(const NewDomain &rhs) const;
-  const NewDomain join(const NewDomain &rhs) const;
-  unsigned int distance(const NewDomain &rhs) const;
-  const std::vector<unsigned int> toConcrete() const;
-
-  static NewDomain fromConcrete(const A::APInt &x);
-  static NewDomain bottom(unsigned int bw);
-  static NewDomain top(unsigned int bw);
-  static std::vector<NewDomain> const enumVals(unsigned int bw);
-};
+mkdir new-transformers
 ```
 
-Here's a list of the methods required for every domain domain:
-* `NewDomain(const Vec<2> &v_)`: this constructor is for synthesiszed transfer functions to create instances of `NewDomain` in the evaluation engine
-* `display()`: is not used by the evaluation engine (and as such is not strictly required), but is handy for debugging
-* `meet(const NewDomain &)`, and `join(const NewDomain &)`: should follow their respective definitions, in the lattice of the abstract domain
-* `distance(const NewDomain &)` is a metric in the eval engine to determine how similar synthesized results are to a perfect result
-* `toConcrete()`: is the gamma function, which enumerates all of the concrete values represented by the abstract value as a `std::vector<unsigned int>`
-* `top(unsigned int bw)`, and `bottom(unsigned int bw)`: should also follow their definitions of full set and empty set
-* `fromConcrete(const APInt &x)`: takes a concrete value and constructs the abstract value holding only that concrete value
-* `enumVals(unsigned int bw)`: enumerates the entire lattice of abstract values as a `std::vector<NewDoman>`
+To synthesize a single transformer run:
 
-The other last change needed to add a new domain is in `eval.py`.
-Add `NewDomain = auto()` to the list of other domains in the enum.
+```bash
+synth-transfer tests/synth/Operations/And.mlir                \
+               -outputs_folder new-transformers/KnownBits_And \
+               -random_seed 50                                \
+               -domain KnownBits                              \
+               -num_iters 1                                   \
+               -total_rounds 25                               \
+               -mbw 8,1000                                    \
+               -hbw 32,2000,1000 64,2000,1000
+```
+
+This command takes about 30 seconds to run on an Apple M1 MacBook Pro.
+This command synthesizes an abstract bitwise and operation in the KnownBits domain
+We expect this exact output on `stdout`:
+
+```
+init_solution	100.0000%	1.4439%
+Iteration 0 starts...
+Iteration 0 finished. Exact: 100.0000%, Size of the solution set: 2
+Found a perfect solution
+last_solution	100.00%	100.00%
+```
+
+And there should be a new directory, `new-transformers/KnownBits_And/`, which has these files:
+
+* `KnownBits_And/debug.log`:     detailed debug info for each round the transformer synthesis
+* `KnownBits_And/info.log`:      less detailed log file for synthesis parameters and result
+* `KnownBits_And/iter0.mlir`:    sound transformers after the each iteration of synthesis (since we passed `-num_iters 1` then there'll just be one of these)
+* `KnownBits_And/solution.mlir`: final transformer in mlir
+* `KnownBits_And/solution.cpp`:  final transformer lowered to C++
+
+Finally run this to make sure that the synthesized transformer matches exactly to the one we expect
+
+```bash
+diff new-transformers/KnownBits_And/solution.mlir \
+     artifact-outputs/kb-and-synth.mlir
+```
+
+We expect no output from this command.
+
+---
+
+Now let's synthesize a transformer in the UnsignedConstantRange (written as CR_U in the paper) domain, run:
+
+```bash
+synth-transfer tests/synth/Operations/AddNsw.mlir                  \
+               -outputs_folder new-transformers/UConstRange_AddNsw \
+               -random_seed 233                                    \
+               -domain UConstRange                                 \
+               -num_iters 1                                        \
+               -total_rounds 150                                   \
+               -mbw 8,1500                                         \
+               -hbw 16,2000,1500 32,2000,1500 64,2000,1500
+```
+
+This command takes about 3 minutes to run on an Apple M1 MacBook Pro.
+This command synthesizes an abstract addition with no signed wrap in the UnsignedConstantRange domain
+We expect this exact output on `stdout`:
+
+```
+init_solution	100.0000%	63.3292%
+Iteration 0 starts...
+Iteration 0 finished. Exact: 63.3484%, Size of the solution set: 2
+last_solution	100.00%	63.35%
+```
+
+Expect similar files as described above in, but now in the dir, `new-transformers/UConstRange_AddNsw`
+
+Finally run this to make sure that the synthesized transformer matches exactly to the one we expect
+
+```bash
+diff new-transformers/UConstRange_AddNsw/solution.mlir \
+     artifact-outputs/cr-add-synth.mlir
+```
+
+We expect no output from this command.
+
+### Evaluating Transformers
+
+Now that we have synthesized some transformers, let's evaluate their precision and compare with LLVM's transformer.
+
+Run this command to evaluate the new transformers:
+
+```bash
+eval-final tests/synth/Operations/ \
+           new-transformers/       \
+           -random_seed 75         \
+           -lbw                    \
+           -mbw 8,5000             \
+           -hbw 64,5000,5000
+```
+
+This command takes about 1 minutes to run on an Apple M1 MacBook Pro.
+And should result in the exact output on `stdout`:
+
+```
+#################################   KnownBits And   ############################
+           ######  Dists  ######                        ||           ######  Exacts  ######         
+bw  | Cases   | Top     | Synth   | LLVM    | Meet      ||   bw | Top    | Synth  | LLVM   | Meet   
+----|---------|---------|---------|---------|--------   ||   ---|--------|--------|--------|--------
+8+  | 5000    | 3131.38 | 0       | 0       | 0         ||   8+  | 00.04% | 100.0% | 100.0% | 100.0%
+64* | 5000    | 3125.52 | 0       | 0       | 0         ||   
+#################################   UConstRange AddNsw   ############################
+           ######  Dists  ######                        ||           ######  Exacts  ######         
+bw  | Cases   | Top     | Synth   | LLVM    | Meet      ||   bw | Top    | Synth  | LLVM   | Meet   
+----|---------|---------|---------|---------|--------   ||   ---|--------|--------|--------|--------
+8+  | 5000    | 1546    | 1509.12 | N/A     | N/A       ||   8+  | 67.82% | 67.82% | N/A    | N/A   
+64* | 4917    | 4305.81 | 4300.92 | N/A     | N/A       ||
+```
+
+Each table shows the concrete operation and domain being evaluated (e.g. KnownBits And).
+And each table includes the number of abstract values uses for testing (cases),
+the measurment for a transformer which always returns top,
+the measurment for the synthesized transformer,
+the measurment for LLVM's transformer (marked N/A if LLVM doesn't have a transformer),
+and the meet between LLVM's transformer and the synthesized transformer.
+
+On the left side of the table the measurment is a sum of the "Dists" (or "norm" as its called in the paper).
+This is measured at all bitwidths.
+On the right side of the table the measurment is a sum of the "Exacts" (or number of times the transformer had a maximally precise output).
+This is only measured at bitwidths for which it is computationally tractable to enumerate all concrete values in an abstract value.
+For a deeper explanation of these results refer to Table 1, and Table 2 of the paper.
+
+**N.B.** `eval-final` relies on the name of the directory to determine the domain and operation to use,
+so misnamed directories will result in errors.
+
+## Evaluation instructions
+
+### Evaluating Transformers
+
+For tables 1 and 2 let's evaluate transformers synthesized by our tool (stored in `synthesized-transformers/`),
+with the same seed used to generate the results in Table 1 and Table 2 of the paper, run:
+
+```bash
+eval-final tests/synth/Operations/    \
+           synthesized-transformers/  \
+           -random_seed 100           \
+           -lbw                       \
+           -mbw 8,25000               \
+           -hbw 64,25000,5000         \
+           > table-1-2-results.txt
+```
+
+This command takes about 15 minutes to run on an Apple M1 MacBook Pro.
+You can run `cat table-1-2-results.txt` and verify that the results match with those found in Table 1 and Table 2 of the paper.
+Or run:
+
+```bash
+diff table-1-2-results.txt \
+     artifact-outputs/eval-results.txt
+```
+
+And expect no output.
+
+**N.B.:** When comparing results gathered to those in Table 2
+note that operations marked with an asterix in the paper use the SignedConstantRange domain (written as CR_S in the paper), while operations which are unmarked use the UnsignedConstantRange domain
+(See Section 6.1.1 of the paper for details on the comparison to LLVM's _ConstantRange_ domain).
+
+---
+
+Now, for table 3, let's evaluate the KnownBits transformers which became more precise after reducing with a transformer from ConstantRange.
+We will use the same transformers from before (stored in `synthesized-transformers/`), run:
+
+```bash
+eval-final tests/synth/Operations/    \
+           synthesized-transformers/  \
+           -random_seed 100           \
+           -reduced-product           \
+           -lbw                       \
+           -mbw 8,25000               \
+           -hbw 64,25000,5000         \
+           > table-3-results.txt
+```
+
+This command takes about 3 minutes to run on an Apple M1 MacBook Pro.
+and verify that the results match with those found in Table 3 of the paper.
+
+You can run `cat table-3-results.txt` and verify that the results match with those found in Table 1 and Table 2 of the paper.
+Or run:
+
+```bash
+diff table-3-results.txt \
+     artifact-outputs/rp-results.txt
+```
+
+And expect no output.
+
+### Synthesizing One Off Transformers
+
+To generate a single transformers for a single concrete operations in a single domain,
+run `synth-transfer --help` to get information about which flags may be used for synthesis.
+Here are a few notes to get started:
+
+* Domain options are `KnownBits`, `UConstRange`, and `SConstRange`
+* All concrete operations are stored in `tests/synth/Operations/`
+* See Section 5.1 for more information about the *outer loop* of synthesis, this maps to the `-num_iters` flag.
+* See Section 5.1 for more information about the *inner loop* of synthesis, this maps to the `-num_rounds` flag.
+* See Section 5.1.4: "**Test generation by bitwidth**" for further explanation on the flags `-lbw`, `-mbw`, and `-hbw`.
+
+**N.B.** When running `synth-transfer` with low `-num_iters` or low `-num_rounds`,
+it is quite likely that NiceToMeetYou will fail to find any valid solutions during synthesis.
+
+### Synthesizing All Transformers
+
+Unfortunatly, due to instability across parts of python's random number generator,
+we are unable to replicate the exact transformers found in the `synthesized-transformers/` directory (the ones used in the paper),
+since these transformers were synthesized using a different version of python than this Docker container was built with.
+However this was the exact command used to generate all transformers, which will run in this Docker container and produce similar transformers.
+
+**N.B.** this command takes >60 hours to run on an Apple M1 Macbook Pro
+
+```bash
+benchmark-synth -outputs_folder outputs \
+                -num_iters 3            \
+                -total_rounds 1000      \
+                -random_seed 23333      \
+                -mbw 8,1000             \
+                -hbw 16,2000,1000 32,2000,1000 64,2000,1000
+```
+
+Expect similar output to this on `stdout` with slight variations depending on thread scheduling/number of cores:
+
+```
+Running KnownBits Abds
+Running KnownBits AddNsw
+Running KnownBits And
+Running KnownBits AvgCeilS
+Running KnownBits AvgFloorU
+
+etc...
+
+init_solution	100.0000%	1.4320%
+Iteration 0 starts...
+init_solution	100.0000%	1.4320%
+Iteration 0 starts...
+init_solution	100.0000%	30.9666%
+Iteration 0 starts...
+init_solution	100.0000%	39.7613%
+Iteration 0 starts...
+init_solution	100.0000%	39.7733%
+
+etc...
+```
+
+And in the `outputs/` dir expect to see subfolders for each domain and concrete operation (e.g. `SConstRange_AvgCeilS/`).
+Each of these folders will have the list of files as described above for `KnownBits_And/`.
+
+## Additional artifact description
+
+### Programibility
+
+#### Adding a new operation
+
+Let's transformer for a fused multiply add operation,
+let's assume that our operation does something like this:
 
 ```python
-class AbstractDomain(Enum):
-    KnownBits = auto()
-    ConstantRange = auto()
-    NewDomain = auto()
+def fma(a: int, b: int) -> int:
+    mul = a * b
+    add = mul + a
+    return add
+```
 
-    def __str__(self) -> str:
-        return self.name
+First we must define our concrete operation in mlir, so we make `tests/synth/Operations/fma.mlir`
+
+```mlir
+module {
+  // Definition of the concrete operation itself
+  func.func @concrete_op(%arg0: !transfer.integer, %arg1: !transfer.integer) -> !transfer.integer {
+    %0 = "transfer.mul"(%arg0, %arg1) : (!transfer.integer, !transfer.integer) -> !transfer.integer
+    %1 = "transfer.add"(%0, %arg0) : (!transfer.integer, !transfer.integer) -> !transfer.integer
+    return %1 : !transfer.integer
+  }
+
+  // Function signature of an abstract transformer of our concrete operation
+  func.func @FMAImpl(%arg0: !transfer.abs_value<[!transfer.integer,!transfer.integer]>, %arg1: !transfer.abs_value<[!transfer.integer,!transfer.integer]>) -> !transfer.abs_value<[!transfer.integer,!transfer.integer]> attributes {CPPCLASS = ["circt::comb::XXXOp"], applied_to = ["comb.xx"], is_forward = true} {
+    return %arg0 : !transfer.abs_value<[!transfer.integer,!transfer.integer]>
+  }
+}
+```
+
+Then synthesize a KnownBits transformer by running:
+
+```bash
+synth-transfer tests/synth/Operations/fma.mlir \
+               -domain KnownBits               \
+               -random_seed 50                 \
+               -num_iters 1                    \
+               -total_rounds 250
+```
+
+output (after about 5 mins) should be similar to the following:
 
 ```
+init_solution	100.0000%	24.9458%
+Iteration 0 starts...
+Iteration 0 finished. Exact: 49.8103%, Size of the solution set: 3
+last_solution	100.00%	49.81%
+```
+
+Thus showing the ease of adding new concrete operations and synthesizing transformers for them.
+
+#### Adding a new galios-connection abstract domain
+
+This is a bit more involved, but still feasible for a determined researcher
+
+1. Add a new class in `xdsl_smt/eval_engine/src/AbstVal.h` which inherits from `AbstVal` and fufils the `AbstractDomain` concept requirment.
+2. Add calls to the new domain in `xdsl_smt/eval_engine/src/main.cpp` and `xdsl_smt/eval_engine/src/xfer_enum/xfer_enum.cpp`
+3. Rebuild the C++ project (instructions for this are in `README.md`)
+4. Add the domain to the `AbstractDomain` class in `xdsl_smt/eval_engine/eval.py`
+5. Create a new directory in `tests/synth/` with the name of the new domain
+6. In this directory make the files:
+    * `get_constraint.mlir`          : An mlir definition of a valid abstract value
+    * `get_instance_constraint.mlir` : An mlir definition of whether or not a given concrete value resides in a given abstract value
+    * `meet.mlir`                    : An mlir definition of the meet between two abstract values
+    * `top.mlir`                     : An mlir definition of the top element in your domain
+7. Finally synthesize transformers in your new domain, by running: `synth-transfer tests/synth/Operations/Add.mlir -domain YourNewDomain`
+
+### Algorithms, Definitions, and Equations From the Paper
+
+| Paper Sec. | Section Heading                 | Source File or Directory                             | Line Number(s)                            |
+|------------|---------------------------------|------------------------------------------------------|-------------------------------------------|
+| Sec. 2.1.1 | Concrete Transformers           | `tests/synth/Operations`                             | N/A                                       |
+| Sec. 2.1.2 | Abstract Domains                | `xdsl_smt/eval_engine/src/AbstVal.h`                 | 113-257(KB), 259-389(UCR), 391-521(SCR)   |
+| Sec. 2.1.3 | DSL Operations                  | `xdsl_smt/dialects/transfer.py`                      | 796-853                                   |
+| Def. 2.1   | Meet of Transformers            | `xdsl_smt/eval_engine/src/AbstVal.h`                 | 152-154(KB), 288-294(UCR), 420-426(SCR)   |
+| Def. 2.2   | Soundness of Transformers       | `xdsl_smt/eval_engine/src/Eval.h`                    | 104                                       |
+| Def. 2.3   | Transformer-synthesis Problem   | `xdsl_smt/eval_engine/src/Eval.h`                    | 97-113, 121-135                           |
+| Algo. 1    | IdealSynthesizeBestTransformers | `xdsl_smt/cli/synth_transfer.py`                     | 463-635                                   |
+| Equation 1 | Minimization of Norm            | `xdsl_smt/eval_engine/src/Eval.h`                    | 106                                       |
+| Algo. 2    | MCMCBestTransformer             | `xdsl_smt/cli/synth_one_iteration.py`                | 96-317                                    |
+| Equation 5 | Soundness(f)                    | `xdsl_smt/utils/synthesizer_utils/cost_model.py`     | 14-17                                     |
+| Equation 6 | Improvment(f, g)                | `xdsl_smt/utils/synthesizer_utils/cost_model.py`     | 14-17                                     |
+| Algo. 3    | initilize and mutate programs   | `xdsl_smt/utils/synthesizer_utils/mcmc_sampler.py`   | 141-247, 249-279                          |
+| Algo. 4    | initilize and mutate conditions | `xdsl_smt/utils/synthesizer_utils/mcmc_sampler.py`   | 141-247, 249-279                          |
+| Sec. 5.1.4 | Bitvector representation        | `xdsl_smt/eval_engine/src/APInt.h`                   | N/A                                       |
+| Sec. 5.1.4 | Test generation by bitwidth     | `xdsl_smt/eval_engine/src/xfer_enum/enum_domain.cpp` | 23-29(lo bw), 31-42(mid bw), 44-58(hi bw) |
+| Sec. 5.1.5 | Size Functions                  | `xdsl_smt/eval_engine/src/AbstVal.h`                 | 187-198(KB), 323-336(UCR), 455-468(SCR)   |
+| Sec. 5.1.7 | Verifier                        | `xdsl_smt/utils/synthesizer_utils/verifier_utils.py` | N/A                                       |
+| Sec. 5.2.2 | LLVM's LLJIT                    | `xdsl_smt/eval_engine/src/jit.h`                     | N/A                                       |
+| Sec. 6     | LLVM Domains                    | `xdsl_smt/eval_engine/src/llvm_tests.h`              | N/A                                       |
+| Sec. 6     | Reduced Product                 | `xdsl_smt/eval_engine/src/reduced_prod/RPEval.h`     | N/A                                       |
