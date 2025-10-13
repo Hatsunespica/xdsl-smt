@@ -377,7 +377,7 @@ def fma(a: int, b: int) -> int:
     return add
 ```
 
-First we must define our concrete operation in mlir, so we make `tests/synth/Operations/fma.mlir`
+First we must define our concrete operation in mlir, so we make `tests/synth/Operations/fma.mlir` (you can use `echo`):
 
 ```mlir
 module {
@@ -421,7 +421,7 @@ Thus showing the ease of adding new concrete operations and synthesizing transfo
 
 This is a bit more involved, but still feasible for a determined researcher
 
-1. Add a new class in `xdsl_smt/eval_engine/src/AbstVal.h` which inherits from `AbstVal` and fufils the `AbstractDomain` concept requirment.
+1. Add a new class in `xdsl_smt/eval_engine/src/AbstVal.h` which inherits from `AbstVal` and fulfills the `AbstractDomain` concept requirement.
 2. Add calls to the new domain in `xdsl_smt/eval_engine/src/main.cpp` and `xdsl_smt/eval_engine/src/xfer_enum/xfer_enum.cpp`
 3. Rebuild the C++ project (instructions for this are in `README.md`)
 4. Add the domain to the `AbstractDomain` class in `xdsl_smt/eval_engine/eval.py`
@@ -435,25 +435,25 @@ This is a bit more involved, but still feasible for a determined researcher
 
 ### Algorithms, Definitions, and Equations From the Paper
 
-| Paper Sec. | Section Heading                 | Source File or Directory                             | Line Number(s)                            |
+| Paper Sec. | Topic                           | Source File or Directory                             | Line Number(s)                            |
 |------------|---------------------------------|------------------------------------------------------|-------------------------------------------|
-| Sec. 2.1.1 | Concrete Transformers           | `tests/synth/Operations`                             | all                                       |
-| Sec. 2.1.2 | Abstract Domains                | `xdsl_smt/eval_engine/src/AbstVal.h`                 | 113-257(KB), 259-389(UCR), 391-521(SCR)   |
-| Sec. 2.1.3 | DSL Operations                  | `xdsl_smt/dialects/transfer.py`                      | 796-853                                   |
-| Def. 2.1   | Meet of Transformers            | `xdsl_smt/eval_engine/src/AbstVal.h`                 | 152-154(KB), 288-294(UCR), 420-426(SCR)   |
-| Def. 2.2   | Soundness of Transformers       | `xdsl_smt/eval_engine/src/Eval.h`                    | 104                                       |
-| Def. 2.3   | Transformer-synthesis Problem   | `xdsl_smt/eval_engine/src/Eval.h`                    | 97-113, 121-135                           |
-| Algo. 1    | IdealSynthesizeBestTransformers | `xdsl_smt/cli/synth_transfer.py`                     | 463-635                                   |
-| Equation 1 | Minimization of Norm            | `xdsl_smt/eval_engine/src/Eval.h`                    | 106                                       |
-| Algo. 2    | MCMCBestTransformer             | `xdsl_smt/cli/synth_one_iteration.py`                | 96-317                                    |
-| Equation 5 | Soundness(f)                    | `xdsl_smt/utils/synthesizer_utils/cost_model.py`     | 14-17                                     |
-| Equation 6 | Improvement(f, g)               | `xdsl_smt/utils/synthesizer_utils/cost_model.py`     | 14-17                                     |
-| Algo. 3    | Initialize and mutate programs  | `xdsl_smt/utils/synthesizer_utils/mcmc_sampler.py`   | 141-247, 249-279                          |
-| Algo. 4    | Initialize and mutate conds     | `xdsl_smt/utils/synthesizer_utils/mcmc_sampler.py`   | 141-247, 249-279                          |
-| Sec. 5.1.4 | Bitvector representation        | `xdsl_smt/eval_engine/src/APInt.h`                   | all                                       |
-| Sec. 5.1.4 | Test generation by bitwidth     | `xdsl_smt/eval_engine/src/xfer_enum/enum_domain.cpp` | 23-29(lo bw), 31-42(mid bw), 44-58(hi bw) |
-| Sec. 5.1.5 | Size Functions                  | `xdsl_smt/eval_engine/src/AbstVal.h`                 | 187-198(KB), 323-336(UCR), 455-468(SCR)   |
-| Sec. 5.1.7 | Verifier                        | `xdsl_smt/utils/synthesizer_utils/verifier_utils.py` | all                                       |
-| Sec. 5.2.2 | LLVM's LLJIT                    | `xdsl_smt/eval_engine/src/jit.h`                     | all                                       |
-| Sec. 6     | LLVM Domains                    | `xdsl_smt/eval_engine/src/llvm_tests.h`              | all                                       |
-| Sec. 6     | Reduced Product                 | `xdsl_smt/eval_engine/src/reduced_prod/RPEval.h`     | all                                       |
+| Sec. 2.1.1 | Concrete Transformers           | [`tests/synth/Operations`](https://github.com/Hatsunespica/xdsl-smt/tree/artifact/tests/synth/Operations)                             | all                                       |
+| Sec. 2.1.2 | Abstract Domains                | [`xdsl_smt/eval_engine/src/AbstVal.h`](https://github.com/Hatsunespica/xdsl-smt/blob/artifact/xdsl_smt/eval_engine/src/AbstVal.h)                 | 116-257(KB), 259-389(UCR), 391-521(SCR)   |
+| Sec. 2.1.3 | DSL Operations                  | [`xdsl_smt/dialects/transfer.py`](https://github.com/Hatsunespica/xdsl-smt/blob/artifact/xdsl_smt/dialects/transfer.py)                      | 796-853                                   |
+| N/A   | Meet of Transformers            | [`xdsl_smt/eval_engine/src/AbstVal.h`](https://github.com/Hatsunespica/xdsl-smt/blob/artifact/xdsl_smt/eval_engine/src/AbstVal.h)                 | 152-154(KB), 288-294(UCR), 420-426(SCR)   |
+| Def. 2.1   | Soundness of Transformers       | [`xdsl_smt/eval_engine/src/Eval.h`](https://github.com/Hatsunespica/xdsl-smt/blob/artifact/xdsl_smt/eval_engine/src/Eval.h)                    | 104                                       |
+| Def. 2.2   | Transformer-synthesis Problem   | [`xdsl_smt/eval_engine/src/Eval.h`](https://github.com/Hatsunespica/xdsl-smt/blob/artifact/xdsl_smt/eval_engine/src/Eval.h)                    | 97-113, 121-135                           |
+| Algo. 1    | IdealSynthesizeBestTransformers | [`xdsl_smt/cli/synth_transfer.py`[(https://github.com/Hatsunespica/xdsl-smt/blob/artifact/xdsl_smt/cli/synth_transfer.py)                     | 463-635                                   |
+| Equation 1 | Minimization of Norm            | [`xdsl_smt/eval_engine/src/Eval.h`](https://github.com/Hatsunespica/xdsl-smt/blob/artifact/xdsl_smt/eval_engine/src/Eval.h)                    | 106                                       |
+| Algo. 2    | MCMCBestTransformer             | [`xdsl_smt/cli/synth_one_iteration.py`](https://github.com/Hatsunespica/xdsl-smt/blob/artifact/xdsl_smt/cli/synth_one_iteration.py)                | 96-317                                    |
+| Equation 5 | Soundness(f)                    | [`xdsl_smt/utils/synthesizer_utils/cost_model.py`](https://github.com/Hatsunespica/xdsl-smt/blob/artifact/xdsl_smt/utils/synthesizer_utils/cost_model.py)     | 14-17                                     |
+| Equation 6 | Improvement(f, g)               | [`xdsl_smt/utils/synthesizer_utils/cost_model.py`](https://github.com/Hatsunespica/xdsl-smt/blob/artifact/xdsl_smt/utils/synthesizer_utils/cost_model.py)     | 14-17                                     |
+| Algo. 3    | Initialize and mutate programs  | [`xdsl_smt/utils/synthesizer_utils/mcmc_sampler.py`](https://github.com/Hatsunespica/xdsl-smt/blob/artifact/xdsl_smt/utils/synthesizer_utils/mcmc_sampler.py)   | 141-247, 249-279                          |
+| Algo. 4    | Initialize and mutate conds     | [`xdsl_smt/utils/synthesizer_utils/mcmc_sampler.py`](https://github.com/Hatsunespica/xdsl-smt/blob/artifact/xdsl_smt/utils/synthesizer_utils/mcmc_sampler.py)   | 141-247, 249-279                          |
+| Sec. 5.1.4 | Bitvector representation        | [`xdsl_smt/eval_engine/src/APInt.h`](https://github.com/Hatsunespica/xdsl-smt/blob/artifact/xdsl_smt/eval_engine/src/APInt.h)                   | all                                       |
+| Sec. 5.1.4 | Test generation by bitwidth     | [`xdsl_smt/eval_engine/src/xfer_enum/enum_domain.cpp`](https://github.com/Hatsunespica/xdsl-smt/blob/artifact/xdsl_smt/eval_engine/src/xfer_enum/enum_domain.cpp) | 23-29(lo bw), 31-42(mid bw), 44-58(hi bw) |
+| Sec. 5.1.5 | Size Functions                  | [`xdsl_smt/eval_engine/src/AbstVal.h`](https://github.com/Hatsunespica/xdsl-smt/blob/artifact/xdsl_smt/eval_engine/src/AbstVal.h)                 | 187-198(KB), 323-336(UCR), 455-468(SCR)   |
+| Sec. 5.1.7 | Verifier                        | [`xdsl_smt/utils/synthesizer_utils/verifier_utils.py`](https://github.com/Hatsunespica/xdsl-smt/blob/artifact/xdsl_smt/utils/synthesizer_utils/verifier_utils.py) | all                                       |
+| Sec. 5.2.2 | LLVM's LLJIT                    | [`xdsl_smt/eval_engine/src/jit.h`](https://github.com/Hatsunespica/xdsl-smt/blob/artifact/xdsl_smt/eval_engine/src/jit.h)                     | all                                       |
+| Sec. 6     | LLVM Domains                    | [`xdsl_smt/eval_engine/src/llvm_tests.h`](https://github.com/Hatsunespica/xdsl-smt/blob/artifact/xdsl_smt/eval_engine/src/llvm_tests.h)              | all                                       |
+| Sec. 6     | Reduced Product                 | [`xdsl_smt/eval_engine/src/reduced_prod/RPEval.h`](https://github.com/Hatsunespica/xdsl-smt/blob/artifact/xdsl_smt/eval_engine/src/reduced_prod/RPEval.h)     | all                                       |
