@@ -89,6 +89,7 @@ as a quick overview of some important files and dirs:
 * `synthesized-transformers/`: MLIR code for transformers synthesized with NiceToMeetYou, and used in the paper
 * `tests/synth/Operations`: MLIR code for the concrete operations to be synthesized
 * `tests/synth/KnownBits`: MLIR code specifing the KnownBits abstract domain
+* `tests/synth/UConstRange`: MLIR code specifing the Signed Constant Range abstract domain
 * `tests/synth/SConstRange`: MLIR code specifing the Signed Constant Range abstract domain
 * `xdsl_smt/`: Python source code for NiceToMeetYou
 * `xdsl_smt/eval_engine/src/`: C++ source code for NiceToMeetYou's evaluation engine
@@ -137,11 +138,15 @@ And there should be a new directory, `new-transformers/KnownBits_And/`, which ha
 Finally run this to make sure that the synthesized transformer matches the one we expect:
 
 ```bash
-diff new-transformers/KnownBits_And/solution.mlir \
+diff -Z new-transformers/KnownBits_And/solution.mlir \
      artifact-outputs/kb-and-synth.mlir
 ```
 
 We expect no output from this command.
+
+**N.B.:** One of our artifact testers saw a one-line diff due to unexpected trailing whitespace.
+Which is why all `diff` commands are run with the `-Z` flag (ignore trailing whitespace).
+Any non-whitespace diff is a bug, please report it to us!
 
 ---
 
@@ -174,7 +179,7 @@ Expect similar files as described above in, but now in the dir, `new-transformer
 Finally, run this to make sure that the synthesized transformer matches the one we expect:
 
 ```bash
-diff new-transformers/UConstRange_AddNsw/solution.mlir \
+diff -Z new-transformers/UConstRange_AddNsw/solution.mlir \
      artifact-outputs/cr-add-synth.mlir
 ```
 
@@ -253,15 +258,11 @@ You can run `cat table-1-2-results.txt` and verify that the results match with t
 Or run:
 
 ```bash
-diff table-1-2-results.txt \
+diff -Z table-1-2-results.txt \
      artifact-outputs/eval-results.txt
 ```
 
 And expect no output.
-
-**N.B.:** One of our artifact testers saw a one-line diff due to unexpected whitespace.
-If this happens to you, try again with `diff -w` (ignore whitespace) or even `diff -Z` (ignore trailing whitespace).
-Any non-whitespace diff is a bug, please report it to us!
 
 **N.B.:** When comparing results gathered to those in Table 2,
 note that operations marked with an asterisk in the paper use the SignedConstantRange domain (written as CR_S in the paper), while operations which are unmarked use the UnsignedConstantRange domain.
@@ -290,14 +291,11 @@ You can run `cat table-3-results.txt` and verify that the results match with tho
 Or run:
 
 ```bash
-diff table-3-results.txt \
+diff -Z table-3-results.txt \
      artifact-outputs/rp-results.txt
 ```
 
 And expect no output.
-
-**N.B.** Same as above, one of our testers saw a diff due to trailing whitespace.
-Re-run with `diff -Z` if this happens to you.
 
 
 ### Synthesizing One Off Transformers
