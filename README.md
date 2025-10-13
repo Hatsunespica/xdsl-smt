@@ -421,7 +421,7 @@ Thus showing the ease of adding new concrete operations and synthesizing transfo
 
 This is a bit more involved, but still feasible for a determined researcher
 
-1. Add a new class in `xdsl_smt/eval_engine/src/AbstVal.h` which inherits from `AbstVal` and fufils the `AbstractDomain` concept requirement.
+1. Add a new class in `xdsl_smt/eval_engine/src/AbstVal.h` which inherits from `AbstVal` and fulfills the `AbstractDomain` concept requirement.
 2. Add calls to the new domain in `xdsl_smt/eval_engine/src/main.cpp` and `xdsl_smt/eval_engine/src/xfer_enum/xfer_enum.cpp`
 3. Rebuild the C++ project (instructions for this are in `README.md`)
 4. Add the domain to the `AbstractDomain` class in `xdsl_smt/eval_engine/eval.py`
