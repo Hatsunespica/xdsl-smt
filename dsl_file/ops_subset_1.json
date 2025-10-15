@@ -1,0 +1,38 @@
+{
+  "i1_ops": [
+    {"op_name": "CmpOp", "signature": ["int", "int"]},
+    {"op_name": "arith.AndIOp", "signature": ["bool", "bool"]},
+    {"op_name": "arith.OrIOp", "signature": ["bool", "bool"]},
+    {"op_name": "arith.XOrIOp", "signature": ["bool", "bool"]}
+  ],
+  "int_ops": [
+    {"op_name": "NegOp", "signature": ["int"]},
+    {"op_name": "AndOp", "signature": ["int", "int"]},
+    {"op_name": "OrOp", "signature": ["int", "int"]},
+    {"op_name": "XorOp", "signature": ["int", "int"]},
+    {"op_name": "AddOp", "signature": ["int", "int"]},
+    {"op_name": "SubOp", "signature": ["int", "int"]},
+    {"op_name": "SelectOp", "signature": ["bool", "int", "int"]},
+    {"op_name": "LShrOp", "signature": ["int", "bint"]},
+    {"op_name": "ShlOp", "signature": ["int", "bint"]},
+    {"op_name": "UMinOp", "signature": ["int", "int"]},
+    {"op_name": "UMaxOp", "signature": ["int", "int"]},
+    {"op_name": "SMinOp", "signature": ["int", "int"]},
+    {"op_name": "SMaxOp", "signature": ["int", "int"]},
+    {"op_name": "SetHighBitsOp", "signature": ["int", "bint"]},
+    {"op_name": "SetLowBitsOp", "signature": ["int", "bint"]},
+    {"op_name": "ClearHighBitsOp", "signature": ["int", "bint"]},
+    {"op_name": "ClearLowBitsOp", "signature": ["int", "bint"]}
+  ],
+  "bint_ops": [
+    {"op_name": "AddOp", "signature": ["bint", "bint"]},
+    {"op_name": "SubOp", "signature": ["bint", "bint"]},
+    {"op_name": "SelectOp", "signature": ["bool", "bint", "bint"]},
+    {"op_name": "UMinOp", "signature": ["bint", "bint"]},
+    {"op_name": "UMaxOp", "signature": ["bint", "bint"]},
+    {"op_name": "CountLOneOp", "signature": ["int"]},
+    {"op_name": "CountLZeroOp", "signature": ["int"]},
+    {"op_name": "CountROneOp", "signature": ["int"]},
+    {"op_name": "CountRZeroOp", "signature": ["int"]}
+  ]
+}

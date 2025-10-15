@@ -195,6 +195,7 @@ def synth_run(
             weighted_dsl=args.weighted_dsl,
             num_unsound_candidates=args.num_unsound_candidates,
             outputs_folder=output_folder,
+            dsl_file=args.dsl_file if args.dsl_file else None,
         )
 
         return {

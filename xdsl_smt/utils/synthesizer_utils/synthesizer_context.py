@@ -56,6 +56,7 @@ from xdsl_smt.utils.synthesizer_utils.dsl_operators import (
     basic_int_ops,
     basic_i1_ops,
     OpWithSignature,
+    merge_int_and_bint_ops,
 )
 from xdsl_smt.utils.synthesizer_utils.random import Random
 
@@ -312,29 +313,34 @@ class SynthesizerContext:
     def __init__(
         self,
         random: Random,
+        i1_ops: list[OpWithSignature] = full_i1_ops,
+        int_ops: list[OpWithSignature] = full_int_ops,
+        bint_ops: list[OpWithSignature] = full_bint_ops,
         weighted: bool = False,
     ):
         self.random = random
         self.cmp_flags = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
         self.dsl_ops = dict()
         self.op_weights = dict()
-        self.dsl_ops[BOOL_T] = Collection(full_i1_ops, self.random)
-        self.dsl_ops[INT_T] = Collection(full_int_ops, self.random)
+        if enable_bint:
+            self.dsl_ops[BINT_T] = Collection(bint_ops, self.random)
+            self.op_weights[BINT_T] = bint_prior_uniform
+        else:
+            self.dsl_ops[BINT_T] = Collection([], self.random)
+            # merge bint_ops to int_ops and make sure each element only appear once
+            int_ops = merge_int_and_bint_ops(int_ops, bint_ops)
+
+        self.dsl_ops[BOOL_T] = Collection(i1_ops, self.random)
+        self.dsl_ops[INT_T] = Collection(int_ops, self.random)
         self.op_weights[BOOL_T] = i1_prior_uniform
         self.op_weights[INT_T] = int_prior_uniform
-        if enable_bint:
-            self.dsl_ops[BINT_T] = Collection(full_bint_ops, self.random)
-            self.op_weights[BINT_T] = bint_prior_uniform
-
         self.weighted = weighted
 
     def use_basic_int_ops(self):
         self.dsl_ops[INT_T] = Collection(basic_int_ops, self.random)
-        # self.op_weights[INT_T] = {key:int_prior_uniform[key] for key in basic_int_ops}
 
     def use_basic_i1_ops(self):
         self.dsl_ops[BOOL_T] = Collection(basic_i1_ops, self.random)
-        # self.op_weights[BOOL_T] = {key:i1_prior_uniform[key] for key in basic_i1_ops}
 
     def update_weights(self, frequency: dict[str, dict[OpWithSignature, int]]):
         for ty, freq in frequency.items():
