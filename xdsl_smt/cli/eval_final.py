@@ -2,6 +2,7 @@ from argparse import ArgumentParser, Namespace, ArgumentDefaultsHelpFormatter
 from pathlib import Path
 from multiprocessing import Pool
 from itertools import zip_longest
+import pickle
 
 
 from xdsl_smt.utils.gen_table import CodeData, gen_table
@@ -47,6 +48,11 @@ def register_all_arguments() -> Namespace:
         "-latex-table",
         action="store_true",
         help="Generate a latex table instead of printing to stdout",
+    )
+    ap.add_argument(
+        "-save_raw_data",
+        type=Path,
+        help="Save raw evaluation data to the specified path",
     )
 
     return ap.parse_args()
@@ -250,7 +256,7 @@ def main() -> None:
     ):
         use_llvm = all(x.sound_dist == 0 for x in llvm_r.per_bit_res)
 
-        if args.latex_table:
+        if args.latex_table or args.save_raw_data is not None:
             assert 8 in mbs, "Expected 8-bitwidths in mbw"
             assert 64 in hbs, "Expected 64-bitwidths in hbw"
             top_r_8 = get_result_from_bw(top_r, 8)
@@ -289,6 +295,12 @@ def main() -> None:
 
         s = "\n".join([f"{d}   ||   {e}" for d, e in zipped_tables][:-1])
         print(s)
+
+    if args.save_raw_data is not None:
+        # Save raw results data using pickle
+        with open(args.save_raw_data, "wb") as f:
+            pickle.dump(results, f)
+        print(f"Raw results data saved to {args.save_raw_data}")
 
     if args.latex_table:
         table = gen_table(results)
