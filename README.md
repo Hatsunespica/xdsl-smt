@@ -3,6 +3,8 @@
 The URL to the artifact repository:
 [https://github.com/Hatsunespica/xdsl-smt/tree/artifact](https://github.com/Hatsunespica/xdsl-smt/tree/artifact)
 
+**N.B.** We recommend reading this file on GitHub (rather than Zenodo) for better Markdown formatting.
+
 This document provides instructions for evaluating the artifact associated with the paper #814 "Nice to Meet You: Synthesizing Practical Abstract Transformers for MLIR".
 The artifact consists of NiceToMeetYou, the transformer synthesizer, the transformers which were synthesized for the paper, and scripts to evaluate these transformers.
 
@@ -226,9 +228,9 @@ the measurement for the synthesized transformer,
 the measurement for LLVM's transformer (marked N/A if LLVM doesn't have a transformer),
 and the meet between LLVM's transformer and the synthesized transformer.
 
-On the left side of the table, the measurment is a sum of the "Dists" (or "norm" as its called in the paper).
+On the left side of the table, the measurement is a sum of the "Dists" (or "norm" as its called in the paper).
 This is measured at all bitwidths.
-On the right side of the table the measurment is a sum of the "Exacts": the number of times the transformer had a maximally precise output.
+On the right side of the table the measurement is a sum of the "Exacts": the number of times the transformer had a maximally precise output.
 This is only measured at bitwidths for which it is computationally tractable to enumerate all concrete values in an abstract value.
 For a detailed explanation of how to interpret these numbers, refer to Tables 1 and 2 in the paper.
 
@@ -239,6 +241,11 @@ so misnamed directories will result in errors.
 ## Evaluation instructions (Functionality)
 
 ### Evaluating Transformers
+
+**N.B. (Updated Oct 16)** Generated tables will be slightly different than the submitted paper
+(even though our artifact uses the same RNG seeds as our submission).
+We are fairly certain the difference is due to changes in Python's `randint` function.
+We plan to correct the mismatch for the final versions of the paper and artifact.
 
 Let's evaluate transformers that were previously synthesized by our tool (stored in `synthesized-transformers/`)
 with the same seed used to generate Table 1 and Table 2 in the paper:
@@ -254,8 +261,9 @@ eval-final tests/synth/Operations/    \
 ```
 
 This command takes about 15 minutes to run on an Apple M1 MacBook Pro.
-You can run `cat table-1-2-results.txt` and verify that the results match with those found in Table 1 and Table 2 of the paper.
-Or run:
+You can run `cat table-1-2-results.txt` and verify that the results ~~match with~~ (update Oct 16) _resemble_ those found in Table 1 and Table 2 of the paper.
+
+Run this command to compare against our expected output:
 
 ```bash
 diff -Z table-1-2-results.txt \
@@ -286,9 +294,10 @@ eval-final tests/synth/Operations/    \
 ```
 
 This command takes about 3 minutes to run on an Apple M1 MacBook Pro.
-Check that the results match with those found in Table 3 of the paper.
+Check that the results ~~match with~~ (update Oct 16) _resemble_ those found in Table 3 of the paper.
 You can run `cat table-3-results.txt` and verify that the results match with those found in Table 1 and Table 2 of the paper.
-Or run:
+
+Run this command to compare against our expected output:
 
 ```bash
 diff -Z table-3-results.txt \
