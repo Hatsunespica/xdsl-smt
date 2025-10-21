@@ -154,10 +154,19 @@ def gen_latex_table(
         # Create rows for each file
         rows: List[str] = []
 
-        # First, get the baseline values from File 1
-        baseline_values: List[float] = []
+        # First, collect all percentages for each function to find the maximum
+        all_percentages: List[List[float]] = []
+        first_max_indices: List[int] = []
         for (_, _), values in group_table_items:
-            baseline_values.append(values[0] * 100)  # Convert to percentage
+            func_percentages = [val * 100 for val in values]  # Convert to percentage
+            all_percentages.append(func_percentages)
+
+            # Find the index of the first occurrence of the maximum value
+            max_val = max(func_percentages)
+            first_max_idx = next(
+                i for i, val in enumerate(func_percentages) if abs(val - max_val) < 0.01
+            )
+            first_max_indices.append(first_max_idx)
 
         for file_idx in range(num_files):
             row_values: List[str] = []
@@ -165,18 +174,13 @@ def gen_latex_table(
                 assert file_idx < len(values)
                 percentage = values[file_idx] * 100
 
-                if file_idx == 0:
-                    # First file: show original percentage
-                    row_values.append(f"{percentage:.1f}")
+                # Check if this is the first occurrence of the maximum value for this function
+                if file_idx == first_max_indices[i]:
+                    # Bold the first maximum value
+                    row_values.append(f"\\textbf{{{percentage:.1f}}}")
                 else:
-                    # Files 2+: show difference from first file
-                    diff = percentage - baseline_values[i]
-                    if diff > 0:
-                        row_values.append(f"+{diff:.1f}")
-                    else:
-                        row_values.append(
-                            f"{diff:.1f}"
-                        )  # Negative sign is already included
+                    # Regular value
+                    row_values.append(f"{percentage:.1f}")
 
             # If this is the second group and we padded the header, pad the row too
             if group_idx == 1 and len(group_functions) < funcs_per_group:
