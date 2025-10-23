@@ -7,9 +7,11 @@
     %bitwidth_minus_one = "transfer.sub"(%bitwidth, %const1) : (!transfer.integer, !transfer.integer) -> !transfer.integer
     %sub = "transfer.sub"(%arg0, %arg1) : (!transfer.integer, !transfer.integer) -> !transfer.integer
     %xor = "transfer.xor"(%arg0, %arg1) : (!transfer.integer, !transfer.integer) -> !transfer.integer
-    %xor_neg="transfer.neg"(%xor): (!transfer.integer) -> !transfer.integer
+    %xor_neg_tmp="transfer.sub"(%const0, %xor): (!transfer.integer, !transfer.integer) -> !transfer.integer
+    %xor_neg="transfer.sub"(%xor_neg_tmp, %const1): (!transfer.integer, !transfer.integer) -> !transfer.integer
     %and = "transfer.and"(%sub, %xor_neg) : (!transfer.integer, !transfer.integer) -> !transfer.integer
-    %arg0_neg = "transfer.neg"(%arg0): (!transfer.integer) -> !transfer.integer
+    %arg0_neg_tmp="transfer.sub"(%const0, %arg0): (!transfer.integer, !transfer.integer) -> !transfer.integer
+    %arg0_neg="transfer.sub"(%arg0_neg_tmp, %const1): (!transfer.integer, !transfer.integer) -> !transfer.integer
     %and_neg_arg0_arg1 = "transfer.and"(%arg0_neg, %arg1) : (!transfer.integer, !transfer.integer) -> !transfer.integer
     %or  = "transfer.or"(%and_neg_arg0_arg1, %and) : (!transfer.integer, !transfer.integer) -> !transfer.integer
     %lshr  = "transfer.lshr"(%or, %bitwidth_minus_one) : (!transfer.integer, !transfer.integer) -> !transfer.integer

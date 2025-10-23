@@ -11,15 +11,19 @@
 
     %sub = "transfer.sub"(%add, %arg1) : (!transfer.integer, !transfer.integer) -> !transfer.integer
     %xor = "transfer.xor"(%add, %arg1) : (!transfer.integer, !transfer.integer) -> !transfer.integer
-    %xor_neg="transfer.neg"(%xor): (!transfer.integer) -> !transfer.integer
+    %xor_neg_tmp="transfer.sub"(%const0, %xor): (!transfer.integer, !transfer.integer) -> !transfer.integer
+    %xor_neg="transfer.sub"(%xor_neg_tmp, %const1): (!transfer.integer, !transfer.integer) -> !transfer.integer
     %and = "transfer.and"(%sub, %xor_neg) : (!transfer.integer, !transfer.integer) -> !transfer.integer
-    %add_neg = "transfer.neg"(%add): (!transfer.integer) -> !transfer.integer
+
+    %add_neg_tmp ="transfer.sub"(%const0, %add): (!transfer.integer, !transfer.integer) -> !transfer.integer
+    %add_neg="transfer.sub"(%add_neg_tmp, %const1): (!transfer.integer, !transfer.integer) -> !transfer.integer
+
     %and_neg_add_arg1 = "transfer.and"(%add_neg, %arg1) : (!transfer.integer, !transfer.integer) -> !transfer.integer
     %or  = "transfer.or"(%and_neg_add_arg1, %and) : (!transfer.integer, !transfer.integer) -> !transfer.integer
     %lshr  = "transfer.lshr"(%or, %bitwidth_minus_one) : (!transfer.integer, !transfer.integer) -> !transfer.integer
     %overflow = "transfer.and"(%lshr, %const1) : (!transfer.integer, !transfer.integer) -> !transfer.integer
     %mask = "transfer.sub"(%const0, %overflow) : (!transfer.integer, !transfer.integer) -> !transfer.integer
-    %result = "transfer.or"(%add, %mark) : (!transfer.integer, !transfer.integer) -> !transfer.integer
+    %result = "transfer.or"(%add, %mask) : (!transfer.integer, !transfer.integer) -> !transfer.integer
 
     "func.return"(%result) : (!transfer.integer) -> ()
   }) {function_type = (!transfer.integer,!transfer.integer) -> !transfer.integer, sym_name = "concrete_op"} : () -> ()
