@@ -18,14 +18,14 @@
     %lshr5="transfer.lshr"(%arg0, %val5) : (!transfer.integer, !transfer.integer) -> !transfer.integer
     %lshr6="transfer.lshr"(%arg0, %val6) : (!transfer.integer, !transfer.integer) -> !transfer.integer
     %lshr7="transfer.lshr"(%arg0, %val7) : (!transfer.integer, !transfer.integer) -> !transfer.integer
-    %and0="transfer.and"(%lshr0, %one) : (!transfer.integer,!transfer.integer) -> !transfer.integer
-    %and1="transfer.and"(%lshr1, %one) : (!transfer.integer,!transfer.integer) -> !transfer.integer
-    %and2="transfer.and"(%lshr2, %one) : (!transfer.integer,!transfer.integer) -> !transfer.integer
-    %and3="transfer.and"(%lshr3, %one) : (!transfer.integer,!transfer.integer) -> !transfer.integer
-    %and4="transfer.and"(%lshr4, %one) : (!transfer.integer,!transfer.integer) -> !transfer.integer
-    %and5="transfer.and"(%lshr5, %one) : (!transfer.integer,!transfer.integer) -> !transfer.integer
-    %and6="transfer.and"(%lshr6, %one) : (!transfer.integer,!transfer.integer) -> !transfer.integer
-    %and7="transfer.and"(%lshr7, %one) : (!transfer.integer,!transfer.integer) -> !transfer.integer
+    %and0="transfer.and"(%lshr0, %val0) : (!transfer.integer,!transfer.integer) -> !transfer.integer
+    %and1="transfer.and"(%lshr1, %val0) : (!transfer.integer,!transfer.integer) -> !transfer.integer
+    %and2="transfer.and"(%lshr2, %val0) : (!transfer.integer,!transfer.integer) -> !transfer.integer
+    %and3="transfer.and"(%lshr3, %val0) : (!transfer.integer,!transfer.integer) -> !transfer.integer
+    %and4="transfer.and"(%lshr4, %val0) : (!transfer.integer,!transfer.integer) -> !transfer.integer
+    %and5="transfer.and"(%lshr5, %val0) : (!transfer.integer,!transfer.integer) -> !transfer.integer
+    %and6="transfer.and"(%lshr6, %val0) : (!transfer.integer,!transfer.integer) -> !transfer.integer
+    %and7="transfer.and"(%lshr7, %val0) : (!transfer.integer,!transfer.integer) -> !transfer.integer
 
     %res ="transfer.add"(%and0, %and1) : (!transfer.integer,!transfer.integer) -> !transfer.integer
     %res2 ="transfer.add"(%and2, %res) : (!transfer.integer,!transfer.integer) -> !transfer.integer
