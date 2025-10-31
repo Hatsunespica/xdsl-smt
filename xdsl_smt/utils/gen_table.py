@@ -33,7 +33,7 @@ def gen_table(
     latex.append("                rrrr@{}}")
     latex.append("\\toprule")
     latex.append(
-        "\\multirow{2}{*}{\\textbf{ConcreteOp}} & \\multicolumn{3}{c}{} & \\multirow{2}{*}{\\textbf{Tests}} & \\multicolumn{4}{c}{\\textbf{8-bit exact (\\%)}} & \\multirow{2}{*}{\\textbf{Tests}} & \\multicolumn{4}{c}{\\textbf{64-bit precision (distance)}} \\\\"
+        "\\multirow{2}{*}{\\textbf{ConcreteOp}} & \\multicolumn{3}{c}{} & \\multirow{2}{*}{\\textbf{Tests}} & \\multicolumn{4}{c}{\\textbf{8-bit exact (\\%)} $\\uparrow$} & \\multirow{2}{*}{\\textbf{Tests}} & \\multicolumn{4}{c}{\\textbf{64-bit precision (norm) $\\downarrow$}} \\\\"
     )
     latex.append("\\cmidrule(lr){2-4} \\cmidrule(lr){6-9} \\cmidrule(lr){11-14}")
     latex.append(
@@ -86,16 +86,24 @@ def gen_table(
         if cases_64 == 0:
             dist_part = "- & - & - & -"
         else:
-            llvm_dist_str = f"{llvm_dist_64:.2f}" if llvm_dist_64 is not None else "N/A"
-            meet_dist_str = f"{meet_dist_64:.2f}" if meet_dist_64 is not None else "N/A"
+            top_dist_norm = top_dist_64 / cases_64
+            synth_dist_norm = synth_dist_64 / cases_64
+            llvm_dist_norm = None if llvm_dist_64 is None else llvm_dist_64 / cases_64
+            meet_dist_norm = None if meet_dist_64 is None else meet_dist_64 / cases_64
+            llvm_dist_str = (
+                f"{llvm_dist_norm:.3f}" if llvm_dist_norm is not None else "N/A"
+            )
+            meet_dist_str = (
+                f"{meet_dist_norm:.3f}" if meet_dist_norm is not None else "N/A"
+            )
 
             # Bold meet distance if it's better than llvm or if llvm is None
             if meet_dist_64 is not None and (
                 llvm_dist_64 is None or meet_dist_64 < llvm_dist_64
             ):
-                meet_dist_str = f"\\textbf{{{meet_dist_64:.2f}}}"
+                meet_dist_str = f"\\textbf{{{meet_dist_norm:.3f}}}"
 
-            dist_part = f"{top_dist_64:.2f} & {synth_dist_64:.2f} & {llvm_dist_str} & {meet_dist_str}"
+            dist_part = f"{top_dist_norm:.3f} & {synth_dist_norm:.3f} & {llvm_dist_str} & {meet_dist_str}"
 
         row = f"{op_display} & {code_data.num_xfer} & {code_data.num_cond_xfer} & {code_data.total_instructions} & {cases_8} & {top_pct_8:.2f} & {synth_pct_8:.2f} & {llvm_pct_str} & {meet_pct_str} & {cases_64} & {dist_part} \\\\"
         latex.append(row)
