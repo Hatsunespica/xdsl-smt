@@ -125,39 +125,49 @@ def gen_latex_table(
     table_items = list(table.items())
     functions = [func for (_, func), _ in table_items]
 
-    # Split functions into 2 groups instead of 3
     num_funcs = len(functions)
-    funcs_per_group = (num_funcs + 1) // 2  # Split into 2 groups
+    max_funcs_per_row = 20
+    if num_funcs == 0:
+        return ""
+
+    num_groups = (num_funcs + max_funcs_per_row - 1) // max_funcs_per_row
 
     tables: List[str] = []
-    for group_idx in range(2):
-        start_idx = group_idx * funcs_per_group
-        end_idx = min(start_idx + funcs_per_group, num_funcs)
+    for group_idx in range(num_groups):
+        start_idx = group_idx * max_funcs_per_row
+        end_idx = min(start_idx + max_funcs_per_row, num_funcs)
 
         if start_idx >= num_funcs:
             break
 
         group_functions = functions[start_idx:end_idx]
         group_table_items = table_items[start_idx:end_idx]
+        group_size = len(group_functions)
 
-        # Pad with empty columns if needed to reach 20, or adjust column spec
-        col_spec = f"@{{}}C{{\\fw}}*{{{funcs_per_group}}}{{C{{\\cw}}}}@{{}}"
+        # Adjust column spec to match the number of functions in this row
+        col_spec = f"@{{}}C{{\\fw}}*{{{group_size}}}{{C{{\\cw}}}}@{{}}"
 
         # Create header with bench commands for this group
         bench_headers = [f"\\bench{{{func}}}" for func in group_functions]
-        # If this is the second group and we have fewer than expected, pad with empty
-        if group_idx == 1 and len(bench_headers) < funcs_per_group:
-            bench_headers.append("{}")  # Add empty column as in your example
 
         header = " &\n" + " & ".join(bench_headers) + " \\\\\n"
 
         # Create rows for each file
         rows: List[str] = []
 
-        # First, get the baseline values from File 1
-        baseline_values: List[float] = []
+        # First, collect all percentages for each function to find the maximum
+        all_percentages: List[List[float]] = []
+        first_max_indices: List[int] = []
         for (_, _), values in group_table_items:
-            baseline_values.append(values[0] * 100)  # Convert to percentage
+            func_percentages = [val * 100 for val in values]  # Convert to percentage
+            all_percentages.append(func_percentages)
+
+            # Find the index of the first occurrence of the maximum value
+            max_val = max(func_percentages)
+            first_max_idx = next(
+                i for i, val in enumerate(func_percentages) if abs(val - max_val) < 0.01
+            )
+            first_max_indices.append(first_max_idx)
 
         for file_idx in range(num_files):
             row_values: List[str] = []
@@ -165,22 +175,13 @@ def gen_latex_table(
                 assert file_idx < len(values)
                 percentage = values[file_idx] * 100
 
-                if file_idx == 0:
-                    # First file: show original percentage
-                    row_values.append(f"{percentage:.1f}")
+                # Check if this is the first occurrence of the maximum value for this function
+                if file_idx == first_max_indices[i]:
+                    # Bold the first maximum value
+                    row_values.append(f"\\textbf{{{percentage:.1f}}}")
                 else:
-                    # Files 2+: show difference from first file
-                    diff = percentage - baseline_values[i]
-                    if diff > 0:
-                        row_values.append(f"+{diff:.1f}")
-                    else:
-                        row_values.append(
-                            f"{diff:.1f}"
-                        )  # Negative sign is already included
-
-            # If this is the second group and we padded the header, pad the row too
-            if group_idx == 1 and len(group_functions) < funcs_per_group:
-                row_values.append("{}")
+                    # Regular value
+                    row_values.append(f"{percentage:.1f}")
 
             row = f"File {file_idx+1} & " + " & ".join(row_values) + " \\\\"
             rows.append(row)
@@ -191,8 +192,11 @@ def gen_latex_table(
         group_table = f"\\begin{{tabular}}{{{col_spec}}}\n\\toprule\n{header}\\midrule\n{body}\n\\bottomrule\n\\end{{tabular}}"
         tables.append(group_table)
 
-    # Combine tables with vspace
-    return "\n\n\\vspace{-1pt}\n\n% ===== Row 2 =====\n".join(tables)
+    # Combine tables with vspace and annotate each row
+    annotated_tables = [
+        f"% ===== Row {idx + 1} =====\n{tbl}" for idx, tbl in enumerate(tables)
+    ]
+    return "\n\n\\vspace{-1pt}\n\n".join(annotated_tables)
 
 
 if __name__ == "__main__":
