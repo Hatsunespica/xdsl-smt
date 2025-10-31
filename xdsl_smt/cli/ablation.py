@@ -125,29 +125,30 @@ def gen_latex_table(
     table_items = list(table.items())
     functions = [func for (_, func), _ in table_items]
 
-    # Split functions into 2 groups instead of 3
     num_funcs = len(functions)
-    funcs_per_group = (num_funcs + 1) // 2  # Split into 2 groups
+    max_funcs_per_row = 20
+    if num_funcs == 0:
+        return ""
+
+    num_groups = (num_funcs + max_funcs_per_row - 1) // max_funcs_per_row
 
     tables: List[str] = []
-    for group_idx in range(2):
-        start_idx = group_idx * funcs_per_group
-        end_idx = min(start_idx + funcs_per_group, num_funcs)
+    for group_idx in range(num_groups):
+        start_idx = group_idx * max_funcs_per_row
+        end_idx = min(start_idx + max_funcs_per_row, num_funcs)
 
         if start_idx >= num_funcs:
             break
 
         group_functions = functions[start_idx:end_idx]
         group_table_items = table_items[start_idx:end_idx]
+        group_size = len(group_functions)
 
-        # Pad with empty columns if needed to reach 20, or adjust column spec
-        col_spec = f"@{{}}C{{\\fw}}*{{{funcs_per_group}}}{{C{{\\cw}}}}@{{}}"
+        # Adjust column spec to match the number of functions in this row
+        col_spec = f"@{{}}C{{\\fw}}*{{{group_size}}}{{C{{\\cw}}}}@{{}}"
 
         # Create header with bench commands for this group
         bench_headers = [f"\\bench{{{func}}}" for func in group_functions]
-        # If this is the second group and we have fewer than expected, pad with empty
-        if group_idx == 1 and len(bench_headers) < funcs_per_group:
-            bench_headers.append("{}")  # Add empty column as in your example
 
         header = " &\n" + " & ".join(bench_headers) + " \\\\\n"
 
@@ -182,10 +183,6 @@ def gen_latex_table(
                     # Regular value
                     row_values.append(f"{percentage:.1f}")
 
-            # If this is the second group and we padded the header, pad the row too
-            if group_idx == 1 and len(group_functions) < funcs_per_group:
-                row_values.append("{}")
-
             row = f"File {file_idx+1} & " + " & ".join(row_values) + " \\\\"
             rows.append(row)
 
@@ -195,8 +192,11 @@ def gen_latex_table(
         group_table = f"\\begin{{tabular}}{{{col_spec}}}\n\\toprule\n{header}\\midrule\n{body}\n\\bottomrule\n\\end{{tabular}}"
         tables.append(group_table)
 
-    # Combine tables with vspace
-    return "\n\n\\vspace{-1pt}\n\n% ===== Row 2 =====\n".join(tables)
+    # Combine tables with vspace and annotate each row
+    annotated_tables = [
+        f"% ===== Row {idx + 1} =====\n{tbl}" for idx, tbl in enumerate(tables)
+    ]
+    return "\n\n\\vspace{-1pt}\n\n".join(annotated_tables)
 
 
 if __name__ == "__main__":
