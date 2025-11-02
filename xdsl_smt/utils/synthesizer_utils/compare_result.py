@@ -151,3 +151,19 @@ class EvalResult:
 
     def get_potential_improve(self):
         return (self.base_dist - self.sound_dist) / (self.base_dist)
+
+
+@dataclass(frozen=True)
+class CostModelInput:
+    """
+    Container for the inputs required by cost functions.
+
+    Attributes:
+        result: Evaluation metrics of the current candidate.
+        program_size: Current program size, used for size-aware heuristics.
+        progress: Ratio of the current step to the total number of steps.
+    """
+
+    result: EvalResult
+    non_dead_code_ratio: float
+    progress: float

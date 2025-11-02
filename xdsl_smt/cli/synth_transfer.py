@@ -162,6 +162,24 @@ def eliminate_dead_code(func: FuncOp) -> FuncOp:
     return func
 
 
+def eliminate_dead_code_not_in_place(func: FuncOp) -> FuncOp:
+    """
+    This function eliminates dead code
+    and it makes a copy of the function so it does not modify in place
+    """
+    region = func.body.clone()
+    cloned_func = FuncOp(func.sym_name.data, func.function_type, region=region)
+    TransferDeadCodeElimination().apply(ctx, cast(ModuleOp, cloned_func))
+    return cloned_func
+
+
+def function_length_after_dce(func: FuncOp) -> int:
+    func_after_dce = eliminate_dead_code_not_in_place(func)
+    return len(
+        [op for op in func_after_dce.body.block.ops if not isinstance(op, ReturnOp)]
+    )
+
+
 def print_to_cpp(func: FuncOp) -> str:
     """
     This function eliminates dead code before lowering to cpp
