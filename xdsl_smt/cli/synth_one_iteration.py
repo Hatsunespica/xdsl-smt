@@ -168,10 +168,11 @@ def synthesize_one_iteration(
 
     cmp_results = solution_set.eval_improve(func_with_cond_lst)
 
-    for i, cmp in enumerate(cmp_results):
-        mcmc_samplers[i].current_cmp = cmp
+    for cmp, spl in zip(cmp_results, mcmc_samplers):
+        spl.current_cmp = cmp
+        spl.current_cost = spl.compute_cost(cmp, 1.0)
 
-    cost_data = [[spl.compute_current_cost()] for spl in mcmc_samplers]
+    cost_data = [[spl.get_current_cost()] for spl in mcmc_samplers]
 
     # These 3 lists store "good" transformers during the search
     sound_most_improve_tfs: list[tuple[FuncOp, EvalResult, int]] = []
@@ -202,11 +203,17 @@ def synthesize_one_iteration(
         used_time = end - start
 
         for i, (spl, res) in enumerate(zip(mcmc_samplers, cmp_results)):
-            proposed_cost = spl.compute_cost(res)
-            current_cost = spl.compute_current_cost()
+            from xdsl_smt.cli.synth_transfer import function_length_after_dce
+
+            proposed_prog_length = function_length_after_dce(spl.current.func)
+            proposed_non_dead_code_ratio = proposed_prog_length / len(
+                spl.current.func.body.block.ops
+            )
+            proposed_cost = spl.compute_cost(res, proposed_non_dead_code_ratio)
+            current_cost = spl.get_current_cost()
             decision = decide(random.random(), inv_temp, current_cost, proposed_cost)
             if decision:
-                spl.accept_proposed(res)
+                spl.accept_proposed(res, proposed_cost)
                 cloned_func = spl.current.func.clone()
                 cloned_func.attributes["number"] = StringAttr(f"{ith_iter}_{rnd}_{i}")
                 tmp_tuple = (cloned_func, res, rnd)
@@ -231,7 +238,7 @@ def synthesize_one_iteration(
                 spl.reject_proposed()
 
         for i, spl in enumerate(mcmc_samplers):
-            res_cost = spl.compute_current_cost()
+            res_cost = spl.get_current_cost()
             sound_prop = spl.current_cmp.get_sound_prop() * 100
             exact_prop = spl.current_cmp.get_unsolved_exact_prop() * 100
             base_dis = spl.current_cmp.get_base_dist()

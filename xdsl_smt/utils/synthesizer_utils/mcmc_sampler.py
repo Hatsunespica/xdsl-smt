@@ -5,7 +5,7 @@ from typing import Callable
 from xdsl.context import MLContext
 from xdsl.dialects.builtin import i1, IntegerAttr, FunctionType, UnitAttr
 from xdsl.parser import Parser
-from xdsl_smt.utils.synthesizer_utils.compare_result import EvalResult
+from xdsl_smt.utils.synthesizer_utils.compare_result import CostModelInput, EvalResult
 from xdsl_smt.utils.synthesizer_utils.mutation_program import MutationProgram
 from xdsl_smt.utils.synthesizer_utils.synthesizer_context import (
     SynthesizerContext,
@@ -60,9 +60,10 @@ def parse_file(ctx: MLContext, file: str | None) -> Operation:
 class MCMCSampler:
     current: MutationProgram
     current_cmp: EvalResult
+    current_cost: float
     context: SynthesizerContext
     random: Random
-    cost_func: Callable[[EvalResult, float], float]
+    cost_func: Callable[[CostModelInput], float]
     step_cnt: int
     total_steps: int
     is_cond: bool
@@ -71,7 +72,7 @@ class MCMCSampler:
         self,
         func: FuncOp,
         context: SynthesizerContext,
-        cost_func: Callable[[EvalResult, float], float],
+        cost_func: Callable[[CostModelInput], float],
         length: int,
         total_steps: int,
         reset_init_program: bool = True,
@@ -95,18 +96,24 @@ class MCMCSampler:
             if random_init_program:
                 self.reset_to_random_prog(length)
 
-    def compute_cost(self, cmp: EvalResult) -> float:
-        return self.cost_func(cmp, self.step_cnt / self.total_steps)
+    def compute_cost(self, cmp: EvalResult, non_dead_code_ratio: float) -> float:
+        cost_input = CostModelInput(
+            cmp,
+            non_dead_code_ratio,
+            self.step_cnt / self.total_steps,
+        )
+        return self.cost_func(cost_input)
 
-    def compute_current_cost(self):
-        return self.compute_cost(self.current_cmp)
+    def get_current_cost(self):
+        return self.current_cost
 
     def get_current(self):
         return self.current.func
 
-    def accept_proposed(self, proposed_cmp: EvalResult):
+    def accept_proposed(self, proposed_cmp: EvalResult, proposed_cost: float):
         self.current.remove_history()
         self.current_cmp = proposed_cmp
+        self.current_cost = proposed_cost
         self.step_cnt += 1
 
     def reject_proposed(self):
