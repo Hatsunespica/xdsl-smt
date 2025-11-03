@@ -18,7 +18,8 @@ public:
   EnumDomain(Jit _jit)
       : jit(std::move(_jit)),
         evalAbstOp(jit.getFn<ConcOpFn>("concrete_op"),
-                   jit.getOptFn<OpConFn>("op_constraint")) {}
+                   jit.getOptFn<OpConFn>("op_constraint"),
+                   jit.getOptFn<GenFn<D>>("input_generator")) {}
 
   const ToEval<D> genLows(const std::vector<unsigned int> &bws) {
     std::vector<std::vector<std::tuple<D, D, D>>> r;
