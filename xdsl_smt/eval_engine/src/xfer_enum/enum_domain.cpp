@@ -19,7 +19,8 @@ public:
       : jit(std::move(_jit)),
         evalAbstOp(jit.getFn<ConcOpFn>("concrete_op"),
                    jit.getOptFn<OpConFn>("op_constraint"),
-                   jit.getOptFn<GenFn<D>>("input_generator")) {}
+                   jit.getOptFn<GenFn<D>>("input_generator_0"),
+                   jit.getOptFn<GenFn<D>>("input_generator_1")) {}
 
   const ToEval<D> genLows(const std::vector<unsigned int> &bws) {
     std::vector<std::vector<std::tuple<D, D, D>>> r;

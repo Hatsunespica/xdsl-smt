@@ -25,21 +25,22 @@ SUPPRESS_WARNINGS_END
 typedef A::APInt (*ConcOpFn)(A::APInt, A::APInt);
 typedef bool (*OpConFn)(A::APInt, A::APInt);
 
-// GenFn: takes two abstract-domain values of type D and returns two D values
-// (represented as std::pair<D, D>).
-template <AbstractDomain D> using GenFn = void (*)(D &, D &);
+// GenFn: takes two abstract-domain values of type D and returns a D value.
+template <AbstractDomain D> using GenFn = D (*)(D, D);
 
 template <AbstractDomain D> class EvalAbstOp {
 
 private:
   ConcOpFn concOp;
   std::optional<OpConFn> opCon;
-  std::optional<GenFn<D>> genFn;
+  std::optional<GenFn<D>> genFn0;
+  std::optional<GenFn<D>> genFn1;
 
 public:
   EvalAbstOp(ConcOpFn _concOp, std::optional<OpConFn> _opCon,
-             std::optional<GenFn<D>> _genFn = std::nullopt)
-      : concOp(_concOp), opCon(_opCon), genFn(_genFn) {}
+             std::optional<GenFn<D>> _genFn0 = std::nullopt,
+             std::optional<GenFn<D>> _genFn1 = std::nullopt)
+      : concOp(_concOp), opCon(_opCon), genFn0(_genFn0), genFn1(_genFn1) {}
 
   const D toBestAbst(const D &lhs, const D &rhs) const {
     D res = D::bottom(lhs.bw());
@@ -57,10 +58,12 @@ public:
     while (true) {
       D lhs = D::rand(rng, bw);
       D rhs = D::rand(rng, bw);
-      if (genFn) {
-        genFn.value()(
-            lhs,
-            rhs); // mutate lhs/rhs in-place to avoid "empty" abstract inputs
+      if (genFn0 || genFn1) {
+        D old_lhs = lhs, old_rhs = rhs;
+        if (genFn0)
+          lhs = genFn0.value()(lhs, rhs);
+        if (genFn1)
+          rhs = genFn1.value()(old_lhs, old_rhs);
       }
       if (numConcSamples == -1) {
         const D res = toBestAbst(lhs, rhs);
