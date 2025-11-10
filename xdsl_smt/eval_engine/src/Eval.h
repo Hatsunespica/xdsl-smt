@@ -6,6 +6,8 @@
 #include <optional>
 #include <random>
 #include <string>
+#include <tuple>
+#include <utility>
 #include <vector>
 
 #include "APInt.h"
@@ -23,14 +25,22 @@ SUPPRESS_WARNINGS_END
 typedef A::APInt (*ConcOpFn)(A::APInt, A::APInt);
 typedef bool (*OpConFn)(A::APInt, A::APInt);
 
+// GenFn: takes two abstract-domain values of type D and returns a D value.
+template <AbstractDomain D> using GenFn = D (*)(D, D);
+
 template <AbstractDomain D> class EvalAbstOp {
+
 private:
   ConcOpFn concOp;
   std::optional<OpConFn> opCon;
+  std::optional<GenFn<D>> genFn0;
+  std::optional<GenFn<D>> genFn1;
 
 public:
-  EvalAbstOp(ConcOpFn _concOp, std::optional<OpConFn> _opCon)
-      : concOp(_concOp), opCon(_opCon) {}
+  EvalAbstOp(ConcOpFn _concOp, std::optional<OpConFn> _opCon,
+             std::optional<GenFn<D>> _genFn0 = std::nullopt,
+             std::optional<GenFn<D>> _genFn1 = std::nullopt)
+      : concOp(_concOp), opCon(_opCon), genFn0(_genFn0), genFn1(_genFn1) {}
 
   const D toBestAbst(const D &lhs, const D &rhs) const {
     D res = D::bottom(lhs.bw());
@@ -46,8 +56,15 @@ public:
   const std::tuple<D, D, D> genRand(unsigned int bw, std::mt19937 &rng,
                                     int numConcSamples) const {
     while (true) {
-      const D lhs = D::rand(rng, bw);
-      const D rhs = D::rand(rng, bw);
+      D lhs = D::rand(rng, bw);
+      D rhs = D::rand(rng, bw);
+      if (genFn0 || genFn1) {
+        D old_lhs = lhs, old_rhs = rhs;
+        if (genFn0)
+          lhs = genFn0.value()(lhs, rhs);
+        if (genFn1)
+          rhs = genFn1.value()(old_lhs, old_rhs);
+      }
       if (numConcSamples == -1) {
         const D res = toBestAbst(lhs, rhs);
         if (!res.isBottom())
@@ -96,6 +113,14 @@ private:
   }
 
   void evalSingle(const D &lhs, const D &rhs, const D &best, Results &r) const {
+    // Xuanyu added this check. Ideally, the value of the best transformer
+    // would not be bottom, if at least one "valid" concrete value that
+    // satisfys op_constraint have been sampled. However, there is not a
+    // general way to determine whether an abstract input contains such a
+    // valid concrete value, so we do the skip here. In practice, this issue
+    // only happens when concrete_op is shifting operators.
+    if (best.isBottom())
+      return;
     std::vector<D> synth_results(synFnWrapper(lhs, rhs));
     D ref = D::meetAll(refFnWrapper(lhs, rhs), lhs.bw());
     bool solved = ref == best;

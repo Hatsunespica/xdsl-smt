@@ -331,6 +331,7 @@ class HelperFuncs:
     get_top_func: FuncOp
     transfer_func: FuncOp
     meet_func: FuncOp
+    generator_func: tuple[FuncOp, ...] | None = None
 
     def items_to_print(self) -> list[FuncOp]:
         canditates = [
@@ -340,6 +341,8 @@ class HelperFuncs:
             self.op_constraint_func,
             self.meet_func,
         ]
+        if self.generator_func is not None:
+            canditates.extend(self.generator_func)
         return [x for x in canditates if x is not None]
 
     def to_cpp(self) -> list[str]:
@@ -401,10 +404,26 @@ def get_helper_funcs(p: Path, d: AbstractDomain) -> tuple[ModuleOp, HelperFuncs]
 
         return fn
 
+    def get_generator_fns() -> tuple[FuncOp, ...] | None:
+        gp = p.resolve().parent.parent.joinpath("Generators", str(d), p.name)
+        if not gp.exists():
+            return None
+        gens: list[FuncOp] = []
+        with open(gp, "r") as f:
+            gen_module = Parser(ctx, f.read(), gp.name).parse_op()
+            assert isinstance(gen_module, ModuleOp)
+            for op in gen_module.ops:
+                if isinstance(op, FuncOp) and op.sym_name.data.startswith(
+                    "input_generator"
+                ):
+                    gens.append(op)
+        return tuple(gens)
+
     top = get_domain_fns("top.mlir")
     meet = get_domain_fns("meet.mlir")
     constraint = get_domain_fns("get_constraint.mlir")
     instance_constraint = get_domain_fns("get_instance_constraint.mlir")
+    generator_funcs = get_generator_fns()
 
     return module, HelperFuncs(
         crt_func=crt_func,
@@ -414,6 +433,7 @@ def get_helper_funcs(p: Path, d: AbstractDomain) -> tuple[ModuleOp, HelperFuncs]
         get_top_func=top,
         transfer_func=transfer_func,
         meet_func=meet,
+        generator_func=generator_funcs,
     )
 
 
