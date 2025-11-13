@@ -26,7 +26,7 @@ add_custom_command(
     COMMENT "Generating header file from text file"
 )
 
-add_executable(eval_engine
+add_executable(eval_gen_engine
   src/main.cpp
   src/jit.h
   src/AbstVal.h
@@ -36,13 +36,13 @@ add_executable(eval_engine
   src/warning_suppresor.h
 )
 
-target_include_directories(eval_engine PRIVATE
+target_include_directories(eval_gen_engine PRIVATE
   ${CMAKE_BINARY_DIR}
   ${LLVM_INCLUDE_DIRS}
   ${CLANG_INCLUDE_DIRS}
 )
 
-target_compile_options(eval_engine PRIVATE
+target_compile_options(eval_gen_engine PRIVATE
     -Wall
     -Wextra
     -Wpedantic
@@ -91,11 +91,11 @@ target_compile_options(gen_enum PRIVATE
 )
 
 add_custom_target(generate_header DEPENDS ${GENERATED_HEADER})
-add_dependencies(eval_engine generate_header)
+add_dependencies(eval_gen_engine generate_header)
 
 # Link against LLVM and Clang
 target_link_libraries(gen_enum PRIVATE ${LLVM_LIBS} ${CLANG_LIBS})
-target_link_libraries(eval_engine PRIVATE ${LLVM_LIBS} ${CLANG_LIBS})
+target_link_libraries(eval_gen_engine PRIVATE ${LLVM_LIBS} ${CLANG_LIBS})
 
-target_link_options(eval_engine PRIVATE -Wl,--copy-dt-needed-entries)
+target_link_options(eval_gen_engine PRIVATE -Wl,--copy-dt-needed-entries)
 target_link_options(gen_enum PRIVATE -Wl,--copy-dt-needed-entries)

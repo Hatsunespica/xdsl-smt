@@ -1292,15 +1292,4 @@ template <unsigned int N> Vec<N> bottom(unsigned int bw) {
 }
 } // namespace IM
 
-// Hash function specialization for A::APInt
-namespace std {
-template <> struct hash<A::APInt> {
-  std::size_t operator()(const A::APInt &apint) const {
-    std::size_t h1 = std::hash<unsigned>{}(apint.getBitWidth());
-    std::size_t h2 = std::hash<unsigned long>{}(apint.getZExtValue());
-    return h1 ^ (h2 << 1); // Combine the two hash values
-  }
-};
-} // namespace std
-
 #endif

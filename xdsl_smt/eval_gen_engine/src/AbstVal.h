@@ -803,18 +803,16 @@ static_assert(AbstractDomain<UConstRange>);
 static_assert(AbstractDomain<SConstRange>);
 static_assert(AbstractDomain<IntegerModulo<6>>);
 
-// Hash function specializations for AbstractDomain types
-namespace std {
-template <AbstractDomain D> struct hash<D> {
-  std::size_t operator()(const D &d) const noexcept {
-    std::size_t seed = 0;
-    for (unsigned int i = 0; i < D::N; ++i) {
-      seed ^= std::hash<A::APInt>{}(d.v[i]) + 0x9e3779b9 + (seed << 6) +
-              (seed >> 2);
-    }
-    return seed;
+// Comparison operators for AbstractDomain types
+template <AbstractDomain D> bool operator<(const D &lhs, const D &rhs) {
+  for (unsigned int i = 0; i < D::N; ++i) {
+    if (lhs.v[i].getZExtValue() < rhs.v[i].getZExtValue())
+      return true;
+    if (lhs.v[i].getZExtValue() > rhs.v[i].getZExtValue())
+      return false;
+    // If equal, continue to next element
   }
-};
-} // namespace std
+  return false; // All elements are equal
+}
 
 #endif

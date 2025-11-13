@@ -14,7 +14,6 @@
 #include <string>
 #include <sys/mman.h>
 #include <unistd.h>
-#include <unordered_set>
 #include <vector>
 
 #include "AbstVal.h"
@@ -29,16 +28,7 @@ using XferWrap = const std::function<std::optional<D>(
 template <typename D>
 using XferFn = std::function<const D(const D &, const D &)>;
 
-// Hash function for std::vector<D>
-template <AbstractDomain D> struct VectorHash {
-  std::size_t operator()(const std::vector<D> &vec) const {
-    std::size_t seed = vec.size();
-    for (const auto &elem : vec) {
-      seed ^= std::hash<D>{}(elem) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-    }
-    return seed;
-  }
-};
+#include "AbstVal.h"
 
 template <typename D>
 const std::optional<XferFn<D>>
@@ -108,8 +98,7 @@ parseStrTupleList(std::istream &in) {
 }
 
 template <AbstractDomain D>
-unsigned int
-getBw(const std::unordered_set<std::vector<D>, VectorHash<D>> &validSet) {
+unsigned int getBw(const std::set<std::vector<D>> &validSet) {
   return validSet.begin()->at(0).bw();
 }
 
@@ -314,8 +303,7 @@ SampleTypes parseSamples(const std::filesystem::directory_entry &entry) {
   return SampleTypes{enumType, bw, numSamples};
 }
 
-template <AbstractDomain D>
-using ValidSet = std::unordered_set<std::vector<D>, VectorHash<D>>;
+template <AbstractDomain D> using ValidSet = std::set<std::vector<D>>;
 
 template <AbstractDomain D> using ValidSets = std::vector<ValidSet<D>>;
 
@@ -331,8 +319,7 @@ getValidSet(const std::string dirName, unsigned int elements_per_vector) {
     SampleTypes sample = parseSamples(entry);
     auto readResult =
         read_vecs<D>(entry.path(), sample.numSamples, elements_per_vector);
-    std::unordered_set<std::vector<D>, VectorHash<D>> resultSet(
-        readResult.begin(), readResult.end());
+    std::set<std::vector<D>> resultSet(readResult.begin(), readResult.end());
 
     if (sample.enumType == EnumType::High) {
       highVecs.push_back(std::move(resultSet));
