@@ -36,6 +36,12 @@ def int_triple(s: str) -> tuple[int, int, int]:
 def register_arguments(prog: str) -> Namespace:
     ap = ArgumentParser(prog=prog, formatter_class=ArgumentDefaultsHelpFormatter)
 
+    if prog == "egraph_rewriter":
+        ap.add_argument(
+            "transfer_functions", type=Path, help="path to transfer function"
+        )
+        return ap.parse_args()
+
     if prog == "synth_transfer":
         ap.add_argument(
             "transfer_functions", type=Path, help="path to transfer function"
