@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import Callable
-from egglog import i64Like, StringLike, Expr, rewrite, ruleset, vars_, method
+from egglog import birewrite, i64Like, StringLike, Expr, rewrite, ruleset, vars_, method
 
 from xdsl_smt.dialects.transfer import AddOp, AndOp, NegOp, OrOp, SubOp, XorOp
 from xdsl.ir import Operation
@@ -59,10 +59,10 @@ def gen_ruleset():
         # For KnownBits Domain
         rewrite(BV.var("arg0_0") & BV.var("arg0_1")).to(BV(0)),
         rewrite(BV.var("arg1_0") & BV.var("arg1_1")).to(BV(0)),
-        rewrite(BV.var("arg0_0") + BV.var("arg0_1")).to(
+        birewrite(BV.var("arg0_0") + BV.var("arg0_1")).to(
             BV.Or(BV.var("arg0_0"), BV.var("arg0_1"))
         ),
-        rewrite(BV.var("arg1_0") + BV.var("arg1_1")).to(
+        birewrite(BV.var("arg1_0") + BV.var("arg1_1")).to(
             BV.Or(BV.var("arg1_0"), BV.var("arg1_1"))
         ),
         # Bitvector Algebra - Idempotent laws
@@ -86,34 +86,32 @@ def gen_ruleset():
         rewrite(x & BV(0)).to(BV(0)),
         rewrite(BV.Or(x, BV(-1))).to(BV(-1)),  # x | all_ones = all_ones
         # Associativity (useful for normalization)
-        rewrite((x + y) + z).to(x + (y + z)),
-        rewrite((x * y) * z).to(x * (y * z)),
-        rewrite((x & y) & z).to(x & (y & z)),
-        rewrite(BV.Or(BV.Or(x, y), z)).to(BV.Or(x, BV.Or(y, z))),
-        rewrite((x ^ y) ^ z).to(x ^ (y ^ z)),
+        birewrite((x + y) + z).to(x + (y + z)),
+        birewrite((x * y) * z).to(x * (y * z)),
+        birewrite((x & y) & z).to(x & (y & z)),
+        birewrite(BV.Or(BV.Or(x, y), z)).to(BV.Or(x, BV.Or(y, z))),
+        birewrite((x ^ y) ^ z).to(x ^ (y ^ z)),
         # Distributivity
         rewrite(x & (y ^ z)).to((x & y) ^ (x & z)),
-        rewrite(BV.Or(x, (y & z))).to(BV.Or(BV.Or(x, y), BV.Or(x, z))),
-        # XOR properties (without bitwise NOT since it's not available)
-        rewrite(x ^ (x & y)).to(x & (BV(-1) ^ y)),  # x ^ (x & y) = x & (~y)
+        rewrite(BV.Or(x, (y & z))).to(BV.Or(x, y) & BV.Or(x, z)),
+        rewrite(BV.Or(x, y) & z).to(BV.Or(x & z, y & z)),
         # AND/OR relationships
         rewrite(x & BV.Or(x, y)).to(x),  # absorption law
         rewrite(BV.Or(x, (x & y))).to(x),  # absorption law
         # Subtraction properties
         rewrite(x - x).to(BV(0)),
         rewrite(x - BV(0)).to(x),
-        rewrite(BV(0) - x).to(BV.Neg(x)),
+        birewrite(BV(-1) - x).to(BV.Neg(x)),
+        birewrite(x ^ BV(-1)).to(BV.Neg(x)),  # x ^ all_ones = ~x
         # Negation properties (arithmetic negation)
         rewrite(BV.Neg(BV.Neg(x))).to(x),  # double negation
-        rewrite(x + BV.Neg(x)).to(BV(0)),  # x + (-x) = 0
-        # XOR with complement (using XOR with all_ones as bitwise NOT)
-        rewrite(x ^ (BV(-1) ^ x)).to(BV(-1)),  # x ^ (~x) = all_ones
+        rewrite(x + BV.Neg(x)).to(BV(-1)),  # x + (~x) = all_ones
+        rewrite(x & BV.Neg(x)).to(BV(0)),  # x & (~x) = 0
+        rewrite(x ^ BV.Neg(x)).to(BV(-1)),  # x ^ (~x) = all_ones
         # Advanced patterns
-        rewrite((x ^ y) ^ y).to(x),  # (x ^ y) ^ y = x
-        rewrite(x ^ (y ^ x)).to(y),  # x ^ (y ^ x) = y
         rewrite((x + y) - y).to(x),  # (x + y) - y = x (when no overflow)
         rewrite((x - y) + y).to(x),  # (x - y) + y = x (when no overflow)
-        # More AND/OR laws
-        rewrite(BV.Or(x & y, x & z)).to(x & BV.Or(y, z)),  # factoring
+        # Constant folding
+        rewrite(BV(1) + BV(-1)).to(BV(0)),
         name="my_ruleset",
     )

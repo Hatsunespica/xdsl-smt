@@ -62,7 +62,7 @@ def simplify_term(expr: Expr) -> tuple[Expr, int, int]:
     expr_to_simplify = egraph.let("expr_to_simplify", expr)
     _, previous_cost = egraph.extract(expr_to_simplify, include_cost=True)
     # print(f"\tExpr: {expr}")
-    egraph.run(10, ruleset=rules)
+    egraph.run(8, ruleset=rules)
     new_expr, new_cost = egraph.extract(expr_to_simplify, include_cost=True)
     # print(f"\tNew Expr: {new_expr}")
     # print(f"Size: {previous_cost} -> {new_cost}")
