@@ -13,12 +13,11 @@ class ExprBuilder:
     func: FuncOp
     op_to_expr: dict[Operation, Expr]
     arg_index: dict[BlockArgument, int]
-    ret_exprs: list[Expr]
+    ret_exprs: tuple[Expr, ...]
 
     def __init__(self, _func: FuncOp):
         self.func = _func
         self.op_to_expr = {}
-        self.ret_exprs = []
         self.arg_index = {}
 
     def create_arg_name(self, op: BlockArgument, index: int) -> str:
@@ -36,8 +35,9 @@ class ExprBuilder:
                 self.op_to_expr[op] = BV.var(arg_name)
 
             if isinstance(op, MakeOp):
-                for operand in op.operands:
-                    self.ret_exprs.append(self.op_to_expr[operand.owner])
+                self.ret_exprs = tuple(
+                    self.op_to_expr[operand.owner] for operand in op.operands
+                )
                 return
 
             if isinstance(op, Constant):
@@ -56,14 +56,22 @@ class ExprBuilder:
                 self.op_to_expr[op] = egraph_op(*expr_operands)
 
 
+def build_meet_expr(all_ret_exprs: list[tuple[BV, ...]]) -> tuple[BV, ...]:
+    num_rets = len(all_ret_exprs[0])
+    meet_exprs: list[BV] = []
+    for i in range(num_rets):
+        meet_expr = all_ret_exprs[0][i]
+        for exprs in all_ret_exprs[1:]:
+            meet_expr = BV.Or(meet_expr, exprs[i])
+        meet_exprs.append(meet_expr)
+    return tuple(meet_exprs)
+
+
 def simplify_term(expr: Expr) -> tuple[Expr, int, int]:
     egraph = EGraph()
     rules = gen_ruleset()
     expr_to_simplify = egraph.let("expr_to_simplify", expr)
     _, previous_cost = egraph.extract(expr_to_simplify, include_cost=True)
-    # print(f"\tExpr: {expr}")
-    egraph.run(8, ruleset=rules)
+    egraph.run(6, ruleset=rules)
     new_expr, new_cost = egraph.extract(expr_to_simplify, include_cost=True)
-    # print(f"\tNew Expr: {new_expr}")
-    # print(f"Size: {previous_cost} -> {new_cost}")
     return new_expr, previous_cost, new_cost

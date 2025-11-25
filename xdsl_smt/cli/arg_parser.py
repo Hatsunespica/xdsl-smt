@@ -40,6 +40,11 @@ def register_arguments(prog: str) -> Namespace:
         ap.add_argument(
             "transfer_functions", type=Path, help="path to transfer function"
         )
+        ap.add_argument(
+            "-rewrite_meet",
+            action="store_true",
+            help="rewrite the entire meet instead of individual functions",
+        )
         return ap.parse_args()
 
     if prog == "synth_transfer":

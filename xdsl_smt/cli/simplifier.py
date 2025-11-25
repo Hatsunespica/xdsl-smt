@@ -30,10 +30,6 @@ from ..passes.transfer_dead_code_elimination import TransferDeadCodeElimination
 
 from ..passes.transfer_lower import LowerToCpp
 
-
-from xdsl_smt.utils.synthesizer_utils.log_utils import (
-    setup_loggers,
-)
 from xdsl_smt.cli.arg_parser import register_arguments
 
 
@@ -132,23 +128,27 @@ def get_helper_funcs(ctx: Context, p: Path) -> tuple[ModuleOp, List[FuncOp]]:
 
 def run(
     transfer_functions: Path,
+    rewrite_meet: bool,
 ):
     ctx = create_context()
     module, xfer_funcs = get_helper_funcs(ctx, transfer_functions)
 
     # Import the rewriter module
-    from xdsl_smt.egraph_rewriter.rewriter import rewrite_transfer_functions
+    from xdsl_smt.egraph_rewriter.rewriter import (
+        rewrite_transfer_functions,
+        rewrite_meet_of_all_functions,
+    )
 
     # Rewrite the transfer functions
-    rewritten_funcs = rewrite_transfer_functions(xfer_funcs)
-
-    print(f"Successfully processed {len(rewritten_funcs)} transfer functions")
+    all_ret_exprs = rewrite_transfer_functions(xfer_funcs)
+    if rewrite_meet:
+        rewrite_meet_of_all_functions(all_ret_exprs)
 
 
 def main() -> None:
     args = register_arguments("egraph_rewriter")
 
-    run(transfer_functions=args.transfer_functions)
+    run(transfer_functions=args.transfer_functions, rewrite_meet=args.rewrite_meet)
 
 
 if __name__ == "__main__":

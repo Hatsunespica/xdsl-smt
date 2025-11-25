@@ -2,44 +2,39 @@ from typing import List
 
 from xdsl.dialects.func import FuncOp
 
-from xdsl_smt.egraph_rewriter.expr_builder import ExprBuilder, simplify_term
+import egglog
+
+from xdsl_smt.egraph_rewriter.expr_builder import (
+    ExprBuilder,
+    build_meet_expr,
+    simplify_term,
+)
 
 
-def rewrite_function(func: FuncOp) -> FuncOp:
+def rewrite_function(func: FuncOp) -> tuple[egglog.Expr, ...]:
     """
     Rewrite a single transfer function by iterating over all its statements.
     This function specifically handles functions ending with "_body" or "_cond".
-    For now, this is just a placeholder that loops through all operations without modification.
+    Prints the expressions without returning anything.
 
     Args:
         func: The function to rewrite (should end with "_body" or "_cond")
-
-    Returns:
-        The modified function (currently unmodified)
     """
     function_name = func.sym_name.data
     print(f"Rewriting function: {function_name}")
 
-    # Verify this is a function we should be rewriting
-    if not (function_name.endswith("_body") or function_name.endswith("_cond")):
-        print(
-            f"  WARNING: Function {function_name} doesn't end with '_body' or '_cond'"
-        )
-
-    # Get the function body (first block)
-    if not func.body.blocks:
-        print(f"  Function {function_name} has no body")
-        return func
-
     expr_builder = ExprBuilder(func)
     expr_builder.build_expr()
+    rewritten_exprs = []
     for i, expr in enumerate(expr_builder.ret_exprs):
         simplfied, previous_cost, new_cost = simplify_term(expr)
         print(f"Known{i}: {previous_cost} -> {new_cost}")
-        print(f"  Before: {expr}")
-        print(f"  After:  {simplfied}")
+        # print(f"  Before: {expr}")
+        # print(f"  After:  {simplfied}")
+        rewritten_exprs.append(simplfied)
     print("\n")
-    return func
+
+    return tuple(rewritten_exprs)
 
 
 def should_rewrite_function(func: FuncOp) -> bool:
@@ -51,16 +46,15 @@ def should_rewrite_function(func: FuncOp) -> bool:
     return function_name.endswith("_body") or function_name.endswith("_cond")
 
 
-def rewrite_transfer_functions(xfer_funcs: List[FuncOp]) -> List[FuncOp]:
+def rewrite_transfer_functions(
+    xfer_funcs: List[FuncOp],
+) -> list[tuple[egglog.Expr, ...]]:
     """
     Rewrite transfer functions provided by postprocessor.py.
     Only functions ending with "_body" or "_cond" will be rewritten.
 
     Args:
         xfer_funcs: List of transfer functions to rewrite (from postprocessor.py)
-
-    Returns:
-        List of rewritten transfer functions
     """
     print(f"Starting rewrite of {len(xfer_funcs)} transfer functions")
 
@@ -85,15 +79,53 @@ def rewrite_transfer_functions(xfer_funcs: List[FuncOp]) -> List[FuncOp]:
         for func in functions_to_skip:
             print(f"  - {func.sym_name.data}")
 
-    # Rewrite only the filtered functions
-    rewritten_funcs: List[FuncOp] = []
-
-    # Add the functions we're skipping unchanged
-    rewritten_funcs.extend(functions_to_skip)
-
     # Rewrite the functions we want to process
+    rewritten_funcs = []
     for func in functions_to_rewrite:
-        rewritten_func = rewrite_function(func)
-        rewritten_funcs.append(rewritten_func)
-
+        rewritten_funcs.append(rewrite_function(func))
     return rewritten_funcs
+
+
+def rewrite_meet_of_all_functions(all_ret_exprs: List[tuple[egglog.Expr, ...]]) -> None:
+    """
+    Process meet expressions for functions ending with "_body".
+
+    Args:
+        all_ret_exprs: List of return expressions from transfer functions
+    """
+    print(f"Building meet of {len(all_ret_exprs)} functions")
+    meet_exprs = build_meet_expr(all_ret_exprs)
+    print(f"Done. ")
+    for i, expr in enumerate(meet_exprs):
+        simplfied, previous_cost, new_cost = simplify_term(expr)
+        print(f"Known{i}: {previous_cost} -> {new_cost}")
+        print(f"  Before: {expr}")
+        print(f"  After:  {simplfied}")
+    print("\n")
+
+
+# def rewrite_meet_of_all_functions(xfer_funcs: List[FuncOp]) -> None:
+#     """
+#     Process meet expressions for functions ending with "_body".
+
+#     Args:
+#         xfer_funcs: List of transfer functions to process
+#     """
+#     functions_in_meet = [
+#         func for func in xfer_funcs if func.sym_name.data.endswith("_body")
+#     ]
+
+#     all_ret_exprs = []
+#     for func in functions_in_meet:
+#         expr_builder = ExprBuilder(func)
+#         expr_builder.build_expr()
+#         all_ret_exprs.append(expr_builder.ret_exprs)
+#     print(f"Building meet of {len(functions_in_meet)} functions")
+#     meet_exprs = build_meet_expr(all_ret_exprs)
+#     print(f"Done. ")
+#     for i, expr in enumerate(meet_exprs):
+#         simplfied, previous_cost, new_cost = simplify_term(expr)
+#         print(f"Known{i}: {previous_cost} -> {new_cost}")
+#         print(f"  Before: {expr}")
+#         print(f"  After:  {simplfied}")
+#     print("\n")
