@@ -39,6 +39,7 @@ synth-transfer = "xdsl_smt.cli.synth_transfer:main"
 benchmark-synth = "xdsl_smt.cli.benchmark:main"
 eval-final = "xdsl_smt.cli.eval_final:main"
 xdsl-smt-run = "xdsl_smt.cli.xdsl_smt_run:main"
+pattern-parser = "xdsl_smt.cli.pattern_parser:main"
 
 [build-system]
 requires = ["setuptools>=61", "wheel"]
