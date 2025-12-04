@@ -486,6 +486,7 @@ def make_tf_signature(func_def:FunctionDef) -> FuncOp:
     blk.add_op(ReturnOp(blk.args[0]))
     func_op.attributes["is_forward"] = IntegerAttr.from_int_and_width(1,1)
     func_op.attributes["applied_to"] = ArrayAttr([StringAttr("llvm_pattern")])
+    func_op.attributes["CPPCLASS"] = ArrayAttr([StringAttr("non_cpp_class")])
     return func_op
 
 def to_spec(func_path: str) -> ModuleOp:
