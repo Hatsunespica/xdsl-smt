@@ -17,8 +17,11 @@ from xdsl.pattern_rewriter import PatternRewriteWalker, PatternRewriter, Rewrite
 
 
 class FunctionCallInlinePattern(RewritePattern):
+    unname_count:int
+
     def __init__(self, func_name_to_func: dict[str, func.FuncOp]):
         self.func_name_to_func = func_name_to_func
+        self.unname_count=0
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, callOp: func.CallOp, rewriter: PatternRewriter) -> None:
@@ -27,20 +30,33 @@ class FunctionCallInlinePattern(RewritePattern):
         func_name_to_func = self.func_name_to_func
         assert callee in func_name_to_func and ("Cannot find the callee " + callee)
         calleeFunc = func_name_to_func[callee]
+        callee_name = calleeFunc.sym_name.data
+        if callee_name == "":
+            callee_name="unnamed"+str(self.unname_count)
+            self.unname_count+=1
         for i, arg in enumerate(calleeFunc.args):
             value_map[arg] = callOp.arguments[i]
 
         for op in calleeFunc.body.ops:
+            op_count=0
             if isinstance(op, func.ReturnOp):
                 callOp.results[0].replace_by(value_map[op.arguments[0]])
                 rewriter.erase_matched_op()
                 return
             else:
                 newOp: Operation = op.clone()
+                if len(newOp.results) != 0:
+                    for res in newOp.results:
+                        if res.name_hint == "":
+                            res.name_hint = callee_name+"_"+str(op_count)
+                            op_count+=1
+                        else:
+                            res.name_hint = callee_name+"_"+str(res.name_hint)
                 for i, arg in enumerate(op.operands):
                     newOp.operands[i] = value_map[arg]
                 value_map[op.results[0]] = newOp.results[0]
                 rewriter.insert_op_before_matched_op(newOp)
+
 
 
 class SMTCallInlinePattern(RewritePattern):
