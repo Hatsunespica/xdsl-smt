@@ -1,33 +1,33 @@
 "builtin.module"() ({
-  "func.func"() <{sym_name = "concrete_op", function_type = (#transfer.integer, #transfer.integer, #transfer.integer, #transfer.integer, #transfer.integer, #transfer.integer) -> #transfer.integer}> ({
-  ^0(%0 : #transfer.integer, %1 : #transfer.integer, %2 : #transfer.integer, %3 : #transfer.integer, %4 : #transfer.integer, %5 : #transfer.integer):
-    %6 = "transfer.lshr"(%5, %4) : (#transfer.integer, #transfer.integer) -> #transfer.integer
-    %7 = "transfer.mul"(%3, %6) : (#transfer.integer, #transfer.integer) -> #transfer.integer
-    %8 = "transfer.add"(%1, %2) : (#transfer.integer, #transfer.integer) -> #transfer.integer
-    %9 = "transfer.mul"(%0, %8) : (#transfer.integer, #transfer.integer) -> #transfer.integer
-    %10 = "transfer.add"(%7, %9) : (#transfer.integer, #transfer.integer) -> #transfer.integer
-    "func.return"(%10) : (#transfer.integer) -> ()
+  "func.func"() <{sym_name = "concrete_op", function_type = (!transfer.integer, !transfer.integer, !transfer.integer, !transfer.integer, !transfer.integer, !transfer.integer) -> !transfer.integer}> ({
+  ^0(%0 : !transfer.integer, %1 : !transfer.integer, %2 : !transfer.integer, %3 : !transfer.integer, %4 : !transfer.integer, %5 : !transfer.integer):
+    %6 = "transfer.lshr"(%5, %4) : (!transfer.integer, !transfer.integer) -> !transfer.integer
+    %7 = "transfer.mul"(%3, %6) : (!transfer.integer, !transfer.integer) -> !transfer.integer
+    %8 = "transfer.add"(%1, %2) : (!transfer.integer, !transfer.integer) -> !transfer.integer
+    %9 = "transfer.mul"(%0, %8) : (!transfer.integer, !transfer.integer) -> !transfer.integer
+    %10 = "transfer.add"(%7, %9) : (!transfer.integer, !transfer.integer) -> !transfer.integer
+    "func.return"(%10) : (!transfer.integer) -> ()
   }) : () -> ()
-  "func.func"() <{sym_name = "op_constraint", function_type = (#transfer.integer, #transfer.integer, #transfer.integer, #transfer.integer, #transfer.integer, #transfer.integer) -> i1}> ({
-  ^0(%0 : #transfer.integer, %1 : #transfer.integer, %2 : #transfer.integer, %3 : #transfer.integer, %4 : #transfer.integer, %5 : #transfer.integer):
+  "func.func"() <{sym_name = "op_constraint", function_type = (!transfer.integer, !transfer.integer, !transfer.integer, !transfer.integer, !transfer.integer, !transfer.integer) -> i1}> ({
+  ^0(%0 : !transfer.integer, %1 : !transfer.integer, %2 : !transfer.integer, %3 : !transfer.integer, %4 : !transfer.integer, %5 : !transfer.integer):
     %6 = "arith.constant"() <{value = true}> : () -> i1
-    %7 = "transfer.lshr"(%5, %4) : (#transfer.integer, #transfer.integer) -> #transfer.integer
-    %8 = "transfer.mul"(%3, %7) : (#transfer.integer, #transfer.integer) -> #transfer.integer
-    %9 = "func.call"(%3, %7) <{callee = "mul_nuw"}> : (#transfer.integer, #transfer.integer) -> i1
-    %10 = "func.call"(%3, %7) <{callee = "mul_nsw"}> : (#transfer.integer, #transfer.integer) -> i1
-    %11 = "transfer.add"(%1, %2) : (#transfer.integer, #transfer.integer) -> #transfer.integer
-    %12 = "func.call"(%1, %2) <{callee = "add_nsw"}> : (#transfer.integer, #transfer.integer) -> i1
-    %13 = "transfer.mul"(%0, %11) : (#transfer.integer, #transfer.integer) -> #transfer.integer
-    %14 = "transfer.add"(%8, %13) : (#transfer.integer, #transfer.integer) -> #transfer.integer
+    %7 = "transfer.lshr"(%5, %4) : (!transfer.integer, !transfer.integer) -> !transfer.integer
+    %8 = "transfer.mul"(%3, %7) : (!transfer.integer, !transfer.integer) -> !transfer.integer
+    %9 = "func.call"(%3, %7) <{callee = @mul_nuw}> : (!transfer.integer, !transfer.integer) -> i1
+    %10 = "func.call"(%3, %7) <{callee = @mul_nsw}> : (!transfer.integer, !transfer.integer) -> i1
+    %11 = "transfer.add"(%1, %2) : (!transfer.integer, !transfer.integer) -> !transfer.integer
+    %12 = "func.call"(%1, %2) <{callee = @add_nsw}> : (!transfer.integer, !transfer.integer) -> i1
+    %13 = "transfer.mul"(%0, %11) : (!transfer.integer, !transfer.integer) -> !transfer.integer
+    %14 = "transfer.add"(%8, %13) : (!transfer.integer, !transfer.integer) -> !transfer.integer
     %15 = "arith.andi"(%6, %9) : (i1, i1) -> i1
     %16 = "arith.andi"(%15, %10) : (i1, i1) -> i1
     %17 = "arith.andi"(%16, %12) : (i1, i1) -> i1
     "func.return"(%17) : (i1) -> ()
   }) : () -> ()
-  "func.func"() <{sym_name = "patternImpl", function_type = (!transfer.abs_value<[#transfer.integer, #transfer.integer]>, !transfer.abs_value<[#transfer.integer, #transfer.integer]>, !transfer.abs_value<[#transfer.integer, #transfer.integer]>, !transfer.abs_value<[#transfer.integer, #transfer.integer]>, !transfer.abs_value<[#transfer.integer, #transfer.integer]>, !transfer.abs_value<[#transfer.integer, #transfer.integer]>) -> !transfer.abs_value<[#transfer.integer, #transfer.integer]>}> ({
-  ^0(%0 : !transfer.abs_value<[#transfer.integer, #transfer.integer]>, %1 : !transfer.abs_value<[#transfer.integer, #transfer.integer]>, %2 : !transfer.abs_value<[#transfer.integer, #transfer.integer]>, %3 : !transfer.abs_value<[#transfer.integer, #transfer.integer]>, %4 : !transfer.abs_value<[#transfer.integer, #transfer.integer]>, %5 : !transfer.abs_value<[#transfer.integer, #transfer.integer]>):
-    "func.return"(%0) : (!transfer.abs_value<[#transfer.integer, #transfer.integer]>) -> ()
-  }) : () -> ()
+  "func.func"() <{sym_name = "patternImpl", function_type = (!transfer.abs_value<[!transfer.integer, !transfer.integer]>, !transfer.abs_value<[!transfer.integer, !transfer.integer]>, !transfer.abs_value<[!transfer.integer, !transfer.integer]>, !transfer.abs_value<[!transfer.integer, !transfer.integer]>, !transfer.abs_value<[!transfer.integer, !transfer.integer]>, !transfer.abs_value<[!transfer.integer, !transfer.integer]>) -> !transfer.abs_value<[!transfer.integer, !transfer.integer]>}> ({
+  ^0(%0 : !transfer.abs_value<[!transfer.integer, !transfer.integer]>, %1 : !transfer.abs_value<[!transfer.integer, !transfer.integer]>, %2 : !transfer.abs_value<[!transfer.integer, !transfer.integer]>, %3 : !transfer.abs_value<[!transfer.integer, !transfer.integer]>, %4 : !transfer.abs_value<[!transfer.integer, !transfer.integer]>, %5 : !transfer.abs_value<[!transfer.integer, !transfer.integer]>):
+    "func.return"(%0) : (!transfer.abs_value<[!transfer.integer, !transfer.integer]>) -> ()
+  }) {is_forward = true, applied_to = ["llvm_pattern"]} : () -> ()
   "func.func"() <{sym_name = "mul_nuw", function_type = (!transfer.integer, !transfer.integer) -> i1}> ({
   ^0(%arg0 : !transfer.integer, %arg1 : !transfer.integer):
     %umul_ov = "transfer.umul_overflow"(%arg0, %arg1) : (!transfer.integer, !transfer.integer) -> i1

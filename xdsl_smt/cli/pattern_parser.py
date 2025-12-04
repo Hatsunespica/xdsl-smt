@@ -4,7 +4,7 @@ from typing import List, Optional
 import sys
 from xdsl.dialects.func import FuncOp, FunctionType, ReturnOp, CallOp, Func
 from xdsl.ir.core import Operation, SSAValue
-from xdsl.dialects.builtin import Builtin, i1, ModuleOp
+from xdsl.dialects.builtin import Builtin, i1, ModuleOp, IntegerAttr, ArrayAttr, StringAttr
 import xdsl.dialects.arith as arith
 from xdsl.printer import Printer
 from xdsl_smt.dialects.transfer import TransIntegerType, Transfer, AbstractValueType
@@ -418,7 +418,7 @@ def get_op(inst: Instruction) -> Operation:
 
 def to_mlir_func(func_def: FunctionDef, func_name: str) -> FuncOp:
     func_type = FunctionType.from_lists(
-        [TransIntegerType for _ in func_def.args], [TransIntegerType]
+        [TransIntegerType() for _ in func_def.args], [TransIntegerType()]
     )
 
     func = FuncOp(func_name, func_type)
@@ -450,7 +450,7 @@ def combine_and_ops(ops: list[Operation]) -> tuple[list[Operation], SSAValue]:
 def to_mlir_constraint(func_def: FunctionDef) -> tuple[FuncOp, list[FuncOp]]:
     global value_mapping
     value_mapping = {}
-    func_type = FunctionType.from_lists([TransIntegerType for _ in func_def.args], [i1])
+    func_type = FunctionType.from_lists([TransIntegerType() for _ in func_def.args], [i1])
 
     func = FuncOp("op_constraint", func_type)
     for arg, arg_val in zip(func_def.args, func.args):
@@ -469,7 +469,7 @@ def to_mlir_constraint(func_def: FunctionDef) -> tuple[FuncOp, list[FuncOp]]:
         for c_func in constraint_funcs:
             if c_func.sym_name.data not in constraint_func_mapping:
                 constraint_func_mapping[c_func.sym_name.data] = c_func
-            applied_op = CallOp(c_func.sym_name, cur_op.operands, [i1])
+            applied_op = CallOp(c_func.sym_name.data, cur_op.operands, [i1])
             blk.add_op(applied_op)
             constraint_list.append(applied_op)
     result_ops, result = combine_and_ops(constraint_list)
@@ -479,11 +479,13 @@ def to_mlir_constraint(func_def: FunctionDef) -> tuple[FuncOp, list[FuncOp]]:
 
 
 def make_tf_signature(func_def:FunctionDef) -> FuncOp:
-    kb_type = AbstractValueType([TransIntegerType, TransIntegerType])
+    kb_type = AbstractValueType([TransIntegerType(), TransIntegerType()])
     func_type = FunctionType.from_lists([kb_type for _ in func_def.args], [kb_type])
     func_op = FuncOp("patternImpl", func_type)
     blk  = func_op.body.block
     blk.add_op(ReturnOp(blk.args[0]))
+    func_op.attributes["is_forward"] = IntegerAttr.from_int_and_width(1,1)
+    func_op.attributes["applied_to"] = ArrayAttr([StringAttr("llvm_pattern")])
     return func_op
 
 def to_spec(func_path: str) -> ModuleOp:
