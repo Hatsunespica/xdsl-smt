@@ -6,7 +6,8 @@ from xdsl.dialects.func import FuncOp, FunctionType, ReturnOp, CallOp, Func
 from xdsl.ir.core import Operation, SSAValue
 from xdsl.dialects.builtin import Builtin, i1, ModuleOp
 import xdsl.dialects.arith as arith
-from xdsl_smt.dialects.transfer import TransIntegerType, Transfer
+from xdsl.printer import Printer
+from xdsl_smt.dialects.transfer import TransIntegerType, Transfer, AbstractValueType
 import xdsl_smt.dialects.transfer as tf
 from xdsl.context import Context
 from xdsl.parser import Parser
@@ -477,6 +478,14 @@ def to_mlir_constraint(func_def: FunctionDef) -> tuple[FuncOp, list[FuncOp]]:
     return func, list(constraint_func_mapping.values())
 
 
+def make_tf_signature(func_def:FunctionDef) -> FuncOp:
+    kb_type = AbstractValueType([TransIntegerType, TransIntegerType])
+    func_type = FunctionType.from_lists([kb_type for _ in func_def.args], [kb_type])
+    func_op = FuncOp("patternImpl", func_type)
+    blk  = func_op.body.block
+    blk.add_op(ReturnOp(blk.args[0]))
+    return func_op
+
 def to_spec(func_path: str) -> ModuleOp:
     # Register all dialects
     context = Context()
@@ -488,10 +497,13 @@ def to_spec(func_path: str) -> ModuleOp:
     func = load_file(func_path)
     concrete_op = to_mlir_func(func, "concrete_op")
     op_constraint, extra_funcs = to_mlir_constraint(func)
-    module_op = ModuleOp([concrete_op, op_constraint] + extra_funcs)
+    tf_signature = make_tf_signature(func)
+    module_op = ModuleOp([concrete_op, op_constraint, tf_signature] + extra_funcs)
     return module_op
 
 
 def main():
     f = sys.argv[1]
-    print(to_spec(f))
+    printer = Printer(print_generic_format=True)
+    printer.print_op(to_spec(f))
+

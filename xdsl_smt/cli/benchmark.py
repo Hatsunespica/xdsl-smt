@@ -11,54 +11,28 @@ from typing import Any
 
 
 all_test_names = [
-    "Abds.mlir",
-    "Abdu.mlir",
-    "Add.mlir",
-    "AddNsw.mlir",
-    "AddNswNuw.mlir",
-    "AddNuw.mlir",
-    "And.mlir",
-    "AshrExact.mlir",
-    "Ashr.mlir",
-    "AvgCeilS.mlir",
-    "AvgCeilU.mlir",
-    "AvgFloorS.mlir",
-    "AvgFloorU.mlir",
-    "LshrExact.mlir",
-    "Lshr.mlir",
-    "Mods.mlir",
-    "Modu.mlir",
-    "Mul.mlir",
-    "MulNsw.mlir",
-    "MulNswNuw.mlir",
-    "MulNuw.mlir",
-    "Or.mlir",
-    "SaddSat.mlir",
-    "SdivExact.mlir",
-    "Sdiv.mlir",
-    "Shl.mlir",
-    "ShlNsw.mlir",
-    "ShlNswNuw.mlir",
-    "ShlNuw.mlir",
-    "Smax.mlir",
-    "Smin.mlir",
-    "SmulSat.mlir",
-    "SshlSat.mlir",
-    "SsubSat.mlir",
-    "Sub.mlir",
-    "SubNsw.mlir",
-    "SubNswNuw.mlir",
-    "SubNuw.mlir",
-    "UaddSat.mlir",
-    "UdivExact.mlir",
-    "Udiv.mlir",
-    "Umax.mlir",
-    "Umin.mlir",
-    "UmulSat.mlir",
-    "UshlSat.mlir",
-    "UsubSat.mlir",
-    "Xor.mlir",
+    "10000_5.mlir",
+    "10001_5.mlir",
+    "10002_5.mlir",
+    "10003_5.mlir",
+    "1000_448.mlir",
+    "10004_5.mlir",
+    "10005_5.mlir",
+    "10006_5.mlir",
+    "10007_5.mlir",
+    "10008_5.mlir",
+    "10009_5.mlir",
+    "10010_5.mlir",
+    "10011_5.mlir",
+    "10012_5.mlir",
+    "10013_5.mlir",
+    "1001_448.mlir",
+    "10014_5.mlir",
+    "10015_5.mlir",
+    "10016_5.mlir",
+    "10017_5.mlir",
 ]
+
 
 
 ucr_test_names = [
@@ -223,7 +197,7 @@ def synth_run(
 
 def main() -> None:
     args = register_arguments("benchmark")
-    start_dir = Path("tests").joinpath("synth", "Operations")
+    start_dir = Path("tests").joinpath("synth", "Patterns")
 
     if not args.outputs_folder.exists():
         args.outputs_folder.mkdir(parents=True, exist_ok=True)
@@ -238,13 +212,13 @@ def main() -> None:
     ]
 
     ucr_inputs = [
-        (x.split(".")[0], AbstractDomain.UConstRange, start_dir.joinpath(x), args)
-        for x in ucr_test_names
+        #(x.split(".")[0], AbstractDomain.UConstRange, start_dir.joinpath(x), args)
+        #for x in ucr_test_names
     ]
 
     scr_inputs = [
-        (x.split(".")[0], AbstractDomain.SConstRange, start_dir.joinpath(x), args)
-        for x in scr_test_names
+        #(x.split(".")[0], AbstractDomain.SConstRange, start_dir.joinpath(x), args)
+        #for x in scr_test_names
     ]
 
     with Pool() as p:
