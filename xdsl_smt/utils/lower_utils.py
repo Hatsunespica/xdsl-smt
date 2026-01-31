@@ -115,10 +115,10 @@ operNameToCpp = {
     "transfer.lshr": ".lshr",
     "transfer.concat": ".concat",
     "transfer.extract": ".extractBits",
-    "transfer.umin": "A::APIntOps::umin",
-    "transfer.smin": "A::APIntOps::smin",
-    "transfer.umax": "A::APIntOps::umax",
-    "transfer.smax": "A::APIntOps::smax",
+    "transfer.umin": "APIntOps::umin",
+    "transfer.smin": "APIntOps::smin",
+    "transfer.umax": "APIntOps::umax",
+    "transfer.smax": "APIntOps::smax",
     "func.return": "return",
     "transfer.constant": "APInt",
     "arith.select": ["?", ":"],
@@ -186,7 +186,8 @@ unsignedReturnedType = {
 }
 
 int_to_apint = False
-use_custom_vec = True
+use_custom_vec = False
+use_array_vec = True
 EQ = " = "
 END = ";\n"
 IDNT = "\t"
@@ -241,6 +242,8 @@ def lowerType(typ: Attribute, specialOp: Operation | Block | None = None) -> str
             assert lowerType(fields[i]) == typeName
         if use_custom_vec:
             return "Vec<" + str(len(fields)) + ">"
+        if use_array_vec:
+            return typeName + "[" + str(len(fields)) + "]"
         return "std::vector<" + typeName + ">"
     elif isinstance(typ, IntegerType):
         return "int" if not int_to_apint else "APInt"
@@ -507,6 +510,13 @@ def _(op: GetOp) -> str:
 def _(op: MakeOp) -> str:
     returnedType = lowerType(op.results[0].type, op)
     returnedValue = get_ret_val(op)
+    result_inst = IDNT + returnedType + " " + returnedValue + END
+    assign_inst: list[str] = []
+    for i in range(len(op.operands)):
+        assign_inst.append(
+            IDNT + returnedValue + "[" + str(i) + "]" + EQ + get_operand(op, i) + END
+        )
+    return result_inst + "".join(assign_inst)
     expr = ""
     if len(op.operands) > 0:
         expr += get_operand(op, 0)
@@ -576,11 +586,14 @@ def _(op: NegOp) -> str:
 
 @lowerOperation.register
 def _(op: ReturnOp) -> str:
+    return ""
+    """
     opName = get_op_str(op) + " "
     operand = op.arguments[0].name_hint
     assert operand
 
     return IDNT + opName + operand + END
+    """
 
 
 @lowerOperation.register
@@ -691,6 +704,13 @@ def _(op: GetSignedMinValueOp):
 def _(op: CallOp):
     returnedType = lowerType(op.results[0].type)
     returnedValue = get_ret_val(op)
+    declareInst = IDNT + returnedType + " " + returnedValue + END
+
+    typePostfix = " "
+    if not isinstance(op.results[0].type, AbstractValueType):
+        typePostfix = "&"
+    lastArg = "," + typePostfix + returnedValue
+
     callee = op.callee.string_value() + "("
     operandsName = get_op_names(op)
     expr = ""
@@ -698,8 +718,10 @@ def _(op: CallOp):
         expr += operandsName[0]
     for i in range(1, len(operandsName)):
         expr += "," + operandsName[i]
+    expr += lastArg
     expr += ")"
-    return IDNT + returnedType + " " + returnedValue + EQ + callee + expr + END
+    callInst = IDNT + callee + expr + END
+    return declareInst + callInst
 
 
 def set_clear_bits(
@@ -725,16 +747,26 @@ def _(op: FuncOp):
         assert arg.name_hint
         return lowerType(arg.type) + " " + arg.name_hint
 
-    returnedType = lowerType(op.function_type.outputs.data[0])
+    def lowerReturn(returnOp: ReturnOp):
+        returnValue = get_operand(returnOp, 0)
+        returnedType = lowerType(op.function_type.outputs.data[0])
+        typePostfix = " "
+        if not isinstance(op.function_type.outputs.data[0], AbstractValueType):
+            typePostfix = "* "
+        return ", " + returnedType + typePostfix + returnValue
+
+    returnOp = op.get_return_op()
+    assert returnOp is not None
     funcName = op.sym_name.data
     expr = "("
     if len(op.args) > 0:
         expr += lowerArgs(op.args[0])
     for i in range(1, len(op.args)):
         expr += "," + lowerArgs(op.args[i])
+    expr += lowerReturn(returnOp)
     expr += ")"
 
-    return returnedType + " " + funcName + expr + "{\n"  # }
+    return "void " + funcName + expr + "{\n"  # }
 
 
 def castToAPIntFromUnsigned(op: Operation) -> str:

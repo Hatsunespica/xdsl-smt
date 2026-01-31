@@ -44,10 +44,10 @@ inductionOp: list[FuncOp] = []
 def _(op: Operation, fout: TextIO):
     global needDispatch
     global inductionOp
+    global autogen
     if isinstance(op, ModuleOp):
         return
     if len(op.results) > 0 and op.results[0].name_hint is None:
-        global autogen
         op.results[0].name_hint = "autogen" + str(autogen)
         autogen += 1
     if isinstance(op, FuncOp):
@@ -55,6 +55,12 @@ def _(op: Operation, fout: TextIO):
             if arg.name_hint is None:
                 arg.name_hint = "autogen" + str(autogen)
                 autogen += 1
+        returnOp = op.get_return_op()
+        if returnOp is not None:
+            for operand in returnOp.operands:
+                if operand.name_hint is None:
+                    operand.name_hint = "autogen" + str(autogen)
+                    autogen += 1
         if CPP_CLASS_KEY in op.attributes:
             needDispatch.append(op)
         if INDUCTION_KEY in op.attributes:
@@ -63,7 +69,7 @@ def _(op: Operation, fout: TextIO):
     funcStr += lowerOperation(op)
     parentOp = op.parent_op()
     if isinstance(parentOp, FuncOp) and parentOp.body.block.last_op == op:
-        funcStr += "}\n"
+        funcStr += "}\n\n"
         fout.write(funcStr)
         funcStr = funcPrefix
 

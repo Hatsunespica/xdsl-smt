@@ -117,8 +117,8 @@ def main() -> None:
                 allFuncMapping[func.sym_name.data] = func
                 # HACK: we know the pass won't check that the operation is a module
                 LowerToCpp(fout).apply(ctx, cast(ModuleOp, func))
-        addInductionOps(fout)
-        addDispatcher(fout, forward)
+        # addInductionOps(fout)
+        # addDispatcher(fout, forward)
 
     # printer = Printer(target=Printer.Target.MLIR)
     # printer.print_op(module)
