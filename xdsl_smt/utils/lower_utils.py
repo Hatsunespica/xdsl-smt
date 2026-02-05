@@ -187,7 +187,8 @@ unsignedReturnedType = {
 
 int_to_apint = False
 use_custom_vec = False
-use_array_vec = True
+use_pointer_vec = True
+POINTER_ABSTRACT_VALUE="APInt**"
 EQ = " = "
 END = ";\n"
 IDNT = "\t"
@@ -242,8 +243,8 @@ def lowerType(typ: Attribute, specialOp: Operation | Block | None = None) -> str
             assert lowerType(fields[i]) == typeName
         if use_custom_vec:
             return "Vec<" + str(len(fields)) + ">"
-        if use_array_vec:
-            return typeName + "[" + str(len(fields)) + "]"
+        if use_pointer_vec:
+            return typeName +"*"
         return "std::vector<" + typeName + ">"
     elif isinstance(typ, IntegerType):
         return "int" if not int_to_apint else "APInt"
@@ -407,6 +408,17 @@ def lowerToClassMethod(
 
     return result
 
+
+def getDeclarationInst(op:Operation) -> str:
+    if isinstance(op, ReturnOp):
+        returnValOp = op.operands[0].owner
+        returnedType = lowerType(returnValOp.results[0].type, returnValOp)
+        if isinstance(returnValOp, CallOp) or isinstance(returnValOp, MakeOp):
+            returnedValue = get_ret_val(returnValOp)
+            result_inst = IDNT + returnedType + " " + returnedValue + END
+            return result_inst
+        return returnedType+" "
+    assert False
 
 @singledispatch
 def lowerOperation(op: Operation) -> str:
@@ -743,7 +755,7 @@ def set_clear_bits(
 
 @lowerOperation.register
 def _(op: FuncOp):
-    def lowerArgs(arg: BlockArgument) -> str:
+    def lowerArg(arg: BlockArgument) -> str:
         assert arg.name_hint
         return lowerType(arg.type) + " " + arg.name_hint
 
@@ -755,18 +767,36 @@ def _(op: FuncOp):
             typePostfix = "* "
         return ", " + returnedType + typePostfix + returnValue
 
+    def lowerArgs(args:tuple[BlockArgument, ...], shouldCombine:bool) -> tuple[list[str], list[str]]:
+        result:list[str] = []
+        combinedAbstractArgs:list[str] = []
+        COMBINED_ABSTRACT_ARG = "combinedAbstractArg"
+        for arg in op.args:
+            typeStr = lowerType(arg.type)
+            argStr = typeStr + " " + arg.name_hint
+            if shouldCombine:
+                if not isinstance(arg.type, AbstractValueType):
+                    result.append(typeStr+" "+arg.name_hint)
+                else:
+                    combinedAbstractArgs.append(IDNT + argStr + EQ + COMBINED_ABSTRACT_ARG+"[" + str(len(combinedAbstractArgs))+"]" + END)
+            else:
+                result.append(typeStr + " " + arg.name_hint)
+        if combinedAbstractArgs:
+            result = [POINTER_ABSTRACT_VALUE+" "+COMBINED_ABSTRACT_ARG] + result
+        return result, combinedAbstractArgs
+
+
     returnOp = op.get_return_op()
     assert returnOp is not None
     funcName = op.sym_name.data
+    shouldCombine=(funcName == "solution")
+    loweredArgs, combinedArgs = lowerArgs(op.args, shouldCombine)
     expr = "("
-    if len(op.args) > 0:
-        expr += lowerArgs(op.args[0])
-    for i in range(1, len(op.args)):
-        expr += "," + lowerArgs(op.args[i])
+    expr += ", ".join(loweredArgs)
     expr += lowerReturn(returnOp)
     expr += ")"
 
-    return "void " + funcName + expr + "{\n"  # }
+    return "void " + funcName + expr + "{\n" + "".join(combinedArgs)  # }
 
 
 def castToAPIntFromUnsigned(op: Operation) -> str:

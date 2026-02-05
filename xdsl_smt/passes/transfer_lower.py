@@ -14,7 +14,7 @@ from ..utils.lower_utils import (
     lowerDispatcher,
     INDUCTION_KEY,
     lowerInductionOps,
-    set_int_to_apint,
+    set_int_to_apint, getDeclarationInst,
 )
 
 from xdsl.pattern_rewriter import (
@@ -26,6 +26,11 @@ from xdsl.pattern_rewriter import (
 )
 
 autogen = 0
+
+
+def eraseReturnDeclarationInstruction(funcStr: str, decl:str) -> str:
+    idx = funcStr.rfind(decl)
+    return funcStr[:idx]+funcStr[idx+len(decl):]
 
 
 @singledispatch
@@ -50,6 +55,7 @@ def _(op: Operation, fout: TextIO):
     if len(op.results) > 0 and op.results[0].name_hint is None:
         op.results[0].name_hint = "autogen" + str(autogen)
         autogen += 1
+    returnValDefOp=None
     if isinstance(op, FuncOp):
         for arg in op.args:
             if arg.name_hint is None:
@@ -58,6 +64,7 @@ def _(op: Operation, fout: TextIO):
         returnOp = op.get_return_op()
         if returnOp is not None:
             for operand in returnOp.operands:
+                returnValDefOp = operand.owner
                 if operand.name_hint is None:
                     operand.name_hint = "autogen" + str(autogen)
                     autogen += 1
@@ -70,6 +77,8 @@ def _(op: Operation, fout: TextIO):
     parentOp = op.parent_op()
     if isinstance(parentOp, FuncOp) and parentOp.body.block.last_op == op:
         funcStr += "}\n\n"
+        declInst = getDeclarationInst(op)
+        funcStr = eraseReturnDeclarationInstruction(funcStr, declInst)
         fout.write(funcStr)
         funcStr = funcPrefix
 
