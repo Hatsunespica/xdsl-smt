@@ -252,6 +252,29 @@ def lowerType(typ: Attribute, specialOp: Operation | Block | None = None) -> str
         return "int"
     assert False and "unsupported type"
 
+def lowerToArrayType(typ: Attribute, specialOp: Operation | Block | None = None) -> str:
+    if specialOp is not None:
+        for op in unsignedReturnedType:
+            if isinstance(specialOp, op):
+                return "unsigned"
+    if isinstance(typ, TransIntegerType):
+        return "APInt"
+    elif isinstance(typ, AbstractValueType) or isinstance(typ, TupleType):
+        fields = typ.get_fields()
+        typeName = lowerType(fields[0])
+        for i in range(1, len(fields)):
+            assert lowerType(fields[i]) == typeName
+        if use_custom_vec:
+            return "Vec<" + str(len(fields)) + ">"
+        if use_pointer_vec:
+            return typeName +"[" + str(len(fields)) + "]"
+        return "std::vector<" + typeName + ">"
+    elif isinstance(typ, IntegerType):
+        return "int" if not int_to_apint else "APInt"
+    elif isinstance(typ, IndexType):
+        return "int"
+    assert False and "unsupported type"
+
 
 def lowerInductionOps(inductionOp: list[FuncOp]) -> str:
     if len(inductionOp) > 0:
@@ -409,15 +432,15 @@ def lowerToClassMethod(
     return result
 
 
-def getDeclarationInst(op:Operation) -> str:
+def getDeclarationInst(op:Operation) -> tuple[str, str]:
     if isinstance(op, ReturnOp):
         returnValOp = op.operands[0].owner
-        returnedType = lowerType(returnValOp.results[0].type, returnValOp)
+        returnedType = lowerToArrayType(returnValOp.results[0].type, returnValOp)
+        returnedValue = get_ret_val(returnValOp)
         if isinstance(returnValOp, CallOp) or isinstance(returnValOp, MakeOp):
-            returnedValue = get_ret_val(returnValOp)
             result_inst = IDNT + returnedType + " " + returnedValue + END
-            return result_inst
-        return returnedType+" "
+            return result_inst, ""
+        return IDNT + returnedType + " " + returnedValue, IDNT + returnedValue + "[0]"
     assert False
 
 @singledispatch
@@ -520,7 +543,7 @@ def _(op: GetOp) -> str:
 
 @lowerOperation.register
 def _(op: MakeOp) -> str:
-    returnedType = lowerType(op.results[0].type, op)
+    returnedType = lowerToArrayType(op.results[0].type, op)
     returnedValue = get_ret_val(op)
     result_inst = IDNT + returnedType + " " + returnedValue + END
     assign_inst: list[str] = []
@@ -714,7 +737,7 @@ def _(op: GetSignedMinValueOp):
 
 @lowerOperation.register
 def _(op: CallOp):
-    returnedType = lowerType(op.results[0].type)
+    returnedType = lowerToArrayType(op.results[0].type)
     returnedValue = get_ret_val(op)
     declareInst = IDNT + returnedType + " " + returnedValue + END
 

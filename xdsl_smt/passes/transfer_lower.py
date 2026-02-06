@@ -28,9 +28,9 @@ from xdsl.pattern_rewriter import (
 autogen = 0
 
 
-def eraseReturnDeclarationInstruction(funcStr: str, decl:str) -> str:
+def eraseReturnDeclarationInstruction(funcStr: str, decl:str, newInst:str) -> str:
     idx = funcStr.rfind(decl)
-    return funcStr[:idx]+funcStr[idx+len(decl):]
+    return funcStr[:idx]+newInst+funcStr[idx+len(decl):]
 
 
 @singledispatch
@@ -77,8 +77,8 @@ def _(op: Operation, fout: TextIO):
     parentOp = op.parent_op()
     if isinstance(parentOp, FuncOp) and parentOp.body.block.last_op == op:
         funcStr += "}\n\n"
-        declInst = getDeclarationInst(op)
-        funcStr = eraseReturnDeclarationInstruction(funcStr, declInst)
+        declInst, newInst = getDeclarationInst(op)
+        funcStr = eraseReturnDeclarationInstruction(funcStr, declInst, newInst)
         fout.write(funcStr)
         funcStr = funcPrefix
 
