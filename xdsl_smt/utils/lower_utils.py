@@ -432,13 +432,23 @@ def lowerToClassMethod(
     return result
 
 
-def getDeclarationInst(op:Operation) -> tuple[str, str]:
+def getDeclarationInst(op:Operation) -> str:
+    returnedType = lowerToArrayType(op.results[0].type)
+    returnedValue = get_ret_val(op)
+    if returnedType.endswith("]"):
+        declareInst = IDNT + returnedType[:-3] + " " + returnedValue+returnedType[-3:] + END
+    else:
+        declareInst = IDNT + returnedType + " " + returnedValue + END
+    return declareInst
+
+
+def getDeclarationInstWithReplace(op:Operation) -> tuple[str, str]:
     if isinstance(op, ReturnOp):
         returnValOp = op.operands[0].owner
         returnedType = lowerToArrayType(returnValOp.results[0].type, returnValOp)
         returnedValue = get_ret_val(returnValOp)
         if isinstance(returnValOp, CallOp) or isinstance(returnValOp, MakeOp):
-            result_inst = IDNT + returnedType + " " + returnedValue + END
+            result_inst = getDeclarationInst(returnValOp)
             return result_inst, ""
         return IDNT + returnedType + " " + returnedValue, IDNT + returnedValue + "[0]"
     assert False
@@ -546,6 +556,7 @@ def _(op: MakeOp) -> str:
     returnedType = lowerToArrayType(op.results[0].type, op)
     returnedValue = get_ret_val(op)
     result_inst = IDNT + returnedType + " " + returnedValue + END
+    result_inst = getDeclarationInst(op)
     assign_inst: list[str] = []
     for i in range(len(op.operands)):
         assign_inst.append(
@@ -740,6 +751,7 @@ def _(op: CallOp):
     returnedType = lowerToArrayType(op.results[0].type)
     returnedValue = get_ret_val(op)
     declareInst = IDNT + returnedType + " " + returnedValue + END
+    declareInst = getDeclarationInst(op)
 
     typePostfix = " "
     if not isinstance(op.results[0].type, AbstractValueType):

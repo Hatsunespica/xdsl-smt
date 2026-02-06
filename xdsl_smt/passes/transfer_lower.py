@@ -14,7 +14,7 @@ from ..utils.lower_utils import (
     lowerDispatcher,
     INDUCTION_KEY,
     lowerInductionOps,
-    set_int_to_apint, getDeclarationInst,
+    set_int_to_apint, getDeclarationInstWithReplace,
 )
 
 from xdsl.pattern_rewriter import (
@@ -77,7 +77,7 @@ def _(op: Operation, fout: TextIO):
     parentOp = op.parent_op()
     if isinstance(parentOp, FuncOp) and parentOp.body.block.last_op == op:
         funcStr += "}\n\n"
-        declInst, newInst = getDeclarationInst(op)
+        declInst, newInst = getDeclarationInstWithReplace(op)
         funcStr = eraseReturnDeclarationInstruction(funcStr, declInst, newInst)
         fout.write(funcStr)
         funcStr = funcPrefix
