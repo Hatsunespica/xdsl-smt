@@ -229,6 +229,10 @@ def get_op_str(op: Operation) -> str:
     return op_name
 
 
+def is_transfer_function(func: FuncOp) -> bool:
+    return "applied_to" in func.attributes
+
+
 def lowerType(typ: Attribute, specialOp: Operation | Block | None = None) -> str:
     if specialOp is not None:
         for op in unsignedReturnedType:
@@ -445,6 +449,8 @@ def getDeclarationInst(op:Operation) -> str:
 def getDeclarationInstWithReplace(op:Operation) -> tuple[str, str]:
     if isinstance(op, ReturnOp):
         returnValOp = op.operands[0].owner
+        if isinstance(returnValOp, Block):
+            return "", ""
         returnedType = lowerToArrayType(returnValOp.results[0].type, returnValOp)
         returnedValue = get_ret_val(returnValOp)
         if isinstance(returnValOp, CallOp) or isinstance(returnValOp, MakeOp):
@@ -824,7 +830,7 @@ def _(op: FuncOp):
     returnOp = op.get_return_op()
     assert returnOp is not None
     funcName = op.sym_name.data
-    shouldCombine=(funcName == "solution")
+    shouldCombine=is_transfer_function(op)
     loweredArgs, combinedArgs = lowerArgs(op.args, shouldCombine)
     expr = "("
     expr += ", ".join(loweredArgs)
