@@ -230,7 +230,7 @@ def get_op_str(op: Operation) -> str:
 
 
 def is_transfer_function(func: FuncOp) -> bool:
-    return "applied_to" in func.attributes
+    return False and func.sym_name.data == "solution" #"applied_to" in func.attributes
 
 
 def lowerType(typ: Attribute, specialOp: Operation | Block | None = None) -> str:
@@ -812,7 +812,7 @@ def _(op: FuncOp):
         result:list[str] = []
         combinedAbstractArgs:list[str] = []
         COMBINED_ABSTRACT_ARG = "combinedAbstractArg"
-        for arg in op.args:
+        for arg in args:
             typeStr = lowerType(arg.type)
             argStr = typeStr + " " + arg.name_hint
             if shouldCombine:

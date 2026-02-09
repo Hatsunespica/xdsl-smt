@@ -80,7 +80,7 @@ def liftToAbstractType(ty:Attribute)->Attribute:
 def liftToAbstractOperation(op:Operation, valueMapping:dict[SSAValue, SSAValue]) -> Operation:
     if op.dialect_name() == "transfer":
         index = op.name.rfind(".")
-        callee = op.name[index+1:] +"Impl"
+        callee = op.name[index+1:] +"_solution"
         resultType = list(map(liftToAbstractType, op.result_types))
         newOp = CallOp(callee,op.operands,resultType)
     else:
@@ -141,7 +141,6 @@ def main() -> None:
                 if func_name == args.concrete_op:
                     transfer_function_op = getTransferFunctionOp(func)
                     transfer_function_op.attributes["applied_to"] = ArrayAttr([StringAttr("llvm_pattern")])
-                    print(transfer_function_op)
                     assert checkFunctionValidity(transfer_function_op)
                     LowerToCpp(fout).apply(ctx, cast(ModuleOp, transfer_function_op))
                 elif not is_transfer_function(func):
