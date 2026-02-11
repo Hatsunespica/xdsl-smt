@@ -26,6 +26,12 @@ def register_all_arguments(arg_parser: argparse.ArgumentParser):
     arg_parser.add_argument(
         "transfer_functions", type=str, nargs="?", help="path to the transfer functions"
     )
+    arg_parser.add_argument(
+        "output", type=str, nargs="?", help="path to the output",default="tmp.cpp"
+    )
+    arg_parser.add_argument(
+        "should_combine_func", type=str, nargs="?", help="A function that should combine its arguments", default="solution"
+    )
 
 
 def parse_file(ctx: Context, file: str | None) -> Operation:
@@ -92,7 +98,7 @@ def main() -> None:
     allFuncMapping: dict[str, FuncOp] = {}
     forward = False
     counterexampleFuncs: set[str] = set()
-    with open("tmp.cpp", "w") as fout:
+    with open(args.output, "w") as fout:
         LowerToCpp.fout = fout
         for func in module.ops:
             if isinstance(func, FuncOp):
@@ -115,6 +121,8 @@ def main() -> None:
         for func in module.ops:
             if isinstance(func, FuncOp):
                 allFuncMapping[func.sym_name.data] = func
+                if args.should_combine_func == func.sym_name.data:
+                    func.attributes["should_combine"] = StringAttr("llvm_pattern")
                 # HACK: we know the pass won't check that the operation is a module
                 LowerToCpp(fout).apply(ctx, cast(ModuleOp, func))
         # addInductionOps(fout)

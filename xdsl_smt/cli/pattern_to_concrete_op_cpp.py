@@ -34,7 +34,7 @@ def register_all_arguments(arg_parser: argparse.ArgumentParser):
         "output", type=str, nargs="?", help="input to the specification file", default="tmp.cpp"
     )
     arg_parser.add_argument(
-        "concrete_op", type=str, nargs="?", help="the name of concrete pattern",default="concrete_op"
+        "-should_combine", type=str, nargs="+", help="the name of concrete pattern",default=["concrete_op"]
     )
     arg_parser.add_argument(
         "abstract_domain_length", nargs="?", type=int, help="The length of abstract type", default=2
@@ -139,15 +139,11 @@ def main() -> None:
     with open(args.output, "w") as fout:
         LowerToCpp.fout = fout
         for func in module.ops:
-            if isinstance(func, FuncOp):
+            if isinstance(func, FuncOp) and len(func.body.ops) > 1:
                 func_name = func.sym_name.data
-                if func_name == args.concrete_op:
-                    transfer_function_op = getTransferFunctionOp(func)
-                    transfer_function_op.attributes["should_combine"] = ArrayAttr([StringAttr("llvm_pattern")])
-                    assert checkFunctionValidity(transfer_function_op)
-                    LowerToCpp(fout).apply(ctx, cast(ModuleOp, transfer_function_op))
-                elif not is_transfer_function(func):
-                    LowerToCpp(fout).apply(ctx, cast(ModuleOp, func))
+                if func_name in args.should_combine:
+                    func.attributes["should_combine"] = ArrayAttr([StringAttr("llvm_pattern")])
+                LowerToCpp(fout).apply(ctx, cast(ModuleOp, func))
 
 
 

@@ -154,7 +154,7 @@ VAL_EXCEEDS_BW = "{1}.uge({1}.getBitWidth())"
 RHS_IS_ZERO = "{1} == 0"
 RET_ZERO = "{0} = APInt({1}.getBitWidth(), 0)"
 RET_ONE = "{0} = APInt({1}.getBitWidth(), 1)"
-RET_ONES = "{0} = APInt({1}.getBitWidth(), -1)"
+RET_ONES = "{0} = APInt::getAllOnes({1}.getBitWidth())"
 RET_SIGN_MIN_VAL = "{0} = APInt::getSignedMinValue({1}.getBitWidth())"
 RET_LHS = "{0} = {1}"
 
@@ -189,6 +189,7 @@ int_to_apint = False
 use_custom_vec = False
 use_pointer_vec = True
 POINTER_ABSTRACT_VALUE="APInt**"
+POINTER_CONCRETE_VALUE="APInt*"
 EQ = " = "
 END = ";\n"
 IDNT = "\t"
@@ -229,9 +230,8 @@ def get_op_str(op: Operation) -> str:
     return op_name
 
 
-def is_transfer_function(func: FuncOp) -> bool:
-    return False and func.sym_name.data == "solution" #"applied_to" in func.attributes
-
+def should_combine_arguments(func:FuncOp) -> bool:
+    return "should_combine" in func.attributes
 
 def lowerType(typ: Attribute, specialOp: Operation | Block | None = None) -> str:
     if specialOp is not None:
@@ -446,18 +446,6 @@ def getDeclarationInst(op:Operation) -> str:
     return declareInst
 
 
-def getDeclarationInstWithReplace(op:Operation) -> tuple[str, str]:
-    if isinstance(op, ReturnOp):
-        returnValOp = op.operands[0].owner
-        if isinstance(returnValOp, Block):
-            return "", ""
-        returnedType = lowerToArrayType(returnValOp.results[0].type, returnValOp)
-        returnedValue = get_ret_val(returnValOp)
-        if isinstance(returnValOp, CallOp) or isinstance(returnValOp, MakeOp):
-            result_inst = getDeclarationInst(returnValOp)
-            return result_inst, ""
-        return IDNT + returnedType + " " + returnedValue, IDNT + returnedValue + "[0]"
-    assert False
 
 @singledispatch
 def lowerOperation(op: Operation) -> str:
@@ -638,14 +626,18 @@ def _(op: NegOp) -> str:
 
 @lowerOperation.register
 def _(op: ReturnOp) -> str:
-    return ""
-    """
-    opName = get_op_str(op) + " "
-    operand = op.arguments[0].name_hint
-    assert operand
-
-    return IDNT + opName + operand + END
-    """
+    assert len(op.operands) == 1
+    lastArg = op.parent_block().args[-1]
+    returnedVal = op.operands[0]
+    if isinstance(lastArg.type, AbstractValueType):
+        bound = len(lastArg.type.get_fields())
+        result=""
+        for i in range(bound):
+            str_i = str(i)
+            result+=IDNT + lastArg.name_hint +"["+str_i+"]" + EQ + returnedVal.name_hint +"["+str_i+"]" + END
+        return result
+    else:
+        return IDNT + lastArg.name_hint +"[0]" + EQ + returnedVal.name_hint + END
 
 
 @lowerOperation.register
@@ -800,41 +792,45 @@ def _(op: FuncOp):
         assert arg.name_hint
         return lowerType(arg.type) + " " + arg.name_hint
 
-    def lowerReturn(returnOp: ReturnOp):
-        returnValue = get_operand(returnOp, 0)
-        returnedType = lowerType(op.function_type.outputs.data[0])
-        typePostfix = " "
-        if not isinstance(op.function_type.outputs.data[0], AbstractValueType):
-            typePostfix = "* "
-        return ", " + returnedType + typePostfix + returnValue
-
     def lowerArgs(args:tuple[BlockArgument, ...], shouldCombine:bool) -> tuple[list[str], list[str]]:
         result:list[str] = []
         combinedAbstractArgs:list[str] = []
+        combinedConcreteArgs:list[str] = []
         COMBINED_ABSTRACT_ARG = "combinedAbstractArg"
-        for arg in args:
+        COMBINED_CONCRETE_ARG = "combinedConcreteArg"
+        for arg in args[:-1]:
             typeStr = lowerType(arg.type)
             argStr = typeStr + " " + arg.name_hint
             if shouldCombine:
-                if not isinstance(arg.type, AbstractValueType):
-                    result.append(typeStr+" "+arg.name_hint)
+                if  isinstance(arg.type, AbstractValueType):
+                    combinedAbstractArgs.append(
+                        IDNT + argStr + EQ + COMBINED_ABSTRACT_ARG + "[" + str(len(combinedAbstractArgs)) + "]" + END)
+                elif isinstance(arg.type, TransIntegerType):
+                    combinedConcreteArgs.append(
+                        IDNT + argStr + EQ + COMBINED_CONCRETE_ARG + "[" + str(len(combinedConcreteArgs)) + "]" + END
+                    )
                 else:
-                    combinedAbstractArgs.append(IDNT + argStr + EQ + COMBINED_ABSTRACT_ARG+"[" + str(len(combinedAbstractArgs))+"]" + END)
+                    result.append(typeStr + " " + arg.name_hint)
             else:
                 result.append(typeStr + " " + arg.name_hint)
+        #Handle the last returned value
+        lastArg = args[-1]
+        result.append(lowerType(args[-1].type)+(" " if isinstance(lastArg.type, AbstractValueType) else "* ")
+                      +args[-1].name_hint)
         if combinedAbstractArgs:
             result = [POINTER_ABSTRACT_VALUE+" "+COMBINED_ABSTRACT_ARG] + result
-        return result, combinedAbstractArgs
+        if combinedConcreteArgs:
+            result = [POINTER_CONCRETE_VALUE + " " + COMBINED_CONCRETE_ARG]+ result
+        return result, combinedAbstractArgs + combinedConcreteArgs
 
 
     returnOp = op.get_return_op()
     assert returnOp is not None
     funcName = op.sym_name.data
-    shouldCombine=is_transfer_function(op)
+    shouldCombine=should_combine_arguments(op)
     loweredArgs, combinedArgs = lowerArgs(op.args, shouldCombine)
     expr = "("
     expr += ", ".join(loweredArgs)
-    expr += lowerReturn(returnOp)
     expr += ")"
 
     return "void " + funcName + expr + "{\n" + "".join(combinedArgs)  # }

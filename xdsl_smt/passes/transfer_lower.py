@@ -14,7 +14,7 @@ from ..utils.lower_utils import (
     lowerDispatcher,
     INDUCTION_KEY,
     lowerInductionOps,
-    set_int_to_apint, getDeclarationInstWithReplace,
+    set_int_to_apint
 )
 
 from xdsl.pattern_rewriter import (
@@ -55,19 +55,16 @@ def _(op: Operation, fout: TextIO):
     if len(op.results) > 0 and op.results[0].name_hint is None:
         op.results[0].name_hint = "autogen" + str(autogen)
         autogen += 1
-    returnValDefOp=None
     if isinstance(op, FuncOp):
+        returnOp = op.get_return_op()
+        if returnOp is not None:
+            assert len(returnOp.operands) == 1
+            op.body.block.insert_arg(returnOp.operands[0].type, len(op.args))
         for arg in op.args:
             if arg.name_hint is None:
                 arg.name_hint = "autogen" + str(autogen)
                 autogen += 1
-        returnOp = op.get_return_op()
-        if returnOp is not None:
-            for operand in returnOp.operands:
-                returnValDefOp = operand.owner
-                if operand.name_hint is None:
-                    operand.name_hint = "autogen" + str(autogen)
-                    autogen += 1
+
         if CPP_CLASS_KEY in op.attributes:
             needDispatch.append(op)
         if INDUCTION_KEY in op.attributes:
@@ -77,8 +74,8 @@ def _(op: Operation, fout: TextIO):
     parentOp = op.parent_op()
     if isinstance(parentOp, FuncOp) and parentOp.body.block.last_op == op:
         funcStr += "}\n\n"
-        declInst, newInst = getDeclarationInstWithReplace(op)
-        funcStr = eraseReturnDeclarationInstruction(funcStr, declInst, newInst)
+        parentBlockArgs = parentOp.body.block.args
+        #parentOp.body.block.erase_arg(parentBlockArgs[-1])
         fout.write(funcStr)
         funcStr = funcPrefix
 
