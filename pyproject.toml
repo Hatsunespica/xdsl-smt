@@ -42,6 +42,7 @@ xdsl-smt-run = "xdsl_smt.cli.xdsl_smt_run:main"
 pattern-parser = "xdsl_smt.cli.pattern_parser:main"
 pattern-to-benchmark-cpp = "xdsl_smt.cli.pattern_to_benchmark_cpp:main"
 pattern-to-concrete-op =  "xdsl_smt.cli.pattern_to_concrete_op_cpp:main"
+eval-result-and-save-graph =   "xdsl_smt.cli.eval_result_and_save_graph:main"
 
 [build-system]
 requires = ["setuptools>=61", "wheel"]

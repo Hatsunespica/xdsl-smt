@@ -12,12 +12,11 @@ from xdsl.dialects.arith import Arith
 from xdsl.dialects.func import Func
 from xdsl_smt.dialects.transfer import Transfer, AbstractValueType, TransIntegerType
 from xdsl_smt.dialects.llvm_dialect import LLVM
-from xdsl_smt.passes.transfer_lower import LowerToCpp, addDispatcher, addInductionOps
+from xdsl_smt.passes.transfer_lower import LowerToCpp
 from xdsl.dialects.func import FuncOp, ReturnOp, CallOp
 from xdsl.dialects.builtin import (
     Builtin,
     ModuleOp,
-    IntegerAttr,
     StringAttr,
     Attribute,
     FunctionType,
@@ -136,14 +135,20 @@ def main() -> None:
     assert isinstance(module, ModuleOp)
     initAbstractType(args.abstract_domain_length)
 
+    #Special functions should be placed at the end of files
     with open(args.output, "w") as fout:
+        funcList:list[FuncOp]=[]
         LowerToCpp.fout = fout
         for func in module.ops:
             if isinstance(func, FuncOp) and len(func.body.ops) > 1:
                 func_name = func.sym_name.data
                 if func_name in args.should_combine:
                     func.attributes["should_combine"] = ArrayAttr([StringAttr("llvm_pattern")])
-                LowerToCpp(fout).apply(ctx, cast(ModuleOp, func))
+                    funcList.append(func)
+                else:
+                    LowerToCpp(fout).apply(ctx, cast(ModuleOp, func))
+        for func in funcList:
+            LowerToCpp(fout).apply(ctx, cast(ModuleOp, func))
 
 
 

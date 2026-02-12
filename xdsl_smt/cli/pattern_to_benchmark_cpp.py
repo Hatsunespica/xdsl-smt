@@ -146,8 +146,6 @@ def main() -> None:
                     transfer_function_op.attributes["should_combine"] = ArrayAttr([StringAttr("llvm_pattern")])
                     assert checkFunctionValidity(transfer_function_op)
                     LowerToCpp(fout).apply(ctx, cast(ModuleOp, transfer_function_op))
-                elif not is_transfer_function(func):
-                    LowerToCpp(fout).apply(ctx, cast(ModuleOp, func))
 
 
 
