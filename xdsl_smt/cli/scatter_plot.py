@@ -67,13 +67,13 @@ def main() -> None:
     for bitwidth, values in bitwidth_to_scatter.items():
         #plt.figure()
         fig, ax = plt.subplots()
-        ax.scatter(values[0], values[1])
+        ax.scatter(values[1], values[0])
         line = mlines.Line2D([0, 1], [0, 1], color='red')
         transform = ax.transAxes
         line.set_transform(transform)
         ax.add_line(line)
-        ax.set_xlabel('The precision of composite transfer function')
-        ax.set_ylabel('The precision of sequential version')
+        ax.set_ylabel('The precision of composite transfer function')
+        ax.set_xlabel('The precision of sequential version')
         ax.set_title('Bitwidth' + str(bitwidth))
         plt.savefig(output_dir/("Bitwidth " +str(bitwidth) + ".png"), dpi=300)
 
