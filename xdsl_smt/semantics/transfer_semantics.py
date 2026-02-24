@@ -630,6 +630,40 @@ class CountRZeroOpSemantics(OperationSemantics):
         return ((resList[-1].results[0],), effect_state)
 
 
+class PopCountOpSemantics(OperationSemantics):
+    def get_semantics(
+        self,
+        operands: Sequence[SSAValue],
+        results: Sequence[Attribute],
+        attributes: Mapping[str, Attribute | SSAValue],
+        effect_state: SSAValue | None,
+        rewriter: PatternRewriter,
+    ) -> tuple[Sequence[SSAValue], SSAValue | None]:
+        operand = operands[0]
+        operand_type = operand.type
+        assert isinstance(operand_type, smt_bv.BitVectorType)
+        width = operand_type.width.data
+        shouldExtend=(width>1)
+        resList:list[Operation]=[]
+        extractOps:list[smt_bv.ExtractOp] = [smt_bv.ExtractOp(operand,0,0)]
+        lastResult = extractOps[-1].res
+        if shouldExtend:
+            resList.append(smt_bv.ZeroExtendOp(lastResult,operand_type))
+
+        for i in range(1, width):
+            extractOps: list[smt_bv.ExtractOp] = [smt_bv.ExtractOp(operand, i, i)]
+            currentResult = extractOps[-1].res
+            if shouldExtend:
+                resList.append(smt_bv.ZeroExtendOp(currentResult, operand_type))
+                currentResult = resList[-1].results[0]
+            resList.append(smt_bv.AddOp(lastResult, currentResult))
+            lastResult = currentResult
+
+        rewriter.insert_op_before_matched_op(extractOps+resList)
+        return ((lastResult,), effect_state)
+
+
+
 class SetHighBitsOpSemantics(OperationSemantics):
     def get_semantics(
         self,
@@ -1039,6 +1073,7 @@ transfer_semantics: dict[type[Operation], OperationSemantics] = {
     transfer.CountLZeroOp: CountLZeroOpSemantics(),
     transfer.CountROneOp: CountROneOpSemantics(),
     transfer.CountRZeroOp: CountRZeroOpSemantics(),
+    transfer.PopCountOp: PopCountOpSemantics(),
     transfer.SMaxOp: SMaxOpSemantics(),
     transfer.SMinOp: SMinOpSemantics(),
     transfer.UMaxOp: UMaxOpSemantics(),

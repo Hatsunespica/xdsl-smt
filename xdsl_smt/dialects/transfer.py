@@ -331,6 +331,9 @@ class CountRZeroOp(UnaryOp):
 class CountLOneOp(UnaryOp):
     name = "transfer.countl_one"
 
+@irdl_op_definition
+class PopCountOp(UnaryOp):
+    name = "transfer.popcount"
 
 @irdl_op_definition
 class CountROneOp(UnaryOp):
@@ -815,6 +818,7 @@ Transfer = Dialect(
         CountLZeroOp,
         CountROneOp,
         CountRZeroOp,
+        PopCountOp,
         SetHighBitsOp,
         SetLowBitsOp,
         SetSignBitOp,

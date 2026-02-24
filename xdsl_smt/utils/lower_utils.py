@@ -50,6 +50,7 @@ from ..dialects.transfer import (
     UDivOp,
     SRemOp,
     URemOp,
+    PopCountOp,
 )
 from xdsl.dialects.func import FuncOp, ReturnOp, CallOp
 from functools import singledispatch
@@ -95,6 +96,7 @@ operNameToCpp = {
     "transfer.set_sign_bit": ".setSignBit",
     "transfer.clear_sign_bit": ".clearSignBit",
     "transfer.intersects": ".intersects",
+    "transfer.popcount": ".popcount",
     "transfer.cmp": [
         ".eq",
         ".ne",
@@ -183,6 +185,7 @@ unsignedReturnedType = {
     CountROneOp,
     CountRZeroOp,
     GetBitWidthOp,
+    PopCountOp,
 }
 
 int_to_apint = False
@@ -905,6 +908,10 @@ def _(op: CountROneOp):
 def _(op: CountRZeroOp):
     return lowerToClassMethod(op, None, castToAPIntFromUnsigned)
 
+
+@lowerOperation.register
+def _(op: PopCountOp):
+    return lowerToClassMethod(op, None, castToAPIntFromUnsigned)
 
 def castToUnisgnedFromAPInt(operand: SSAValue | str) -> str:
     if isinstance(operand, str):
