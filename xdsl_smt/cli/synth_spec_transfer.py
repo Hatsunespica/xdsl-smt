@@ -384,7 +384,13 @@ def get_eval_engine_parameters() -> EvalEngineParameter:
 
 def get_specification(domain:str, spec_path:Path, concrete_op_path:Path) -> Specification:
     spec_module = parse_file(spec_path)
+    spec_fns = {x.sym_name.data: x for x in spec_module.ops if isinstance(x, FuncOp)}
+    FunctionCallInline(False, spec_fns).apply(ctx, spec_module)
+
     concrete_op_module = parse_file(concrete_op_path)
+    concrete_op_fns = {x.sym_name.data: x for x in concrete_op_module.ops if isinstance(x, FuncOp)}
+    FunctionCallInline(False, concrete_op_fns).apply(ctx, concrete_op_module)
+
     spec = Specification(domain, spec_module)
     spec.set_fields(concrete_op_module)
     return spec

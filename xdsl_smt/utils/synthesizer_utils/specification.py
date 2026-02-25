@@ -270,12 +270,12 @@ class Specification:
             self.distance,
             self.abstract_domain_constraint,
             self.instance_constraint,
-            self.concrete_op_constraint,
-            self.abstract_op_constraint,
         ]
 
         should_combine_funcs:list[FuncOp] = [
             self.concrete_function,
+            self.concrete_op_constraint,
+            self.abstract_op_constraint,
         ]
 
         CPP_HEAD="""
@@ -289,8 +289,9 @@ class Specification:
 
         self.cpp_code = CPP_HEAD + "\n\n".join([print_to_cpp(func) for func in funcs if func is not None])
         for func in should_combine_funcs:
-            func.attributes["should_combine"] = IntegerAttr.from_bool(True)
-        self.cpp_code += "\n\n".join([print_to_cpp(func) for func in should_combine_funcs])
+            if func is not None:
+                func.attributes["should_combine"] = IntegerAttr.from_bool(True)
+        self.cpp_code += "\n\n".join([print_to_cpp(func) for func in should_combine_funcs if func is not None])
 
         return self.cpp_code
 
