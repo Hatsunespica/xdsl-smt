@@ -1,9 +1,5 @@
-import os.path
 from subprocess import run, PIPE
-from enum import Enum
-from tempfile import mkdtemp
 from pathlib import Path
-from typing import Callable, TypeVar
 from xdsl.context import Context
 from functools import cached_property
 
@@ -24,7 +20,6 @@ class EvalEngineParameter:
     sample_bit_width: Tuple[int, ...]
     sample_concrete_amount: Tuple[int, ...]
     sample_abstract_amount: Tuple[int, ...]
-
 
     def __init__(
         self,
@@ -72,7 +67,6 @@ class EvalEngineParameter:
             "--jit-config=-S",
             "--max-operation-length=32",
         ]
-
 
 
 def eval_transfer_func(
