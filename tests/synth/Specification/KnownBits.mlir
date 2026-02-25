@@ -29,8 +29,8 @@
   %arg01 = "transfer.get"(%arg0) {index=1:index}: (!transfer.abs_value<[!transfer.integer, !transfer.integer]>) -> !transfer.integer
   %arg10 = "transfer.get"(%arg1) {index=0:index}: (!transfer.abs_value<[!transfer.integer, !transfer.integer]>) -> !transfer.integer
   %arg11 = "transfer.get"(%arg1) {index=1:index}: (!transfer.abs_value<[!transfer.integer, !transfer.integer]>) -> !transfer.integer
-  %andi0 = "transfer.and"(%arg00, %arg10) : (!transfer.integer, !transfer.integer) -> !transfer.integer
-  %andi1 = "transfer.and"(%arg01, %arg11) : (!transfer.integer, !transfer.integer) -> !transfer.integer
+  %andi0 = "transfer.or"(%arg00, %arg10) : (!transfer.integer, !transfer.integer) -> !transfer.integer
+  %andi1 = "transfer.or"(%arg01, %arg11) : (!transfer.integer, !transfer.integer) -> !transfer.integer
   %result0 = "transfer.cmp"(%andi0, %arg10){predicate=0:i64}:(!transfer.integer, !transfer.integer) -> i1
   %result1 = "transfer.cmp"(%andi1, %arg11){predicate=0:i64}:(!transfer.integer, !transfer.integer) -> i1
   %result = "arith.andi"(%result0, %result1){predicate=0:i64}:(i1, i1) -> i1
@@ -70,6 +70,15 @@
   %result = "transfer.make"(%const0, %const0) : (!transfer.integer, !transfer.integer) -> !transfer.abs_value<[!transfer.integer, !transfer.integer]>
   "func.return"(%result) : (!transfer.abs_value<[!transfer.integer, !transfer.integer]>) -> ()
 }) {function_type = (!transfer.abs_value<[!transfer.integer, !transfer.integer]>) -> !transfer.abs_value<[!transfer.integer, !transfer.integer]>, sym_name = "getTop"} : () -> ()
+
+
+"func.func"() ({
+^bb0(%arg0: !transfer.abs_value<[!transfer.integer, !transfer.integer]>):
+  %arg00 = "transfer.get"(%arg0) {index=0:index}: (!transfer.abs_value<[!transfer.integer, !transfer.integer]>) -> !transfer.integer
+  %const1 = "transfer.constant"(%arg00){value=1:index} : (!transfer.integer) -> !transfer.integer
+  %result = "transfer.make"(%const1, %const1) : (!transfer.integer, !transfer.integer) -> !transfer.abs_value<[!transfer.integer, !transfer.integer]>
+  "func.return"(%result) : (!transfer.abs_value<[!transfer.integer, !transfer.integer]>) -> ()
+}) {function_type = (!transfer.abs_value<[!transfer.integer, !transfer.integer]>) -> !transfer.abs_value<[!transfer.integer, !transfer.integer]>, sym_name = "getBottom"} : () -> ()
 
 
 "func.func"() ({
