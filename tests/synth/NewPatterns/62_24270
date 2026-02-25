@@ -1,0 +1,5 @@
+define %int @tmp(%int %"0", %int %"1") addrspace(0) {
+  %"2" = lshr %int %"1", %"0"
+  %"3" = or %int %"1", %"2"
+  ret %int %"3"
+}

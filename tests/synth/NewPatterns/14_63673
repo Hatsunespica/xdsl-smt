@@ -1,0 +1,7 @@
+define %int @tmp(%int %"0", %int %"1", %int %"2") addrspace(0) {
+  %"3" = and %int %"1", %"2"
+  %"4" = add %int %"0", %"1"
+  %"5" = and %int %"0", %"4"
+  %"6" = or disjoint %int %"3", %"5"
+  ret %int %"6"
+}

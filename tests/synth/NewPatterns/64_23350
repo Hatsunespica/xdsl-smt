@@ -1,0 +1,5 @@
+define %int @tmp(%int %"0", %int %"1") addrspace(0) {
+  %"2" = shl %int %"1", %"0"
+  %"3" = ashr exact %int %"2", %"0"
+  ret %int %"3"
+}

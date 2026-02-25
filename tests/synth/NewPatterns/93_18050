@@ -1,0 +1,7 @@
+define %int @tmp(%int %"0", %int %"1", %int %"2", %int %"3", %int %"4") addrspace(0) {
+  %"5" = or %int %"3", %"4"
+  %"6" = or %int %"2", %"5"
+  %"7" = or %int %"1", %"6"
+  %"8" = or %int %"0", %"7"
+  ret %int %"8"
+}

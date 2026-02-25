@@ -1,0 +1,5 @@
+define %int @tmp(%int %"0", %int %"1", %int %"2") addrspace(0) {
+  %"3" = lshr %int %"2", %"1"
+  %"4" = mul nuw nsw %int %"0", %"3"
+  ret %int %"4"
+}
