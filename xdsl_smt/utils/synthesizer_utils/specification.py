@@ -12,6 +12,9 @@ from xdsl_smt.passes.transfer_dead_code_elimination import TransferDeadCodeElimi
 from xdsl_smt.passes.transfer_lower import LowerToCpp
 
 
+def is_transfer_function(func: FuncOp) -> bool:
+    return "is_forward" in func.attributes
+
 @dataclass()
 class Specification:
     """
@@ -60,7 +63,7 @@ class Specification:
                 func_name = op.sym_name.data
                 assert func_name not in func_name_mapping
                 func_name_mapping[func_name] = op
-                if "is_forward" in op.attributes:
+                if is_transfer_function(op):
                     transfer_function_name = func_name
 
         if self.CONCRETE_FUNCTION_NAME in func_name_mapping:
@@ -109,7 +112,7 @@ class Specification:
         self.domain_name = domain
         assert self.get_top is not None
         func_type = self.get_top.function_type
-        returned_type = func_type.outputs[0]
+        returned_type = list(func_type.outputs)[0]
         assert isinstance(returned_type, AbstractValueType)
         self.abstract_domain_length = returned_type.get_num_fields()
 
@@ -228,6 +231,22 @@ class Specification:
                 "function type of abstract_op_constraint",
             )
 
+    def as_func_list(self) -> list[FuncOp]:
+        funcs = [
+            self.meet,
+            self.join,
+            self.get_top,
+            self.get_bottom,
+            self.from_concrete,
+            self.contains_function,
+            self.distance,
+            self.abstract_domain_constraint,
+            self.instance_constraint,
+            self.concrete_op_constraint,
+            self.abstract_op_constraint,
+        ]
+        return [func for func in funcs if func is not None]
+
     def lower_to_cpp(self, context:Context) -> str:
         # Cached cpp code
         if self.cpp_code != "":
@@ -265,15 +284,13 @@ class Specification:
         using namespace llvm;
         using namespace std;
 
-        extern "C" void evalHead(){};
-        
-        
-        """
+        extern "C" void evalHead(){};\n\n
+"""
 
         self.cpp_code = CPP_HEAD + "\n\n".join([print_to_cpp(func) for func in funcs if func is not None])
         for func in should_combine_funcs:
             func.attributes["should_combine"] = IntegerAttr.from_bool(True)
-        self.cpp_code = CPP_HEAD + "\n\n".join([print_to_cpp(func) for func in should_combine_funcs])
+        self.cpp_code += "\n\n".join([print_to_cpp(func) for func in should_combine_funcs])
 
         return self.cpp_code
 

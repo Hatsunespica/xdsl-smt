@@ -140,5 +140,10 @@ def register_arguments(prog: str) -> Namespace:
         type=Path,
         help="Path to the dsl file. If not provided, use the full dsl",
     )
+    ap.add_argument(
+        "-spec",
+        type=Path,
+        help="Path to the domain specification",
+    )
 
     return ap.parse_args()

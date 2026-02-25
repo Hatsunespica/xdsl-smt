@@ -19,8 +19,14 @@ from ..dialects.smt_utils_dialect import SMTUtilsDialect
 from xdsl_smt.eval_engine.eval import (
     AbstractDomain,
     setup_eval,
-    eval_transfer_func,
     reject_sampler,
+)
+from xdsl_smt.utils.synthesizer_utils.eval import (
+    eval_transfer_func,
+    EvalEngineParameter,
+)
+from xdsl_smt.utils.synthesizer_utils.specification import (
+    Specification
 )
 from xdsl.dialects.builtin import (
     Builtin,
@@ -188,6 +194,7 @@ def print_to_cpp(func: FuncOp) -> str:
     sio = StringIO()
     region = func.body.clone()
     cloned_func = FuncOp(func.sym_name.data, func.function_type, region=region)
+    cloned_func.attributes = func.attributes
     TransferDeadCodeElimination().apply(ctx, cast(ModuleOp, cloned_func))
     LowerToCpp(sio).apply(ctx, cast(ModuleOp, cloned_func))
 
@@ -211,12 +218,11 @@ def construct_top_func(transfer: FuncOp) -> FuncOp:
 
 
 def eval_transfer_func_helper(
-    data_dir: str,
     transfer: list[FunctionWithCondition],
     base: list[FunctionWithCondition],
     ret_top_func: FunctionWithCondition,
-    domain: AbstractDomain,
-    helper_funcs: list[str],
+    eval_engine_parameters: EvalEngineParameter,
+    spec: Specification,
 ) -> list[EvalResult]:
     """
     This function is a helper of eval_transfer_func that prints the mlir func as cpp code
@@ -227,37 +233,35 @@ def eval_transfer_func_helper(
         transfer = [ret_top_func]
     transfer_func_names: list[str] = []
     transfer_func_srcs: list[str] = []
-    helper_func_srcs: list[str] = []
     for fc in transfer:
         caller_str, helper_strs = fc.get_function_str(print_to_cpp)
+        function_str = "\n".join(helper_strs) + "\n"+caller_str
         transfer_func_names.append(fc.func_name)
-        transfer_func_srcs.append(caller_str)
-        helper_func_srcs += helper_strs
+        transfer_func_srcs.append(function_str)
 
     base_func_names: list[str] = []
     base_func_srcs: list[str] = []
     for fc in base:
         caller_str, helper_strs = fc.get_function_str(print_to_cpp)
+        function_str = "\n".join(helper_strs) +"\n"+caller_str
         base_func_names.append(fc.func_name)
-        base_func_srcs.append(caller_str)
-        helper_func_srcs += helper_strs
+        base_func_srcs.append(function_str)
 
     return eval_transfer_func(
-        data_dir,
         transfer_func_names,
         transfer_func_srcs,
         base_func_names,
         base_func_srcs,
-        helper_funcs + helper_func_srcs,
-        domain,
+        spec,
+        eval_engine_parameters,
+        ctx
     )
 
 
 def solution_set_eval_func(
-    data_dir: str,
-    domain: AbstractDomain,
-    helper_funcs: list[str],
     ret_top_func: FunctionWithCondition,
+    eval_engine_parameters: EvalEngineParameter,
+    spec: Specification,
 ) -> Callable[
     [
         list[FunctionWithCondition],
@@ -270,7 +274,7 @@ def solution_set_eval_func(
         FunctionWithCondition
     ]: (
         eval_transfer_func_helper(
-            data_dir, transfer, base, ret_top_func, domain, helper_funcs
+            transfer, base, ret_top_func, eval_engine_parameters, spec
         )
     )
 
@@ -371,6 +375,19 @@ def convert_xfer_func(fn: FuncOp, ty: AbstractValueType):
     fn.body.block.erase_arg(fn.body.block.args[2])
     fn.body.block.erase_arg(fn.body.block.args[2])
 
+
+def get_eval_engine_parameters() -> EvalEngineParameter:
+    return EvalEngineParameter("/home/spica/GitRepo/transfer-function-eval-engine/build/eval-engine",
+                               "/home/spica/GitRepo/transfer-function-eval-engine/data",
+                               [1,2,3,4],[8],[100],[0])
+
+
+def get_specification(domain:str, spec_path:Path, concrete_op_path:Path) -> Specification:
+    spec_module = parse_file(spec_path)
+    concrete_op_module = parse_file(concrete_op_path)
+    spec = Specification(domain, spec_module)
+    spec.set_fields(concrete_op_module)
+    return spec
 
 def get_helper_funcs(p: Path, d: AbstractDomain) -> tuple[ModuleOp, HelperFuncs]:
     with open(p, "r") as f:
@@ -515,6 +532,7 @@ def run(
     num_unsound_candidates: int,
     outputs_folder: Path,
     dsl_file: Path | None = None,
+    spec_path:Path|None = None,
 ) -> EvalResult:
     assert min(lbws, default=4) >= 4 or domain != AbstractDomain.IntegerModulo
     EvalResult.init_bw_settings(
@@ -532,24 +550,29 @@ def run(
     context_weighted = setup_context(random, False, dsl_file)
     context_cond = setup_context(random, True, dsl_file)
 
-    module, helper_funcs = get_helper_funcs(transfer_functions, domain)
-    helper_funcs_cpp = helper_funcs.to_cpp()
-    base_transfers = get_base_xfers(module)
+    base_transfers = []
 
-    ret_top_func = FunctionWithCondition(construct_top_func(helper_funcs.transfer_func))
+    assert spec_path is not None
+    specification = get_specification(str(domain),spec_path,transfer_functions)
+    specification.verify()
+    eval_engine_parameters = get_eval_engine_parameters()
+    spec_cpp = specification.lower_to_cpp(ctx)
+
+    ret_top_func = FunctionWithCondition(construct_top_func(specification.transfer_function))
     ret_top_func.set_func_name("ret_top")
 
-    data_dir = setup_eval(
-        domain, lbws, mbws, hbws, random_seed, "\n".join(helper_funcs_cpp)
-    )
+    #data_dir = setup_eval(
+    #    domain, lbws, mbws, hbws, random_seed, "\n".join(helper_funcs_cpp)
+    #)
+    data_dir = ""
 
     solution_eval_func = solution_set_eval_func(
-        data_dir, domain, helper_funcs_cpp, ret_top_func
+        ret_top_func, eval_engine_parameters, specification
     )
     solution_tests_sampler = solution_set_tests_sampler(
         domain,
         data_dir,
-        helper_funcs_cpp,
+        [spec_cpp],
     )
     solution_set: SolutionSet = UnsizedSolutionSet(
         base_transfers,
@@ -594,15 +617,15 @@ def run(
             solution_set.learn_weights(context_weighted)
         solution_set = synthesize_one_iteration(
             ith_iter,
-            helper_funcs.transfer_func,
+            specification.transfer_function,
             context,
             context_weighted,
             context_cond,
             random,
             solution_set,
             logger,
-            helper_funcs.crt_func,
-            helper_funcs.items_to_print(),
+            specification.concrete_function,
+            specification.as_func_list(),
             ctx,
             num_programs,
             current_prog_len,
@@ -653,13 +676,13 @@ def run(
     solution_module, solution_str = solution_set.generate_solution_and_cpp()
     save_solution(solution_module, solution_str, outputs_folder)
     cmp_results = eval_transfer_func(
-        data_dir,
         ["solution"],
         [solution_str],
         [],
         [],
-        helper_funcs_cpp,
-        domain,
+        specification,
+        eval_engine_parameters,
+        ctx
     )
 
     solution_result = cmp_results[0]
@@ -700,6 +723,7 @@ def main() -> None:
         num_unsound_candidates=args.num_unsound_candidates,
         outputs_folder=args.outputs_folder,
         dsl_file=args.dsl_file if args.dsl_file else None,
+        spec_path= args.spec
     )
 
 

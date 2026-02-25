@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Callable
-from xdsl.dialects.builtin import StringAttr, i1
+from xdsl.dialects.builtin import StringAttr, i1, IntegerAttr
 from xdsl.dialects.func import FuncOp, CallOp, ReturnOp
 from xdsl_smt.dialects.transfer import AbstractValueType, GetOp, SelectOp, MakeOp
 
@@ -48,6 +48,7 @@ class FunctionWithCondition:
         whole_function.attributes["applied_to"] = self.func.attributes["applied_to"]
         whole_function.attributes["CPPCLASS"] = self.func.attributes["CPPCLASS"]
         whole_function.attributes["is_forward"] = self.func.attributes["is_forward"]
+        whole_function.attributes["should_combine"] = IntegerAttr.from_bool(True)
 
         if self.cond is None:
             call_op = CallOp(

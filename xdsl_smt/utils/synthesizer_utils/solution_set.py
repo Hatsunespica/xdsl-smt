@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 import logging
 
 from xdsl.context import Context
-from xdsl.dialects.builtin import ModuleOp
+from xdsl.dialects.builtin import ModuleOp, IntegerAttr
 from xdsl.dialects.func import FuncOp, CallOp, ReturnOp
 
 from xdsl_smt.utils.synthesizer_utils.compare_result import EvalResult
@@ -159,6 +159,11 @@ class SolutionSet(ABC):
             result.body.block.add_ops(
                 part_result + meet_result + [ReturnOp(meet_result[-1])]
             )
+        result.attributes["should_combine"] = IntegerAttr.from_bool(True)
+        for part_solution in part_solution_funcs:
+            if "should_combine" in part_solution.attributes:
+                part_solution.attributes.pop("should_combine")
+
         return result, part_solution_funcs
 
     def generate_solution_and_cpp(self) -> tuple[ModuleOp, str]:

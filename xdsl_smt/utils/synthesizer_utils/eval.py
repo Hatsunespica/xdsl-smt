@@ -46,16 +46,15 @@ class EvalEngineParameter:
             raise FileNotFoundError(f"Incorrect bitwidth found: {sample_bit_width}")
 
         self.sample_concrete_amount = tuple(sample_concrete_amount)
-        if any(bitwidth <= 0 for bitwidth in sample_concrete_amount):
+        if any(bitwidth < 0 for bitwidth in sample_concrete_amount):
             raise FileNotFoundError(f"Incorrect bitwidth found: {sample_concrete_amount}")
 
         self.sample_abstract_amount = tuple(sample_abstract_amount)
-        if any(bitwidth <= 0 for bitwidth in sample_abstract_amount):
+        if any(bitwidth < 0 for bitwidth in sample_abstract_amount):
             raise FileNotFoundError(f"Incorrect bitwidth found: {sample_abstract_amount}")
 
 
-    @cached_property
-    def cmd_list(self):
+    def get_cmd_list(self):
         return [
             self.eval_engine_path,
             "--stdin",
@@ -88,10 +87,17 @@ def eval_transfer_func(
         "--transfer-function-arity": spec.transfer_function_arity,
     }
 
-    cmd = eval_parameters.cmd_list
+    cmd = eval_parameters.get_cmd_list()
+
 
     for key, value in params.items():
-        cmd.append(f"{key}={value}")
+        if value:
+            cmd.append(f"{key}={value}")
+
+    with open("/home/spica/GitRepo/xdsl-smt/tmp.txt", "w") as fout:
+        fout.write(source_code)
+        fout.write(" ".join(cmd))
+
 
     eval_output = run(
         cmd,
@@ -126,7 +132,7 @@ def eval_final(
         "--transfer-function-arity": spec.transfer_function_arity,
     }
 
-    cmd = eval_parameters.cmd_list
+    cmd = eval_parameters.get_cmd_list()
 
     for key, value in params.items():
         cmd.append(f"{key}={value}")
