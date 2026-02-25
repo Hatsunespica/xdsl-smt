@@ -1,6 +1,0 @@
-define %int @tmp(%int %"0", %int %"1", %int %"2", %int %"3") addrspace(0) {
-  %"4" = add %int %"2", %"3"
-  %"5" = add %int %"1", %"4"
-  %"6" = and %int %"0", %"5"
-  ret %int %"6"
-}

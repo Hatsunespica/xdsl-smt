@@ -1,6 +1,0 @@
-define %int @tmp(%int %"0", %int %"1", %int %"2", %int %"3") addrspace(0) {
-  %"4" = and %int %"2", %"3"
-  %"5" = or disjoint %int %"1", %"4"
-  %"6" = or disjoint %int %"0", %"5"
-  ret %int %"6"
-}
