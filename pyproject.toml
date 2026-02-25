@@ -36,6 +36,7 @@ generate-equivalent-boolean-smts = "xdsl_smt.cli.generate_equivalent_boolean_smt
 superoptimize = "xdsl_smt.cli.superoptimize:main"
 syn-test = "xdsl_smt.cli.syn_test:main"
 synth-transfer = "xdsl_smt.cli.synth_transfer:main"
+synth-spec-transfer = "xdsl_smt.cli.synth_spec_transfer:main"
 benchmark-synth = "xdsl_smt.cli.benchmark:main"
 eval-final = "xdsl_smt.cli.eval_final:main"
 xdsl-smt-run = "xdsl_smt.cli.xdsl_smt_run:main"
