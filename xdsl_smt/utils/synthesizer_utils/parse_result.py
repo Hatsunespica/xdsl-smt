@@ -40,6 +40,25 @@ def parse_per_bit_result(text: str) -> list[PerBitRes]:
 
     return results
 
+def parse_cache_name(full_text:str)->str:
+    """
+    Top-level parser.
+
+    - Find the cache name
+    """
+    sentinel = "Write cache to:"
+    idx = full_text.find(sentinel)
+    if idx == -1:
+        assert False and "Can't find desired cache path"
+        return ""
+
+    # Start just after the sentinel line
+    start = idx + len(sentinel)
+
+    region = full_text[start:].strip()
+
+    return region
+
 def parse_eval_result(full_text:str)->list[EvalResult]:
     """
     Top-level parser.

@@ -5,7 +5,7 @@ from functools import cached_property
 
 
 from xdsl_smt.utils.synthesizer_utils.compare_result import EvalResult, PerBitRes
-from xdsl_smt.utils.synthesizer_utils.parse_result import parse_eval_result
+from xdsl_smt.utils.synthesizer_utils.parse_result import parse_eval_result, parse_cache_name
 from xdsl_smt.utils.synthesizer_utils.specification import Specification
 
 from dataclasses import dataclass
@@ -15,6 +15,7 @@ from typing import Tuple, Sequence
 @dataclass(init=False)
 class EvalEngineParameter:
     eval_engine_path: str
+    abstract_value_cache_name: str
     data_cache_path: str
     enumerate_bit_width: Tuple[int, ...]
     sample_bit_width: Tuple[int, ...]
@@ -32,6 +33,7 @@ class EvalEngineParameter:
     ):
         self.eval_engine_path = eval_engine_path
         self.data_cache_path = data_cache_path
+        self.abstract_value_cache_name = ""
         if not Path(eval_engine_path).is_file():
             raise FileNotFoundError(f"Eval Engine not found at: {eval_engine_path}")
         if not Path(data_cache_path).is_dir():
@@ -65,7 +67,52 @@ class EvalEngineParameter:
             f"--data-cache-path={self.data_cache_path}",
             "--jit-config=-S",
             "--max-operation-length=32",
-        ]
+        ] + ([] if self.abstract_value_cache_name == "" else [f"--abstract-value-cache-name={self.abstract_value_cache_name}"])
+
+
+
+def init_abstract_value_cache(transfer_names: list[str],
+    transfer_srcs: list[str],
+    spec: Specification,
+    eval_parameters:EvalEngineParameter,
+    context: Context,):
+    source_code = spec.lower_to_cpp(context) + "\n".join(transfer_srcs)
+
+    params = {
+        "--domain": spec.domain_name,
+        "--transfer-function": ",".join(transfer_names),
+        "--abstract-domain-length": spec.abstract_domain_length,
+        "--transfer-function-arity": spec.transfer_function_arity,
+    }
+
+    cmd = eval_parameters.get_cmd_list()
+
+
+    for key, value in params.items():
+        if value:
+            cmd.append(f"{key}={value}")
+    cmd.append("--write-abstract-value")
+
+    #with open("/home/spica/GitRepo/xdsl-smt/tmp.txt", "w") as fout:
+    #    fout.write(source_code)
+    #    fout.write(" ".join(cmd))
+
+    eval_output = run(
+        cmd,
+        input=source_code,
+        text=True,
+        stdout=PIPE,
+        stderr=PIPE,
+    )
+
+    if eval_output.returncode != 0:
+        print("EvalEngine failed with this error:")
+        print(eval_output.stderr, end="")
+        exit(eval_output.returncode)
+
+    cache_name = parse_cache_name(eval_output.stdout)
+    eval_parameters.abstract_value_cache_name = cache_name
+
 
 
 def eval_transfer_func(
@@ -94,10 +141,9 @@ def eval_transfer_func(
         if value:
             cmd.append(f"{key}={value}")
 
-    with open("/home/spica/GitRepo/xdsl-smt/tmp.txt", "w") as fout:
-        fout.write(source_code)
-        fout.write(" ".join(cmd))
-
+    #with open("/home/spica/GitRepo/xdsl-smt/tmp.txt", "w") as fout:
+    #    fout.write(source_code)
+    #    fout.write(" ".join(cmd))
 
     eval_output = run(
         cmd,

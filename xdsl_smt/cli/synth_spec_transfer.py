@@ -23,7 +23,7 @@ from xdsl_smt.eval_engine.eval import (
 )
 from xdsl_smt.utils.synthesizer_utils.eval import (
     eval_transfer_func,
-    EvalEngineParameter,
+    EvalEngineParameter, init_abstract_value_cache,
 )
 from xdsl_smt.utils.synthesizer_utils.specification import (
     Specification
@@ -588,6 +588,10 @@ def run(
         logger,
         eliminate_dead_code,
     )
+    ret_top_str, ret_top_helper_strs = ret_top_func.get_function_str(print_to_cpp)
+    ret_top_function_str = "\n".join(ret_top_helper_strs) + "\n" + ret_top_str
+    init_abstract_value_cache([ret_top_func.func_name],[ret_top_function_str],
+                              specification,eval_engine_parameters,ctx)
 
     # eval the initial solutions in the solution set
     init_cmp_res = solution_set.eval_improve([])
