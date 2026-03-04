@@ -534,6 +534,7 @@ def to_spec(func_path: str) -> ModuleOp:
     context.load_dialect(arith.Arith)
     context.load_dialect(Transfer)
     init_constraint_mapping(context)
+    init_base_constraint_mapping(context)
     func = load_file(func_path)
     concrete_op = to_mlir_func(func, "concrete_op")
     op_constraint, extra_funcs = to_mlir_constraint(func)

@@ -10,11 +10,13 @@
     %3 = "arith.constant"() <{value = true}> : () -> i1
     %4 = "transfer.sdiv"(%2, %1) : (!transfer.integer, !transfer.integer) -> !transfer.integer
     %5 = "func.call"(%2, %1) <{callee = @sidv_exact}> : (!transfer.integer, !transfer.integer) -> i1
-    %6 = "transfer.add"(%0, %4) : (!transfer.integer, !transfer.integer) -> !transfer.integer
-    %7 = "func.call"(%0, %4) <{callee = @add_nsw}> : (!transfer.integer, !transfer.integer) -> i1
-    %8 = "arith.andi"(%3, %5) : (i1, i1) -> i1
-    %9 = "arith.andi"(%8, %7) : (i1, i1) -> i1
-    "func.return"(%9) : (i1) -> ()
+    %6 = "func.call"(%2, %1) <{callee = @rhs_neq_zero}> : (!transfer.integer, !transfer.integer) -> i1
+    %7 = "transfer.add"(%0, %4) : (!transfer.integer, !transfer.integer) -> !transfer.integer
+    %8 = "func.call"(%0, %4) <{callee = @add_nsw}> : (!transfer.integer, !transfer.integer) -> i1
+    %9 = "arith.andi"(%3, %5) : (i1, i1) -> i1
+    %10 = "arith.andi"(%9, %6) : (i1, i1) -> i1
+    %11 = "arith.andi"(%10, %8) : (i1, i1) -> i1
+    "func.return"(%11) : (i1) -> ()
   }) : () -> ()
   "func.func"() <{sym_name = "patternImpl", function_type = (!transfer.abs_value<[!transfer.integer, !transfer.integer]>, !transfer.abs_value<[!transfer.integer, !transfer.integer]>, !transfer.abs_value<[!transfer.integer, !transfer.integer]>) -> !transfer.abs_value<[!transfer.integer, !transfer.integer]>}> ({
   ^0(%0 : !transfer.abs_value<[!transfer.integer, !transfer.integer]>, %1 : !transfer.abs_value<[!transfer.integer, !transfer.integer]>, %2 : !transfer.abs_value<[!transfer.integer, !transfer.integer]>):
@@ -37,6 +39,14 @@
     %rem = "transfer.srem"(%arg0, %safe_arg1) : (!transfer.integer, !transfer.integer) -> !transfer.integer
     %exact = "transfer.cmp"(%rem, %const0) {predicate = 0 : i64} : (!transfer.integer, !transfer.integer) -> i1
     %check = "arith.andi"(%exact, %not_ub) : (i1, i1) -> i1
+    "func.return"(%check) : (i1) -> ()
+  }) : () -> ()
+  "func.func"() <{sym_name = "rhs_neq_zero", function_type = (!transfer.integer, !transfer.integer) -> i1}> ({
+  ^0(%arg0 : !transfer.integer, %arg1 : !transfer.integer):
+    %const0 = "transfer.constant"(%arg1) {value = 0 : index} : (!transfer.integer) -> !transfer.integer
+    %arg1_eq = "transfer.cmp"(%const0, %arg1) {predicate = 0 : i64} : (!transfer.integer, !transfer.integer) -> i1
+    %const1 = "arith.constant"() <{value = true}> : () -> i1
+    %check = "arith.xori"(%arg1_eq, %const1) : (i1, i1) -> i1
     "func.return"(%check) : (i1) -> ()
   }) : () -> ()
   "func.func"() <{sym_name = "add_nsw", function_type = (!transfer.integer, !transfer.integer) -> i1}> ({
