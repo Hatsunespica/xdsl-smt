@@ -161,6 +161,40 @@ op_mapping: dict[str, type[tf.BinOp]] = {
     "urem": tf.URemOp,
 }
 
+base_constraint_mapping: dict[str, FuncOp] = {}
+def init_base_constraint_mapping(context: Context):
+    global base_constraint_mapping
+    shifting_amount_less_bitwidth = parse_mlir_func(context, """
+    "func.func"() ({
+  ^bb0(%arg0: !transfer.integer, %arg1: !transfer.integer):
+    %const0 = "transfer.constant"(%arg1) {value=0:index}:(!transfer.integer)->!transfer.integer
+    %bitwidth = "transfer.get_bit_width"(%arg0): (!transfer.integer) -> !transfer.integer
+    %arg1_ge_0 = "transfer.cmp"(%arg1, %const0) {predicate=9:i64}: (!transfer.integer, !transfer.integer) -> i1
+    %arg1_le_bitwidth = "transfer.cmp"(%arg1, %bitwidth) {predicate=7:i64}: (!transfer.integer, !transfer.integer) -> i1
+    %check = "arith.andi"(%arg1_ge_0, %arg1_le_bitwidth) : (i1, i1) -> i1
+    "func.return"(%check) : (i1) -> ()
+  }) {function_type = (!transfer.integer, !transfer.integer) -> i1, sym_name = "shifting_amount_less_bitwidth"} : () -> ()
+    """)
+    rhs_neq_zero = parse_mlir_func(context, """
+    "func.func"() ({
+  ^bb0(%arg0: !transfer.integer, %arg1: !transfer.integer):
+    %const0 = "transfer.constant"(%arg1) {value=0:index}:(!transfer.integer)->!transfer.integer
+    %arg1_eq_0 = "transfer.cmp"(%const0, %arg1) {predicate=0:i64}: (!transfer.integer, !transfer.integer) -> i1
+    %const1 = "arith.constant"() {value=1:i1}: () -> i1
+    %check = "arith.xori"(%arg1_eq_0, %const1) : (i1, i1) -> i1
+    "func.return"(%check) : (i1) -> ()
+  }) {function_type = (!transfer.integer, !transfer.integer) -> i1, sym_name = "rhs_neq_zero"} : () -> ()
+    """)
+    base_constraint_mapping = {
+        "shl":shifting_amount_less_bitwidth,
+        "lshr":shifting_amount_less_bitwidth,
+        "ashr":shifting_amount_less_bitwidth,
+        "sdiv":rhs_neq_zero,
+        "udiv":rhs_neq_zero,
+        "srem":rhs_neq_zero,
+        "urem":rhs_neq_zero,
+    }
+
 constraint_mapping: dict[str, dict[str, FuncOp]] = {}
 
 
@@ -466,6 +500,9 @@ def to_mlir_constraint(func_def: FunctionDef) -> tuple[FuncOp, list[FuncOp]]:
             continue
         blk.add_op(cur_op)
         constraint_funcs = get_constraint_funcs(inst)
+        base_constraint_func = base_constraint_mapping.get(inst.op)
+        if base_constraint_func:
+            constraint_funcs.append(base_constraint_func)
         for c_func in constraint_funcs:
             if c_func.sym_name.data not in constraint_func_mapping:
                 constraint_func_mapping[c_func.sym_name.data] = c_func
