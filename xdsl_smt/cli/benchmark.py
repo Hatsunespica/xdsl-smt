@@ -3,45 +3,43 @@ from json import dump
 from argparse import Namespace
 from pathlib import Path
 
-from xdsl_smt.cli.synth_transfer import run
+from xdsl_smt.cli.synth_spec_transfer import run
 from xdsl_smt.cli.arg_parser import register_arguments
 from xdsl_smt.eval_engine.eval import AbstractDomain
 from xdsl_smt.utils.synthesizer_utils.log_utils import setup_loggers
 from typing import Any
 
-
 all_test_names = [
-    "10003_5.mlir",
-    "10035_5.mlir",
-    "10073_5.mlir",
-    "1010_443.mlir",
-    "101_6573.mlir",
-    "1023_437.mlir",
-    "10294_5.mlir",
-    "1030_431.mlir",
-    "10516_5.mlir",
-    "105_6345.mlir",
-    "1075_406.mlir",
-    "10763_4.mlir",
-    "10778_4.mlir",
-    "10951_4.mlir",
-    "1106_391.mlir",
-    "11331_4.mlir",
-    "11344_4.mlir",
-    "1165_368.mlir",
-    "116_5679.mlir",
-    "11707_3.mlir",
-    "11762_3.mlir",
-    "12114_3.mlir",
-    "12326_3.mlir",
-    "12689_2.mlir",
-    "12842_2.mlir",
-    "1287_315.mlir",
-    "12938_2.mlir",
-    "13075_2.mlir",
-    "13223_2.mlir",
-    "13_32126.mlir",
-    "13454_2.mlir",
+    "1_348667.mlir",
+    "2_215733.mlir",
+    "3_186886.mlir",
+    "4_177254.mlir",
+    "5_158932.mlir",
+    "6_99954.mlir",
+    "7_70582.mlir",
+    "8_69592.mlir",
+    "9_69209.mlir",
+    "10_68804.mlir",
+    "11_68233.mlir",
+    "12_67972.mlir",
+    "13_67254.mlir",
+    "14_63673.mlir",
+    "15_63561.mlir",
+    "16_63514.mlir",
+    "17_61456.mlir",
+    "18_61336.mlir",
+    "19_59469.mlir",
+    "20_57396.mlir",
+    "21_56882.mlir",
+    "22_55378.mlir",
+    "23_52397.mlir",
+    "24_51547.mlir",
+    "25_50993.mlir",
+    "26_50028.mlir",
+    "27_49446.mlir",
+    "28_45613.mlir",
+    "29_45284.mlir",
+    "30_45081.mlir",
 ]
 
 
@@ -181,6 +179,7 @@ def synth_run(
             num_unsound_candidates=args.num_unsound_candidates,
             outputs_folder=output_folder,
             dsl_file=args.dsl_file if args.dsl_file else None,
+            spec_path=args.spec
         )
 
         return {
@@ -208,7 +207,7 @@ def synth_run(
 
 def main() -> None:
     args = register_arguments("benchmark")
-    start_dir = Path("tests").joinpath("synth", "Patterns")
+    start_dir = Path("tests").joinpath("synth", "NewPatterns")
 
     if not args.outputs_folder.exists():
         args.outputs_folder.mkdir(parents=True, exist_ok=True)
