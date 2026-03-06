@@ -231,8 +231,11 @@ def main() -> None:
         #for x in scr_test_names
     ]
 
-    with Pool() as p:
-        data = p.map(synth_run, kb_inputs + ucr_inputs + scr_inputs)
+    #with Pool() as p:
+    #    data = p.map(synth_run, kb_inputs + ucr_inputs + scr_inputs)
+    data=[]
+    for item in  kb_inputs + ucr_inputs + scr_inputs:
+        data.append(synth_run(item))
 
     with open(args.outputs_folder.joinpath("data.json"), "w") as f:
         dump(data, f, indent=2)
