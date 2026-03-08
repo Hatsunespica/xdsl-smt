@@ -141,6 +141,14 @@ cr_not_best_test_names = [
 ]
 # Some best tests are also included (Umax, Add)
 
+EXTRA_DATA_PATH=Path("tests").joinpath("synth", "NewPatternsData")
+
+def check_extra_data_path(tf_path: Path) -> str:
+    basename = tf_path.stem
+    data_path = EXTRA_DATA_PATH / f"{basename}.tsv"
+    if data_path.exists():
+        return str(data_path.resolve())
+    return ""
 
 def synth_run(
     x: tuple[str, AbstractDomain, Path, Namespace],
@@ -157,6 +165,9 @@ def synth_run(
         output_folder.mkdir()
         logger = setup_loggers(output_folder, not args.quiet)
         [logger.info(f"{k}: {v}") for k, v in vars(args).items()]
+        data_path = check_extra_data_path(tf_path)
+        if data_path == "":
+            raise ValueError("Didn't find data file")
 
         res = run(
             logger=logger,
@@ -179,7 +190,8 @@ def synth_run(
             num_unsound_candidates=args.num_unsound_candidates,
             outputs_folder=output_folder,
             dsl_file=args.dsl_file if args.dsl_file else None,
-            spec_path=args.spec
+            spec_path=args.spec,
+            external_data_path=data_path
         )
 
         return {

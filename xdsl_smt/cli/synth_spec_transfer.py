@@ -539,10 +539,11 @@ def run(
     outputs_folder: Path,
     dsl_file: Path | None = None,
     spec_path:Path|None = None,
+    external_data_path: str = ""
 ) -> EvalResult:
     assert min(lbws, default=4) >= 4 or domain != AbstractDomain.IntegerModulo
     EvalResult.init_bw_settings(
-        set(lbws), set([t[0] for t in mbws]), set([t[0] for t in hbws])
+        set(lbws), {8}, {32, 64}
     )
 
     logger.debug("Round_ID\tSound%\tUExact%\tDisReduce\tCost")
@@ -562,6 +563,7 @@ def run(
     specification = get_specification(str(domain),spec_path,transfer_functions)
     specification.verify()
     eval_engine_parameters = get_eval_engine_parameters()
+    eval_engine_parameters.set_external_data(external_data_path)
     spec_cpp = specification.lower_to_cpp(ctx)
 
     ret_top_func = FunctionWithCondition(construct_top_func(specification.transfer_function))

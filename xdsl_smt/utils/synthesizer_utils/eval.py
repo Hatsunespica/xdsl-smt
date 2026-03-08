@@ -16,6 +16,7 @@ from typing import Tuple, Sequence
 class EvalEngineParameter:
     eval_engine_path: str
     abstract_value_cache_name: str
+    external_data_path:str
     data_cache_path: str
     enumerate_bit_width: Tuple[int, ...]
     sample_bit_width: Tuple[int, ...]
@@ -34,6 +35,7 @@ class EvalEngineParameter:
         self.eval_engine_path = eval_engine_path
         self.data_cache_path = data_cache_path
         self.abstract_value_cache_name = ""
+        self.external_data_path = ""
         if not Path(eval_engine_path).is_file():
             raise FileNotFoundError(f"Eval Engine not found at: {eval_engine_path}")
         if not Path(data_cache_path).is_dir():
@@ -56,8 +58,18 @@ class EvalEngineParameter:
             raise FileNotFoundError(f"Incorrect bitwidth found: {sample_abstract_amount}")
 
 
+    def set_external_data(self, data:str):
+        self.external_data_path = data
+    def get_option_list(self)->list[str]:
+        option_list:list[str] = []
+        if self.abstract_value_cache_name != "":
+            option_list.append(f"--abstract-value-cache-name={self.abstract_value_cache_name}")
+        if self.external_data_path !="":
+            option_list.append(f"--external-data-path={self.external_data_path}")
+        return option_list
+
     def get_cmd_list(self):
-        return [
+        return ([
             self.eval_engine_path,
             "--stdin",
             f"--enumerate-bit-width={','.join(map(str, self.enumerate_bit_width))}",
@@ -67,7 +79,7 @@ class EvalEngineParameter:
             f"--data-cache-path={self.data_cache_path}",
             "--jit-config=-S",
             "--max-operation-length=32",
-        ] + ([] if self.abstract_value_cache_name == "" else [f"--abstract-value-cache-name={self.abstract_value_cache_name}"])
+        ] + self.get_option_list())
 
 
 
@@ -93,9 +105,8 @@ def init_abstract_value_cache(transfer_names: list[str],
             cmd.append(f"{key}={value}")
     cmd.append("--write-abstract-value")
 
-    #with open("/home/spica/GitRepo/xdsl-smt/tmp.txt", "w") as fout:
+    #with open("/home/spica/GitRepo/xdsl-smt/tmp.cpp", "w") as fout:
     #    fout.write(source_code)
-    #    fout.write(" ".join(cmd))
 
     eval_output = run(
         cmd,
@@ -141,9 +152,9 @@ def eval_transfer_func(
         if value:
             cmd.append(f"{key}={value}")
 
-    #with open("/home/spica/GitRepo/xdsl-smt/tmp.txt", "w") as fout:
+    #with open("/home/spica/GitRepo/xdsl-smt/tmp.cpp", "w") as fout:
     #    fout.write(source_code)
-    #    fout.write(" ".join(cmd))
+    #print(" ".join(cmd))
 
     eval_output = run(
         cmd,
