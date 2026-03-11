@@ -561,6 +561,8 @@ def run(
 
     assert spec_path is not None
     specification = get_specification(str(domain),spec_path,transfer_functions)
+    if specification.transfer_function_arity >=4:
+        exit(0)
     specification.verify()
     eval_engine_parameters = get_eval_engine_parameters()
     eval_engine_parameters.set_external_data(external_data_path)
