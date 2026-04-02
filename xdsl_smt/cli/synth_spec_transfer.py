@@ -565,7 +565,8 @@ def run(
         exit(0)
     specification.verify()
     eval_engine_parameters = get_eval_engine_parameters()
-    eval_engine_parameters.set_external_data(external_data_path)
+    if external_data_path != "":
+        eval_engine_parameters.set_external_data(external_data_path)
     spec_cpp = specification.lower_to_cpp(ctx)
 
     ret_top_func = FunctionWithCondition(construct_top_func(specification.transfer_function))
