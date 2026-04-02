@@ -11,7 +11,57 @@ from typing import Any
 
 all_test_names = [
     "4_1002118.mlir",
-]
+    #"1_348667.mlir",
+    #"2_215733.mlir",
+    #"3_186886.mlir",
+    #"4_177254.mlir",
+    #"5_158932.mlir",
+   # "6_99954.mlir",
+   # "7_70582.mlir",
+   # "8_69592.mlir",
+   # "9_69209.mlir",
+   # "10_68804.mlir",
+   # "11_68233.mlir",
+    #"12_67972.mlir",
+    #"13_67254.mlir",
+    #"14_63673.mlir",
+    #"15_63561.mlir",
+    #"16_63514.mlir",
+    #"17_61456.mlir",
+    #"18_61336.mlir",
+    #"19_59469.mlir",
+    #"20_57396.mlir",
+    #"21_56882.mlir",
+    #"22_55378.mlir",
+    #"23_52397.mlir",
+    #"24_51547.mlir",
+    #"25_50993.mlir",
+    #"26_50028.mlir",
+    #"27_49446.mlir",
+    #"28_45613.mlir",
+    #"29_45284.mlir",
+    #"30_45081.mlir",
+    #'31_42777.mlir',
+    #'32_40704.mlir',
+    #'33_40414.mlir',
+    #'34_39350.mlir',
+    #'35_36625.mlir',
+    #'36_36504.mlir',
+    #'37_36349.mlir',
+    #'38_36120.mlir',
+    #'39_35662.mlir',
+    '40_35485.mlir',
+    '41_34412.mlir',
+    '42_34293.mlir',
+    '43_34198.mlir',
+    '44_33529.mlir',
+    #'45_32922.mlir',
+    #'46_32455.mlir',
+    #'47_32395.mlir',
+    #'48_32386.mlir',
+    #'49_31677.mlir',
+    #'50_30842.mlir'
+    ]
 
 
 
@@ -214,11 +264,11 @@ def main() -> None:
         #for x in scr_test_names
     ]
 
-    #with Pool() as p:
-    #    data = p.map(synth_run, kb_inputs + ucr_inputs + scr_inputs)
-    data=[]
-    for item in  kb_inputs + ucr_inputs + scr_inputs:
-        data.append(synth_run(item))
+    with Pool(4) as p:
+        data = p.map(synth_run, kb_inputs + ucr_inputs + scr_inputs)
+    #data=[]
+    #for item in  kb_inputs + ucr_inputs + scr_inputs:
+    #    data.append(synth_run(item))
 
     with open(args.outputs_folder.joinpath("data.json"), "w") as f:
         dump(data, f, indent=2)
