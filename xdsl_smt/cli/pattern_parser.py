@@ -95,7 +95,7 @@ def parse_llvm_function(text: str) -> FunctionDef:
         # binary ops with potential flags:
         # %3 = add nsw nuw i32 %1, %2
         m = re.match(
-            r"(?P<res>%\S+)\s*=\s*(?P<op>\w+)\s+(?P<flags>(?:nsw|nuw|exact|disjoint|\s)+)?(?P<typ>\w+)\s+(?P<lhs>%\S+),\s*(?P<rhs>%\S+)",
+            r"(?P<res>%\S+)\s*=\s*(?P<op>\w+)\s+(?P<flags>(?:nsw|nuw|exact|disjoint|\s)+)?(?P<typ>\w+)\s+(?P<lhs>%\S+|C[0-9]+),\s*(?P<rhs>%\S+|C[0-9]+)",
             line,
         )
         if m:
@@ -431,6 +431,22 @@ def init_constraint_mapping(context: Context):
     }
 
 
+def get_constant_constraint(context:Context) -> FuncOp:
+    known_bits_constant_constraint: str = """
+    "func.func"() <{sym_name = "constant_constraint", function_type = (!transfer.abs_value<[!transfer.integer, !transfer.integer]>) -> i1}> ({
+  ^0(%0 : !transfer.abs_value<[!transfer.integer, !transfer.integer]>):
+  %arg00 = "transfer.get"(%0) {index=0:index}: (!transfer.abs_value<[!transfer.integer,!transfer.integer]>) -> !transfer.integer
+    %arg01 = "transfer.get"(%0) {index=1:index}: (!transfer.abs_value<[!transfer.integer,!transfer.integer]>) -> !transfer.integer
+    %const0 = "transfer.constant"(%arg00){value=0:index} : (!transfer.integer) -> !transfer.integer
+    %const1 = "transfer.constant"(%arg00){value=1:index} : (!transfer.integer) -> !transfer.integer
+    %allones = "transfer.sub"(%const0, %const1) : (!transfer.integer, !transfer.integer) -> !transfer.integer
+    %or1 = "transfer.or"(%arg00,%arg01): (!transfer.integer,!transfer.integer)->!transfer.integer
+    %cmp1="transfer.cmp"(%or1,%allones){predicate=0:i64}:(!transfer.integer,!transfer.integer)->i1
+    "func.return"(%cmp1) : (i1) -> ()
+  }) {} : () -> ()
+    """
+    return parse_mlir_func(context, known_bits_constant_constraint)
+
 def get_op(inst: Instruction) -> Operation:
     global value_mapping
     arg_list: list[SSAValue] = []
@@ -448,6 +464,29 @@ def get_op(inst: Instruction) -> Operation:
         op = op_type(arg_list[0], arg_list[1])
         value_mapping[inst.result] = op.result
         return op
+
+def is_c_constant(s: str) -> bool:
+    return bool(re.fullmatch(r"%?C[0-9]+", s))
+
+def add_constant_arguments(func_def:FunctionDef):
+    '''
+    define %int @tmp(%int %a)  {
+      %b = and %int C1, %a
+      ret %int %b
+    }
+    to
+    define %int @tmp(%int %a, %int %C1)  {
+      %b = and %int %C1, %a
+      ret %int %b
+    }
+    '''
+    for inst in func_def.instructions:
+        for i in range(len(inst.operands)):
+            if is_c_constant(inst.operands[i]):
+                inst.operands[i]='%'+inst.operands[i]
+                func_def.args.append(Argument(inst.operands[i], inst.typ))
+
+
 
 
 def to_mlir_func(func_def: FunctionDef, func_name: str) -> FuncOp:
@@ -514,7 +553,6 @@ def to_mlir_constraint(func_def: FunctionDef) -> tuple[FuncOp, list[FuncOp]]:
     blk.add_op(ReturnOp(result))
     return func, list(constraint_func_mapping.values())
 
-
 def make_tf_signature(func_def:FunctionDef) -> FuncOp:
     kb_type = AbstractValueType([TransIntegerType(), TransIntegerType()])
     func_type = FunctionType.from_lists([kb_type for _ in func_def.args], [kb_type])
@@ -526,6 +564,31 @@ def make_tf_signature(func_def:FunctionDef) -> FuncOp:
     func_op.attributes["CPPCLASS"] = ArrayAttr([StringAttr("non_cpp_class")])
     return func_op
 
+
+def add_constant_constraint(func_def:FunctionDef, context:Context) -> tuple[FuncOp, list[FuncOp]]:
+    kb_type = AbstractValueType([TransIntegerType(), TransIntegerType()])
+    func_type = FunctionType.from_lists([kb_type for _ in func_def.args], [i1])
+    constant_constraint = get_constant_constraint(context)
+
+
+    func = FuncOp("abs_op_constraint", func_type)
+    for arg, arg_val in zip(func_def.args, func.args):
+        value_mapping[arg.name] = arg_val
+    blk = func.body.block
+
+    constraint_list: list[Operation] = [arith.ConstantOp.from_int_and_width(1, 1)]
+    blk.add_op(constraint_list[-1])
+    for i, arg in enumerate(func_def.args):
+        if is_c_constant(arg.name):
+            applied_op = CallOp(constant_constraint.sym_name.data, blk.args[i], [i1])
+            blk.add_op(applied_op)
+            constraint_list.append(applied_op)
+    result_ops, result = combine_and_ops(constraint_list)
+    blk.add_ops(result_ops)
+    blk.add_op(ReturnOp(result))
+    return func, [constant_constraint]
+
+
 def to_spec(func_path: str) -> ModuleOp:
     # Register all dialects
     context = Context()
@@ -536,10 +599,12 @@ def to_spec(func_path: str) -> ModuleOp:
     init_constraint_mapping(context)
     init_base_constraint_mapping(context)
     func = load_file(func_path)
+    add_constant_arguments(func)
     concrete_op = to_mlir_func(func, "concrete_op")
     op_constraint, extra_funcs = to_mlir_constraint(func)
+    abs_op_constraint, extra_abs_funcs = add_constant_constraint(func, context)
     tf_signature = make_tf_signature(func)
-    module_op = ModuleOp([concrete_op, op_constraint, tf_signature] + extra_funcs)
+    module_op = ModuleOp(extra_funcs + extra_abs_funcs + [concrete_op, op_constraint, tf_signature])
     return module_op
 
 
