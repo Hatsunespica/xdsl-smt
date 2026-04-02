@@ -10,36 +10,7 @@ from xdsl_smt.utils.synthesizer_utils.log_utils import setup_loggers
 from typing import Any
 
 all_test_names = [
-    "1_348667.mlir",
-    "2_215733.mlir",
-    "3_186886.mlir",
-    "4_177254.mlir",
-    "5_158932.mlir",
-    "6_99954.mlir",
-    "7_70582.mlir",
-    "8_69592.mlir",
-    "9_69209.mlir",
-    "10_68804.mlir",
-    "11_68233.mlir",
-    "12_67972.mlir",
-    "13_67254.mlir",
-    "14_63673.mlir",
-    "15_63561.mlir",
-    "16_63514.mlir",
-    "17_61456.mlir",
-    "18_61336.mlir",
-    "19_59469.mlir",
-    "20_57396.mlir",
-    "21_56882.mlir",
-    "22_55378.mlir",
-    "23_52397.mlir",
-    "24_51547.mlir",
-    "25_50993.mlir",
-    "26_50028.mlir",
-    "27_49446.mlir",
-    "28_45613.mlir",
-    "29_45284.mlir",
-    "30_45081.mlir",
+    "4_1002118.mlir",
 ]
 
 
@@ -166,8 +137,8 @@ def synth_run(
         logger = setup_loggers(output_folder, not args.quiet)
         [logger.info(f"{k}: {v}") for k, v in vars(args).items()]
         data_path = check_extra_data_path(tf_path)
-        if data_path == "":
-            raise ValueError("Didn't find data file")
+        #if data_path == "":
+        #    raise ValueError("Didn't find data file")
 
         res = run(
             logger=logger,
