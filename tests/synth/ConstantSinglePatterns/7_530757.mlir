@@ -47,6 +47,13 @@
     %cmp1 = "transfer.cmp"(%or1, %allones) {predicate = 0 : i64} : (!transfer.integer, !transfer.integer) -> i1
     "func.return"(%cmp1) : (i1) -> ()
   }) : () -> ()
+  "func.func"() <{sym_name = "abs_op_constraint", function_type = (!transfer.abs_value<[!transfer.integer, !transfer.integer]>, !transfer.abs_value<[!transfer.integer, !transfer.integer]>) -> i1}> ({
+  ^0(%0 : !transfer.abs_value<[!transfer.integer, !transfer.integer]>, %1 : !transfer.abs_value<[!transfer.integer, !transfer.integer]>):
+    %2 = "arith.constant"() <{value = true}> : () -> i1
+    %3 = "func.call"(%1) <{callee = @constant_constraint}> : (!transfer.abs_value<[!transfer.integer, !transfer.integer]>) -> i1
+    %4 = "arith.andi"(%2, %3) : (i1, i1) -> i1
+    "func.return"(%4) : (i1) -> ()
+  }) : () -> ()
   "func.func"() <{sym_name = "concrete_op", function_type = (!transfer.integer, !transfer.integer) -> !transfer.integer}> ({
   ^0(%0 : !transfer.integer, %1 : !transfer.integer):
     %2 = "transfer.shl"(%0, %1) : (!transfer.integer, !transfer.integer) -> !transfer.integer

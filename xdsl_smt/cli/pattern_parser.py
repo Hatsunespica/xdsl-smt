@@ -207,8 +207,8 @@ def init_constraint_mapping(context: Context):
                 """"func.func"() ({
   ^bb0(%arg0: !transfer.integer, %arg1: !transfer.integer):
     %const0 = "transfer.constant"(%arg1) {value=0:index}:(!transfer.integer)->!transfer.integer
-    %and = "transfer.and"(%arg0,%arg1) : (!transfer.integer,!transfer.integer) -> !transfer.integer
-    %eq0 = "transfer.cmp"(%and, %const0) {predicate=0:i64}: (!transfer.integer, !transfer.integer) -> i1
+    %and0 = "transfer.and"(%arg0,%arg1) : (!transfer.integer,!transfer.integer) -> !transfer.integer
+    %eq0 = "transfer.cmp"(%and0, %const0) {predicate=0:i64}: (!transfer.integer, !transfer.integer) -> i1
     "func.return"(%eq0) : (i1) -> ()
   }) {function_type = (!transfer.integer, !transfer.integer) -> i1, sym_name = "or_disjoint"} : () -> ()""",
             )
@@ -604,7 +604,7 @@ def to_spec(func_path: str) -> ModuleOp:
     op_constraint, extra_funcs = to_mlir_constraint(func)
     abs_op_constraint, extra_abs_funcs = add_constant_constraint(func, context)
     tf_signature = make_tf_signature(func)
-    module_op = ModuleOp(extra_funcs + extra_abs_funcs + [concrete_op, op_constraint, tf_signature])
+    module_op = ModuleOp(extra_funcs + extra_abs_funcs + [abs_op_constraint, concrete_op, op_constraint, tf_signature])
     return module_op
 
 
