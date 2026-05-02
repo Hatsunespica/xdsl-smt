@@ -35,13 +35,25 @@ def main() -> None:
 
     EvalResult.init_bw_settings(set(args.bitwidth),set(),set())
     evalResult = parse_eval_result(content)
-    soundDistance:list[float] = [per_bit_result.sound_dist for per_bit_result in evalResult[0].per_bit_res]
-    benchmarkDistance:list[float] = [per_bit_result.sound_dist for per_bit_result in evalResult[1].per_bit_res]
+    assert len(evalResult[0].per_bit_res) == len(evalResult[1].per_bit_res)
+
+    composite_distance_map:dict[int,float] = {}
+    sequential_distance_map:dict[int,float] = {}
+    for per_bit_result in evalResult[0].per_bit_res:
+        composite_distance_map[per_bit_result.bitwidth] = per_bit_result.sound_dist
+    for per_bit_result in evalResult[1].per_bit_res:
+        assert per_bit_result.bitwidth in composite_distance_map
+        sequential_distance_map[per_bit_result.bitwidth] = per_bit_result.sound_dist
+
+    species = sorted(composite_distance_map)
+    soundDistance:list[float] = [composite_distance_map[key] for key in species]
+    benchmarkDistance:list[float] = [sequential_distance_map[key] for key in species]
     penguin_means = {
         'Composite': soundDistance,
         'Sequential': benchmarkDistance,
     }
-    species = [str(i+1) for i in range(len(soundDistance))]
+
+
 
     x = np.arange(len(species))  # the label locations
     width = 0.25  # the width of the bars

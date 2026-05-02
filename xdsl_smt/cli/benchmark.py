@@ -50,11 +50,11 @@ all_test_names = [
     #'37_36349.mlir',
     #'38_36120.mlir',
     #'39_35662.mlir',
-    '40_35485.mlir',
-    '41_34412.mlir',
-    '42_34293.mlir',
-    '43_34198.mlir',
-    '44_33529.mlir',
+    #'40_35485.mlir',
+    #'41_34412.mlir',
+    #'42_34293.mlir',
+    #'43_34198.mlir',
+    #'44_33529.mlir',
     #'45_32922.mlir',
     #'46_32455.mlir',
     #'47_32395.mlir',
@@ -240,7 +240,7 @@ def synth_run(
 
 def main() -> None:
     args = register_arguments("benchmark")
-    start_dir = Path("tests").joinpath("synth", "NewPatterns")
+    start_dir = Path("tests").joinpath("synth", "ConstantSinglePatterns")
 
     if not args.outputs_folder.exists():
         args.outputs_folder.mkdir(parents=True, exist_ok=True)

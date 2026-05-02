@@ -79,6 +79,7 @@ class EvalEngineParameter:
             f"--data-cache-path={self.data_cache_path}",
             "--jit-config=-S",
             "--max-operation-length=32",
+            f"--enumerate-step={','.join(['1' for _ in self.enumerate_bit_width])}"
         ] + self.get_option_list())
 
 
